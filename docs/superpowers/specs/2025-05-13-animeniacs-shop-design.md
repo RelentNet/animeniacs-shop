@@ -149,13 +149,14 @@ A product can belong to multiple categories.
 
 ### Square Custom Attributes (filterable metadata)
 
-Created via API at deploy time (one-time setup script). Once defined, these fields **appear inside the Square product editor** for staff to fill in. **Max 10 seller-visible definitions allowed by Square** — we use 3.
+Created via API at deploy time (one-time setup script). Once defined, these fields **appear inside the Square product editor** for staff to fill in. **Max 10 seller-visible definitions allowed by Square** — we use 4.
 
 | Key | Schema | Purpose |
 |-----|--------|---------|
 | `artist` | String | Artist slug (e.g., `bxnny`, `saru`, `merc`). Joins to GoAffPro artist on slug. Used by `/artist/[slug]`. |
 | `ip` | String | Franchise / fandom (e.g., `naruto`, `dragon-ball`, `one-piece`). Used for IP filtering on `/shop`. |
 | `product_type` | Selection | `acrylic` / `vinyl` / `lit-box` / `acoustic-panel` / `accessory` / `custom`. Drives PDP layout and category filtering. |
+| `sibling_group` | String (optional) | Pairs two items as Acrylic/Vinyl variants of the same artwork (see §3 Variant Pattern). Leave blank if no sibling exists. |
 
 ### Staff workflow when uploading a product
 1. In Square Dashboard → Items → "Create Item".
@@ -165,6 +166,7 @@ Created via API at deploy time (one-time setup script). Once defined, these fiel
    - **Artist**: type the artist's slug (e.g., `bxnny`).
    - **IP**: type the franchise slug (e.g., `naruto`).
    - **Product Type**: pick from dropdown.
+   - **Sibling Group** (optional): if this product has an Acrylic/Vinyl counterpart (or you're about to create one), set both items' Sibling Group to the same string (e.g., `naruto-by-bxnny-001`). Leave blank if this is a standalone product.
 5. Save. Square fires the `catalog.version.updated` webhook → Next.js revalidates affected pages within seconds.
 
 ### Variant pattern (Acrylic + Vinyl as separate items)
@@ -172,7 +174,9 @@ Each piece of art exists as **two separate Square catalog items** (not variants)
 - `"{Art Name} - Acrylic Wall Art"` with `product_type=acrylic`
 - `"{Art Name} - Vinyl Decal"` with `product_type=vinyl`
 
-Both share the same `artist` and `ip` values. On the product detail page, we look up the "sibling" item via `(artist, ip, name-stem)` matching and render a type-selector (Acrylic | Vinyl) that swaps between them. If no sibling exists, no selector shown.
+Both share the same `artist` and `ip` custom-attribute values. **Sibling linking:** rather than fragile name-string matching, we add a fourth (optional) custom attribute `sibling_group` — a free-form ID (e.g., `naruto-by-bxnny-001`). When two products share a `sibling_group` value but differ in `product_type`, they are presented as type-selector siblings on the PDP. Staff sets the same `sibling_group` value on both items when uploading. If a product has no `sibling_group` (or no other item shares it), no type-selector is shown.
+
+This pattern fits within Square's 10-definition custom-attribute limit (we'd use 4 of 10: `artist`, `ip`, `product_type`, `sibling_group`).
 
 ### Image handling
 - Square stores images as `CatalogImage` objects; product carries `image_ids[]`.
@@ -292,14 +296,14 @@ Each upsell renders as: checkbox + name + price + "(?)" tooltip with short blurb
 
 ## 6. Cart & Wishlist
 
-### Cart (client-side, localStorage)
+### 6.1 Cart (client-side, localStorage)
 - Cart stored in browser `localStorage` keyed by `animeniacs_cart_v1`.
 - Cart entry shape: `{ catalog_item_id, variation_id?, name, price, image_url, quantity, upsell_of_item_id? }`.
 - Cart drawer (slide-out from right) is the primary cart UI — no separate `/cart` page (route exists as fallback for direct link / SEO but redirects to opening the drawer on the previous page).
 - Drawer shows: line items, quantity stepper per row, remove button, subtotal, **promo progress bar** (see §6.3), trust badges (delivery time + free hanging strips + "Every purchase supports an artist"), **Checkout** button.
 - No coupon-code input in the drawer — promo codes are entered later on Square's hosted checkout page or auto-applied via the affiliate URL param.
 
-### Wishlist
+### 6.2 Wishlist
 - Guests: stored in localStorage `animeniacs_wishlist_v1`.
 - Logged-in users: stored in Postgres `wishlists` table, keyed by Logto user ID. When a guest logs in, the localStorage wishlist merges into the Postgres record.
 - Wishlist drawer: same UX as cart drawer (separate icon in header).
