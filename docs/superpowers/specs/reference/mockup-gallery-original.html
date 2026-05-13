@@ -1,0 +1,201 @@
+<!--
+  Original mockup gallery code from current animeniacs.shop product pages.
+  This is the ONE aesthetic we are explicitly preserving in the new site.
+  Re-implement as a React component per spec §5.1.
+
+  Source: scraped from https://animeniacs.shop/product/gaara/ on 2025-05-13.
+-->
+<div class="mockup-gallery">
+    <div class="gallery-container">
+
+        <!-- Right side - Main display -->
+        <div class="mockup-display" id="mockupDisplay">
+            <div class="loading" id="loadingState">Loading mockups...</div>
+        </div>
+
+        <!-- Left side - Thumbnails -->
+        <div class="mockup-thumbnails" id="thumbnailContainer">
+            <!-- Thumbnails will be added here by JavaScript -->
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Configuration with your actual mockup images
+    const mockupConfig = {
+        productImage: null, // Will be detected
+        mockups: [
+            {
+                id: 'style1',
+                name: 'Modern Gallery Wall',
+                backgroundImage: 'https://animeniacs.shop/wp-content/uploads/2025/05/Purple-and-Blue-Abstract-Color-and-Style-Desktop-Wallpaper-1200-x-750-px.png',
+                aspectRatio: null, // Will be detected
+                productPosition: {
+                    top: '5%',
+                    left: '30%',
+                    width: '37%',
+                    height: '90%',
+                    transform: 'perspective(400px) rotate3d(0, 0, 0, 0deg)'
+                }
+            },
+            {
+                id: 'style2',
+                name: 'Modern Gallery Wall',
+                backgroundImage: 'https://animeniacs.shop/wp-content/uploads/2025/05/Untitled-design1.png',
+                aspectRatio: null,
+                productPosition: {
+                    top: '5%',
+                    left: '48%',
+                    width: '33%',
+                    height: '80%',
+                    transform: 'perspective(400px) rotate3d(0, -1, 0, -20deg)'
+                }
+            },
+            {
+                id: 'style3',
+                name: 'Classic Display',
+                backgroundImage: 'https://animeniacs.shop/wp-content/uploads/2025/05/product_style_1.webp',
+                aspectRatio: null,
+                productPosition: {
+                    top: '3%',
+                    left: '40%',
+                    width: '20%',
+                    height: '30%',
+                    transform: 'rotate(0deg)'
+                }
+            },
+            {
+                id: 'style4',
+                name: 'Premium Showcase',
+                backgroundImage: 'https://animeniacs.shop/wp-content/uploads/2025/05/product_style_4.webp',
+                aspectRatio: null,
+                productPosition: {
+                    top: '5%',
+                    left: '43%',
+                    width: '20%',
+                    height: '30%',
+                    transform: 'rotate(0deg)'
+                }
+            }
+        ]
+    };
+
+    // Simple product image detection
+    function findProductImage() {
+        const selectors = [
+            '.woocommerce-product-gallery__image img',
+            '.product .wp-post-image'
+        ];
+
+        for (let selector of selectors) {
+            const img = document.querySelector(selector);
+            if (img && img.src && !img.src.includes('placeholder')) {
+                return img.src;
+            }
+        }
+
+        return 'https://via.placeholder.com/400x600/4285f4/ffffff?text=Product+Image';
+    }
+
+    // Gallery state
+    let currentMockupIndex = 0;
+    let isTransitioning = false;
+
+    // Initialize gallery
+    function initializeGallery() {
+        const display = document.getElementById('mockupDisplay');
+        const thumbnailContainer = document.getElementById('thumbnailContainer');
+
+        mockupConfig.productImage = findProductImage();
+
+        mockupConfig.mockups.forEach((mockup, index) => {
+            const bgImg = document.createElement('img');
+            bgImg.className = 'mockup-background';
+            bgImg.src = mockup.backgroundImage;
+            bgImg.style.opacity = index === 0 ? '1' : '0';
+
+            bgImg.onload = function() {
+                mockup.aspectRatio = this.naturalWidth / this.naturalHeight;
+                if (index === 0) {
+                    updateDisplayAspectRatio(mockup.aspectRatio);
+                }
+            };
+
+            display.appendChild(bgImg);
+
+            const thumbnail = document.createElement('img');
+            thumbnail.className = 'thumbnail' + (index === 0 ? ' active' : '');
+            thumbnail.src = mockup.backgroundImage;
+            thumbnail.alt = mockup.name;
+            thumbnail.addEventListener('click', () => switchMockup(index));
+            thumbnailContainer.appendChild(thumbnail);
+        });
+
+        const productOverlay = document.createElement('img');
+        productOverlay.className = 'product-overlay';
+        productOverlay.src = mockupConfig.productImage;
+        display.appendChild(productOverlay);
+
+        positionProduct(productOverlay, mockupConfig.mockups[0]);
+
+        document.getElementById('loadingState').style.display = 'none';
+    }
+
+    function updateDisplayAspectRatio(aspectRatio) {
+        const display = document.getElementById('mockupDisplay');
+        display.style.aspectRatio = aspectRatio.toString();
+    }
+
+    function switchMockup(targetIndex) {
+        if (isTransitioning || targetIndex === currentMockupIndex) return;
+
+        isTransitioning = true;
+        const backgrounds = document.querySelectorAll('.mockup-background');
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        const productOverlay = document.querySelector('.product-overlay');
+        const targetMockup = mockupConfig.mockups[targetIndex];
+
+        thumbnails[currentMockupIndex].classList.remove('active');
+        thumbnails[targetIndex].classList.add('active');
+
+        if (targetMockup.aspectRatio) {
+            updateDisplayAspectRatio(targetMockup.aspectRatio);
+        }
+
+        backgrounds[currentMockupIndex].style.opacity = '0';
+        setTimeout(() => {
+            backgrounds[targetIndex].style.opacity = '1';
+        }, 200);
+
+        positionProduct(productOverlay, targetMockup);
+
+        currentMockupIndex = targetIndex;
+        setTimeout(() => { isTransitioning = false; }, 800);
+    }
+
+    function positionProduct(productElement, mockupData) {
+        const position = mockupData.productPosition;
+        Object.keys(position).forEach(property => {
+            productElement.style[property] = position[property];
+        });
+    }
+
+    function handleResize() {
+        const productOverlay = document.querySelector('.product-overlay');
+        if (productOverlay && mockupConfig.mockups[currentMockupIndex]) {
+            positionProduct(productOverlay, mockupConfig.mockups[currentMockupIndex]);
+        }
+    }
+
+    let resizeTimeout;
+    function debouncedResize() {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(handleResize, 100);
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(initializeGallery, 500);
+        window.addEventListener('resize', debouncedResize);
+    });
+</script>
