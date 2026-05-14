@@ -1612,7 +1612,6 @@ git commit -m "Task 10: Header + Footer + navigation shell
 .next
 node_modules
 .env*.local
-docs
 README.md
 *.log
 .vscode
@@ -1621,6 +1620,8 @@ README.md
 docker
 drizzle
 ```
+
+NOTE: `docs/` is INTENTIONALLY NOT excluded. The Dockerfile's builder stage runs `pnpm content:build`, which reads markdown files from `docs/superpowers/specs/static-content-source/*.md`. Excluding `docs/` would break the build.
 
 (`drizzle` is the generated migrations directory — these get copied separately in the production build step via `pnpm db:migrate` if needed. For dev, the volume mount handles it.)
 
@@ -1656,14 +1657,14 @@ Then create `Dockerfile`:
 FROM node:20-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # --- Stage 2: build ---
 FROM node:20-alpine AS builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.33.2 --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # Build content manifest then Next.js
