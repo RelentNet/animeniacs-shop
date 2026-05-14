@@ -43,6 +43,13 @@
       "when": 1778791710850,
       "tag": "0005_green_lyja",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778791777882,
+      "tag": "0006_low_phantom_reporter",
+      "breakpoints": true
     }
   ]
 }

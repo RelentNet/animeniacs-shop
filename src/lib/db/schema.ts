@@ -124,3 +124,12 @@ export const abandonedCarts = pgTable(
 
 export type AbandonedCart = typeof abandonedCarts.$inferSelect
 export type NewAbandonedCart = typeof abandonedCarts.$inferInsert
+
+export const customerLink = pgTable('customer_link', {
+  email: text('email').primaryKey(), // normalized lowercase
+  squareCustomerId: text('square_customer_id').notNull(),
+  cachedAt: timestamp('cached_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type CustomerLink = typeof customerLink.$inferSelect
+export type NewCustomerLink = typeof customerLink.$inferInsert
