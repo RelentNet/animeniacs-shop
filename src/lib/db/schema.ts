@@ -1,5 +1,14 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  check,
+  jsonb,
+  pgTable,
+  primaryKey,
+  serial,
+  text,
+  timestamp
+} from 'drizzle-orm/pg-core'
 
 export const siteSettings = pgTable('site_settings', {
   key: text('key').primaryKey(),
@@ -44,3 +53,18 @@ export const smsRecipients = pgTable('sms_recipients', {
 
 export type SmsRecipient = typeof smsRecipients.$inferSelect
 export type NewSmsRecipient = typeof smsRecipients.$inferInsert
+
+export const wishlists = pgTable(
+  'wishlists',
+  {
+    userId: text('user_id').notNull(), // Logto user ID
+    productId: text('product_id').notNull(), // Square catalog item ID
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.productId] })
+  })
+)
+
+export type WishlistEntry = typeof wishlists.$inferSelect
+export type NewWishlistEntry = typeof wishlists.$inferInsert

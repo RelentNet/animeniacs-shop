@@ -22,6 +22,13 @@
       "when": 1778791463821,
       "tag": "0002_smart_princess_powerful",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778791558730,
+      "tag": "0003_natural_steve_rogers",
+      "breakpoints": true
     }
   ]
 }
