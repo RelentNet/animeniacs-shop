@@ -45,15 +45,33 @@
 | **Hosting** | Coolify (existing instance) | Caddy/Traefik in front; automatic TLS. |
 | **CI/CD** | GitHub Actions → Coolify auto-deploy | Push to `main` → Coolify pulls and rebuilds. |
 
-### Infrastructure topology on Coolify
+### Infrastructure topology
+
+**Local dev (Docker Compose) and Coolify (same compose file)**
+
 ```
-coolify-host
-├── animeniacs-app          (Next.js, animeniacs.shop)
-├── animeniacs-postgres     (single Postgres for all services)
-├── logto                   (auth.animeniacs.shop)
-├── plausible-app + clickhouse (analytics.animeniacs.shop)
-└── sms-edge                (already deployed, used by Logto)
+animeniacs-shop/
+├── animeniacs-app          (Next.js, port 3000 → animeniacs.shop)
+├── animeniacs-postgres     (port 5432, shared by app + Logto + Plausible)
+├── logto                   (port 3001 → auth.animeniacs.shop)
+├── plausible-app           (port 8000 → analytics.animeniacs.shop)
+├── plausible-clickhouse    (internal, used by plausible-app)
+└── (external) sms-edge     (already deployed at sms-edge.relentnet.dev)
 ```
+
+**Local dev:** `docker compose up` brings up everything on `localhost` with port mappings. `.env.local` provides sandbox keys. Local URLs:
+- App: `http://localhost:3000`
+- Logto: `http://localhost:3001`
+- Plausible: `http://localhost:8000`
+- Postgres: `localhost:5432` (host-accessible for debugging)
+
+**Coolify:** the same `docker-compose.yml` is consumed by Coolify. Coolify provides:
+- TLS termination via Caddy/Traefik
+- Public FQDNs via `SERVICE_FQDN_*` environment variables
+- Persistent volumes for Postgres and uploads
+- Auto-deploy on `main` push from GitHub
+
+Migration from local → Coolify is just: push to GitHub, point Coolify at the repo, set production env vars. Zero compose edits.
 
 ---
 
@@ -942,7 +960,8 @@ Per user direction: `858-859-1851` lives only on `/contact-us`, not in the foote
 - **Orders**: New site starts with empty order history. Old WP orders remain accessible in WordPress admin (decision: leave WP running in read-only mode for staff reference, or do a one-off CSV export).
 
 ### Going live
-- Phase 1: Build + deploy to a staging subdomain (`staging.animeniacs.shop`) with Square sandbox keys.
+- Phase 0: **Local Docker Compose** — full stack runs on dev laptop with Square sandbox keys. Validate flows end-to-end locally before any cloud spend.
+- Phase 1: Push `docker-compose.yml` + app to GitHub → Coolify pulls and deploys to `staging.animeniacs.shop` with sandbox keys.
 - Phase 2: Internal testing — staff places test orders, validates the entire flow.
 - Phase 3: Switch DNS for `animeniacs.shop` from current host to Coolify. Update Square keys to production. WordPress site decommissioned.
 - Phase 4: Monitor `/admin/diagnostics` for 48 hours; verify Plausible events flowing, webhook deliveries succeeding, no errors in Discord notification channel.
