@@ -1,8 +1,17 @@
 import type { Config } from 'drizzle-kit'
 
-// Drizzle Kit cannot import from @/lib/env because it doesn't run through the
-// Next.js bundler. We duplicate the local-dev default here so `pnpm db:generate`
-// works without a live env, but PROD must always provide DATABASE_URL explicitly.
+// Drizzle Kit runs as a standalone CLI — it does NOT go through the Next.js
+// bundler, so it can't import `@/lib/env` (which is server-only-guarded and
+// expects a live process.env).
+//
+// We keep a local-dev fallback URL so two ergonomics work out of the box:
+//   1. `pnpm db:generate` without a sourced .env.local (CI-friendly, fast path).
+//   2. New devs running `pnpm db:push` for the first time with default credentials.
+//
+// Trade-off: a misconfigured production deploy with no DATABASE_URL would
+// silently target the local-dev URL. Acceptable because production runs
+// `pnpm db:migrate` inside a container where the env is always explicitly set,
+// and the resulting connection would fail loudly on the wrong host.
 const DEFAULT_LOCAL_DB_URL = 'postgres://animeniacs:animeniacs@localhost:5432/animeniacs'
 
 export default {
