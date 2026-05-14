@@ -133,3 +133,12 @@ export const customerLink = pgTable('customer_link', {
 
 export type CustomerLink = typeof customerLink.$inferSelect
 export type NewCustomerLink = typeof customerLink.$inferInsert
+
+export const productCache = pgTable('product_cache', {
+  catalogItemId: text('catalog_item_id').primaryKey(), // Square catalog item ID
+  data: jsonb('data').notNull(), // denormalized: name, price, image URLs, custom attrs
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type ProductCacheEntry = typeof productCache.$inferSelect
+export type NewProductCacheEntry = typeof productCache.$inferInsert
