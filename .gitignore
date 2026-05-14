@@ -38,3 +38,6 @@ public/sitemap.xml
 .eslintcache
 .turbo
 *.tsbuildinfo
+
+# Generated content
+src/lib/generated/
