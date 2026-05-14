@@ -37,3 +37,4 @@ public/sitemap.xml
 # Local caches
 .eslintcache
 .turbo
+*.tsbuildinfo
