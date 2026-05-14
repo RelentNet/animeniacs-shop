@@ -10,7 +10,8 @@ export default {
   out: './drizzle/migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? DEFAULT_LOCAL_DB_URL
+    // Use `||` (not `??`) so an explicitly-empty DATABASE_URL falls back to the default.
+    url: process.env.DATABASE_URL || DEFAULT_LOCAL_DB_URL
   },
   verbose: true,
   strict: true
