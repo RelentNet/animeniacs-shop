@@ -1360,8 +1360,11 @@ The spec §22 defines navigation and footer structure precisely. Build minimal, 
 
 - [ ] **Step 10.1: Create Header**
 
+NOTE: `experimental.typedRoutes: true` (next.config.mjs) typechecks `<Link href>` against routes that actually exist. The placeholder hrefs (`/shop`, `/artist`, `/custom/*`, `/account`, `/cart`) don't have route files yet — they'll be added in later phases. Cast them with `as Route` (import `type { Route } from 'next'`) so the Header compiles today.
+
 ```tsx
 // src/components/layout/Header.tsx
+import type { Route } from 'next'
 import Link from 'next/link'
 
 export function Header() {
@@ -1544,10 +1547,12 @@ import { Footer } from '@/components/layout/Footer'
 describe('Footer', () => {
   it('has all four column headers', () => {
     render(<Footer />)
-    expect(screen.getByText('Need Help')).toBeInTheDocument()
-    expect(screen.getByText('Follow Us')).toBeInTheDocument()
-    expect(screen.getByText('Partner with Us')).toBeInTheDocument()
-    expect(screen.getByText('Info')).toBeInTheDocument()
+    // Use getByRole with heading+level so 'Partner with Us' doesn't collide
+    // with the link of the same name inside that column.
+    expect(screen.getByRole('heading', { level: 2, name: 'Need Help' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Follow Us' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Partner with Us' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Info' })).toBeInTheDocument()
   })
 
   it('links to all required Info pages', () => {
