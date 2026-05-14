@@ -48,5 +48,28 @@ services:
       retries: 6
       start_period: 30s
 
+  logto:
+    image: svhd/logto:1.23
+    container_name: animeniacs-logto
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRUST_PROXY_HEADER: "1"
+      DB_URL: postgres://${POSTGRES_USER:-animeniacs}:${POSTGRES_PASSWORD:-animeniacs}@postgres:5432/logto
+      ENDPOINT: ${LOGTO_ENDPOINT:-http://localhost:3001}
+      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-http://localhost:3002}
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    ports:
+      - "${LOGTO_PORT:-3001}:3001"
+      - "${LOGTO_ADMIN_PORT:-3002}:3002"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3001/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
 volumes:
   postgres-data:
