@@ -120,7 +120,7 @@ Migration from local → Coolify is just: push to GitHub, point Coolify at the r
 
 | Route | Purpose |
 |-------|---------|
-| `/admin` | Dashboard (recent orders, abandonment count, pending events without logos) |
+| `/admin` | Dashboard (recent orders, abandonment count, hashtagged events whose logo is still the generic fallback) |
 | `/admin/settings` | Site variables: Discord link, social URLs, iCal feed URL, production-time text, contact email/phone, etc. |
 | `/admin/event-logos` | Event logo library (hashtag → image mapping). |
 | `/admin/sms-recipients` | Phone numbers that receive order alerts. |
@@ -580,49 +580,60 @@ CREATE TABLE sms_recipients (
 ### Source
 Single iCal/ICS feed URL configured in admin (`ical_feed_url`). Works with Google Calendar, Outlook, Apple Calendar — all export the same .ics format.
 
+The configured calendar is shared with non-public content (internal meetings, recording slots, family events, etc.). To opt an event in to the public site, the calendar entry's description must contain a hashtag.
+
+### Visibility rule
+**An event appears on the site if and only if its description contains at least one hashtag matching `/#([\w-]+)/`.** Events without a hashtag are silently filtered out — no warning, no fallback icon, not rendered. This is the on/off switch for public visibility, and the hashtag also keys the logo lookup.
+
 ### Parsing
 - Server-side fetch the .ics file every 15 minutes (ISR revalidation).
 - Parse using `ical.js` or similar.
-- For each event, extract: title, start, end, location, URL (DESCRIPTION or URL field), and **the first hashtag** found in the event body (regex `/#([\w-]+)/`).
+- Iterate every VEVENT in the feed:
+  1. Extract the first hashtag from `DESCRIPTION` via `/#([\w-]+)/`.
+  2. **If no hashtag → skip this event entirely.** Do not render it, do not log a warning. The omission is intentional opt-out.
+  3. Otherwise extract: title (`SUMMARY`), start (`DTSTART`), end (`DTEND`), location (`LOCATION`), URL (`URL` field if present, else first http(s) link in `DESCRIPTION`).
+  4. Filter out past events: only keep events whose end (or start, if no end) is in the future.
 
-### Logo resolution (per event)
+### Logo resolution (per public event)
+
+For events that pass the visibility rule (hashtag present):
 
 ```
-For each parsed event:
-  hashtag = extractFirstHashtag(event.description)
+hashtag = extractFirstHashtag(event.description)  // guaranteed non-null at this point
+row = SELECT * FROM event_logos WHERE hashtag = ?
 
-  if hashtag is null:
+if row exists:
+  logo = row.image_url
+else:
+  // Auto-scrape
+  logo = scrapeOgImageOrFavicon(event.url)
+  if logo is null:
     logo = "/icons/event-generic.svg"
-    log a warning to /admin/diagnostics ("Event '{title}' has no hashtag")
-
   else:
-    row = SELECT * FROM event_logos WHERE hashtag = ?
+    // Download and store in our own asset volume so we don't depend on source host
+    local_path = downloadToVolume(logo)
+    INSERT INTO event_logos (hashtag, image_url, source, source_event_url)
+                      VALUES (?, ?, 'scraped', ?)
+    logo = local_path
 
-    if row exists:
-      logo = row.image_url
-    else:
-      // Auto-scrape
-      logo = scrapeOgImageOrFavicon(event.url)
-      if logo is null:
-        logo = "/icons/event-generic.svg"
-      else:
-        // Download and store in our own asset volume so we don't depend on source host
-        local_path = downloadToVolume(logo)
-        INSERT INTO event_logos (hashtag, image_url, source, source_event_url)
-                          VALUES (?, ?, 'scraped', ?)
-        logo = local_path
-
-      // If the scrape was wrong, admin can override later via /admin/event-logos
+  // If the scrape was wrong, admin can override later via /admin/event-logos
 ```
 
 ### Display
-- `/events` page: chronological list of upcoming events, each card shows: logo, title, date range, location, "View event details" external link.
-- Homepage: most recent 3 upcoming events surfaced in a "Con-Tour" section (mimics current site's structure).
+- `/events` page: chronological list of upcoming hashtagged events, each card shows: logo, title, date range, location, "View event details" external link.
+- Homepage: most recent 3 upcoming hashtagged events surfaced in a "Con-Tour" section (mimics current site's structure).
 
 ### Edge cases
-- Event with no URL → can't scrape → uses generic icon.
-- Scrape returns 404 / no OG image / no favicon → uses generic icon, no row inserted (next time can retry).
+- Event has no hashtag → silently excluded (intentional).
+- Event has hashtag but no URL → can't scrape → uses generic icon; row not inserted so a future event with same hashtag can retry the scrape.
+- Scrape returns 404 / no OG image / no favicon → uses generic icon, no row inserted.
 - Scraped image host goes down later → we have the local copy in our volume, no dependency on source.
+- Multiple hashtags in one description → first one wins (logo + key); the rest are ignored.
+
+### Author guidance (surface in admin / docs)
+Anywhere we expose this calendar source to staff (the `/admin/settings` field for `ical_feed_url`, plus the `/admin/event-logos` page header), include a short note:
+
+> *Only events with a `#hashtag` in the description are published to the site. Events without a hashtag stay private to your calendar. Use the same hashtag for the same event series across years (e.g. `#anime-expo`) so the event logo carries forward automatically.*
 
 ---
 
