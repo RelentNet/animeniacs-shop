@@ -96,3 +96,31 @@ export const reviews = pgTable(
 
 export type Review = typeof reviews.$inferSelect
 export type NewReview = typeof reviews.$inferInsert
+
+export const abandonedCarts = pgTable(
+  'abandoned_carts',
+  {
+    cartId: text('cart_id').primaryKey(), // UUID we generate at /api/checkout
+    squareOrderId: text('square_order_id'), // populated once Square assigns an order ID
+    buyerEmail: text('buyer_email'), // nullable; only known if buyer typed it
+    cartSnapshot: jsonb('cart_snapshot').notNull(), // line items for the reminder email
+    // TS enum is a type hint only; Drizzle does not emit CHECK from it.
+    status: text('status', {
+      enum: ['pending', 'in_checkout', 'completed', 'abandoned']
+    })
+      .notNull()
+      .default('pending'),
+    reminderSentAt: timestamp('reminder_sent_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    statusValid: check(
+      'abandoned_carts_status_valid',
+      sql`${table.status} IN ('pending', 'in_checkout', 'completed', 'abandoned')`
+    )
+  })
+)
+
+export type AbandonedCart = typeof abandonedCarts.$inferSelect
+export type NewAbandonedCart = typeof abandonedCarts.$inferInsert
