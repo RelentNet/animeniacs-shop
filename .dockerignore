@@ -1,0 +1,11 @@
+.git
+.next
+node_modules
+.env*.local
+README.md
+*.log
+.vscode
+.idea
+.DS_Store
+docker
+drizzle

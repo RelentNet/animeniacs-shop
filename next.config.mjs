@@ -2,6 +2,7 @@
 const config = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'standalone',
   experimental: {
     typedRoutes: true
   },
