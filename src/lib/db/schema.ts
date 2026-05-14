@@ -2,12 +2,15 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
   serial,
   text,
-  timestamp
+  timestamp,
+  unique,
+  uuid
 } from 'drizzle-orm/pg-core'
 
 export const siteSettings = pgTable('site_settings', {
@@ -68,3 +71,28 @@ export const wishlists = pgTable(
 
 export type WishlistEntry = typeof wishlists.$inferSelect
 export type NewWishlistEntry = typeof wishlists.$inferInsert
+
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: text('product_id').notNull(), // Square catalog item ID
+    userId: text('user_id'), // Logto user ID; nullable for legacy/imported reviews
+    orderId: text('order_id'), // Square order ID; used to verify purchase
+    rating: integer('rating').notNull(),
+    title: text('title'),
+    body: text('body').notNull(),
+    photoUrls: text('photo_urls').array().notNull().default(sql`'{}'::text[]`),
+    isPublished: boolean('is_published').notNull().default(false),
+    isVerifiedPurchase: boolean('is_verified_purchase').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    ratingRange: check('reviews_rating_range', sql`${table.rating} BETWEEN 1 AND 5`),
+    uniqueUserProduct: unique('reviews_user_product_unique').on(table.userId, table.productId)
+  })
+)
+
+export type Review = typeof reviews.$inferSelect
+export type NewReview = typeof reviews.$inferInsert
