@@ -824,9 +824,11 @@ The 12 static content pages (about, FAQ, terms, etc.) are sourced from `docs/sup
 
 Run:
 ```bash
-pnpm add gray-matter@^4 marked@^15 dompurify@^3 isomorphic-dompurify@^2
-pnpm add -D tsx@^4
+pnpm add gray-matter@^4 marked@^15
+pnpm add -D tsx@^4 isomorphic-dompurify@^2
 ```
+
+Sanitization happens at build time in `scripts/content-build.ts`, so `isomorphic-dompurify` (which transitively pulls `dompurify` + `jsdom`) is a build-time-only dep. Keeping it out of `dependencies` avoids jsdom in the Next.js server runtime bundle (jsdom's synchronous `readFileSync` on a CSS file fails in Next's webpack server bundle).
 
 - [ ] **Step 7.2: Create scripts/content-build.ts**
 
@@ -840,6 +842,7 @@ pnpm add -D tsx@^4
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
+import DOMPurify from 'isomorphic-dompurify'
 import { marked } from 'marked'
 
 const SOURCE_DIR = path.resolve('docs/superpowers/specs/static-content-source')
@@ -855,6 +858,7 @@ type ContentEntry = {
 async function build(): Promise<void> {
   await fs.mkdir(OUTPUT_DIR, { recursive: true })
   const files = await fs.readdir(SOURCE_DIR)
+  files.sort()
   const manifest: Record<string, ContentEntry> = {}
 
   for (const file of files) {
@@ -863,10 +867,11 @@ async function build(): Promise<void> {
     const raw = await fs.readFile(path.join(SOURCE_DIR, file), 'utf-8')
     const { content, data } = matter(raw)
     const html = await marked.parse(content)
+    const safeHtml = DOMPurify.sanitize(html)
     // First H1 in the source becomes the title; fall back to filename.
     const titleMatch = content.match(/^#\s+(.+)$/m)
     const title = (data.title as string) ?? titleMatch?.[1] ?? slug.replace(/-/g, ' ')
-    manifest[slug] = { slug, title, html }
+    manifest[slug] = { slug, title, html: safeHtml }
   }
 
   await fs.writeFile(OUTPUT_FILE, JSON.stringify(manifest, null, 2))
@@ -925,22 +930,22 @@ export function listContent(): ContentEntry[] {
 - [ ] **Step 7.6: Create src/components/content/MarkdownPage.tsx**
 
 ```tsx
-import DOMPurify from 'isomorphic-dompurify'
 import type { ContentEntry } from '@/lib/content'
 
 export function MarkdownPage({ content }: { content: ContentEntry }) {
-  const safeHtml = DOMPurify.sanitize(content.html)
   return (
     <article className="mx-auto max-w-3xl px-4 py-12">
       <div
         className="prose"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via DOMPurify above
-        dangerouslySetInnerHTML={{ __html: safeHtml }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at build time in scripts/content-build.ts
+        dangerouslySetInnerHTML={{ __html: content.html }}
       />
     </article>
   )
 }
 ```
+
+HTML is pre-sanitized by `scripts/content-build.ts` and stored in the manifest, so this component renders trusted HTML directly with no runtime sanitization dependency. This avoids pulling `jsdom` (via `isomorphic-dompurify`) into the Next.js server bundle, where its synchronous `readFileSync` on a CSS file fails.
 
 - [ ] **Step 7.7: Write content loader test**
 
@@ -991,9 +996,9 @@ Expected: 4 passed.
 git add .
 git commit -m "Task 7: Markdown content loader
 
-- prebuild script parses static-content-source/*.md to JSON
+- prebuild script parses static-content-source/*.md to JSON and sanitizes HTML via DOMPurify at build time
 - getContent/listContent helpers in src/lib/content.ts
-- MarkdownPage component with DOMPurify sanitization
+- MarkdownPage component renders pre-sanitized HTML (no runtime sanitization dep)
 - src/lib/generated/ is gitignored (build artifact)
 - Tests cover happy path, missing slug, content correctness"
 ```
@@ -1020,27 +1025,23 @@ Create one `page.tsx` per static-content page. Each is a 4-line file that loads 
 
 - [ ] **Step 8.1: Create a single helper component for 404 case**
 
-Edit `src/components/content/MarkdownPage.tsx` to add a NotFound export at the bottom:
+`src/components/content/MarkdownPage.tsx` was already created in Step 7.6 with build-time sanitization. No edits are needed here — Next.js will throw `notFound()` if content is missing, and the existing component is sufficient:
 
 ```tsx
-import DOMPurify from 'isomorphic-dompurify'
 import type { ContentEntry } from '@/lib/content'
 
 export function MarkdownPage({ content }: { content: ContentEntry }) {
-  const safeHtml = DOMPurify.sanitize(content.html)
   return (
     <article className="mx-auto max-w-3xl px-4 py-12">
       <div
         className="prose"
-        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized via DOMPurify above
-        dangerouslySetInnerHTML={{ __html: safeHtml }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitized at build time in scripts/content-build.ts
+        dangerouslySetInnerHTML={{ __html: content.html }}
       />
     </article>
   )
 }
 ```
-
-(No NotFound case needed — Next.js will throw `notFound()` if content is missing.)
 
 - [ ] **Step 8.2: Create src/app/about-us/page.tsx**
 
