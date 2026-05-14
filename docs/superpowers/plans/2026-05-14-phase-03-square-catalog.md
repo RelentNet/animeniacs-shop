@@ -2140,7 +2140,7 @@ pnpm lint
 pnpm build
 ```
 
-Expected: all green. Unit count ~21, integration count 33+.
+Expected: all green. Unit count ~33 (16 from Phase 2 + 2 env + 3 types + 3 client + 5 denormalizer + 1 cache + 3 signature). Integration count 28 from Phase 2 + 5 new Square sandbox tests = 33 when keys are set.
 
 - [ ] **Step 13.10: Tag Phase 3 complete**
 
@@ -2186,6 +2186,6 @@ After Phase 3 ships:
 - `pnpm square:sync` backfills the catalog.
 - `POST /api/webhooks/square` accepts signature-verified Square events, audits every one to `order_log`, and triggers `refreshChanged()` on catalog mutations.
 - Real sandbox catalog changes propagate to `product_cache` within seconds.
-- Test counts: 21 unit, ~33 integration, plus 5 Square-sandbox integration tests behind `describe.skipIf(!HAS_KEYS)`.
+- Test counts: ~33 unit, ~28 integration baseline, plus 5 Square-sandbox integration tests behind `describe.skipIf(!HAS_KEYS)` that bring integration to 33 when keys are configured.
 
 Phase 4 (catalog UX) opens by reading `product_cache` directly — no SDK calls from React server components.
