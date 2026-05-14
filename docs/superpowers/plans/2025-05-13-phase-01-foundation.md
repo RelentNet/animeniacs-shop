@@ -2031,6 +2031,10 @@ Minimal ClickHouse config for low-resource local dev.
     image: clickhouse/clickhouse-server:24.3-alpine
     container_name: animeniacs-plausible-clickhouse
     restart: unless-stopped
+    environment:
+      # Skip the image's "set a password or disable network access" gate so that
+      # Plausible can connect as the default user (matches upstream Plausible CE).
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
     volumes:
       - plausible-clickhouse-data:/var/lib/clickhouse
       - ./docker/plausible/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
@@ -2040,7 +2044,9 @@ Minimal ClickHouse config for low-resource local dev.
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      # Use 127.0.0.1 (IPv4) — busybox wget in alpine prefers IPv6 for 'localhost',
+      # but ClickHouse binds IPv4-only per <listen_host>0.0.0.0</listen_host>.
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
       interval: 10s
       timeout: 5s
       retries: 6
