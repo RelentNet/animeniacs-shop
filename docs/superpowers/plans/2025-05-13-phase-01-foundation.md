@@ -25,7 +25,7 @@ animeniacs-shop/
 ├── compose.yml                   ← single docker-compose entry point
 ├── Dockerfile                    ← multi-stage Next.js build
 ├── drizzle.config.ts             ← Drizzle Kit config
-├── next.config.ts
+├── next.config.mjs           ← .mjs because Next.js 14 doesn't support .ts config
 ├── package.json
 ├── pnpm-lock.yaml                ← generated
 ├── README.md                     ← already exists; expand setup instructions
@@ -228,12 +228,13 @@ Expected: creates `node_modules/` and `pnpm-lock.yaml`. No errors.
 }
 ```
 
-- [ ] **Step 1.4: Create next.config.ts**
+- [ ] **Step 1.4: Create next.config.mjs**
 
-```typescript
-import type { NextConfig } from 'next'
+Note: Next.js 14 does not support `.ts` config files (added in Next 15). Use `.mjs`.
 
-const config: NextConfig = {
+```javascript
+/** @type {import('next').NextConfig} */
+const config = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
@@ -1618,12 +1619,11 @@ drizzle
 
 Multi-stage: deps → builder → runner. Uses Next.js standalone output for tiny final image.
 
-First, enable standalone output in `next.config.ts`:
+First, enable standalone output in `next.config.mjs`:
 
-```typescript
-import type { NextConfig } from 'next'
-
-const config: NextConfig = {
+```javascript
+/** @type {import('next').NextConfig} */
+const config = {
   reactStrictMode: true,
   poweredByHeader: false,
   output: 'standalone',
