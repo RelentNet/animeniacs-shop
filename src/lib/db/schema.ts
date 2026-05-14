@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { check, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, check, jsonb, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
 
 export const siteSettings = pgTable('site_settings', {
   key: text('key').primaryKey(),
@@ -33,3 +33,14 @@ export const eventLogos = pgTable(
 
 export type EventLogo = typeof eventLogos.$inferSelect
 export type NewEventLogo = typeof eventLogos.$inferInsert
+
+export const smsRecipients = pgTable('sms_recipients', {
+  id: serial('id').primaryKey(),
+  phone: text('phone').notNull().unique(), // E.164 format
+  label: text('label'), // "Owner", "Manager", etc.
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type SmsRecipient = typeof smsRecipients.$inferSelect
+export type NewSmsRecipient = typeof smsRecipients.$inferInsert

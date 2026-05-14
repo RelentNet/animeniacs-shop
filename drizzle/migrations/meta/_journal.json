@@ -15,6 +15,13 @@
       "when": 1778791238539,
       "tag": "0001_sad_nicolaos",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778791463821,
+      "tag": "0002_smart_princess_powerful",
+      "breakpoints": true
     }
   ]
 }
