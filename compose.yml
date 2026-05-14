@@ -71,5 +71,46 @@ services:
       retries: 10
       start_period: 60s
 
+  plausible-clickhouse:
+    image: clickhouse/clickhouse-server:24.3-alpine
+    container_name: animeniacs-plausible-clickhouse
+    restart: unless-stopped
+    environment:
+      # Skip the image's "set a password or disable network access" gate so that
+      # Plausible can connect as the default user (matches upstream Plausible CE).
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    volumes:
+      - plausible-clickhouse-data:/var/lib/clickhouse
+      - ./docker/plausible/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+      - ./docker/plausible/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/logging.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  plausible:
+    image: ghcr.io/plausible/community-edition:v2.1
+    container_name: animeniacs-plausible
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      plausible-clickhouse:
+        condition: service_healthy
+    env_file:
+      - ./docker/plausible/plausible-conf.env
+    environment:
+      SECRET_KEY_BASE: ${PLAUSIBLE_SECRET_KEY_BASE}
+      TOTP_VAULT_KEY: ${PLAUSIBLE_TOTP_VAULT_KEY}
+    ports:
+      - "${PLAUSIBLE_PORT:-8000}:8000"
+    command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
+
 volumes:
   postgres-data:
+  plausible-clickhouse-data:
