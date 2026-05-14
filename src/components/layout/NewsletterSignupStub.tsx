@@ -1,11 +1,23 @@
 'use client'
 
+import { useState } from 'react'
+
 export function NewsletterSignupStub() {
+  const [submitted, setSubmitted] = useState(false)
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    // Real submission wired up in Phase 9
-    alert('Newsletter signup wires up in Phase 9.')
+    // Real submission is wired up in a later phase. For now, acknowledge
+    // the click inline so users see something happen but no email is sent.
+    setSubmitted(true)
   }
+
+  if (submitted) {
+    return (
+      <output className="text-sm text-gray-700">Thanks — newsletter signup launching soon.</output>
+    )
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
       <label htmlFor="newsletter-email" className="sr-only">

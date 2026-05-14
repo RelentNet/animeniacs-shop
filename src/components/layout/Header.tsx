@@ -26,14 +26,10 @@ export function Header() {
               <Link href={'/custom/stickers' as Route}>Custom Stickers</Link>
             </li>
             <li>
-              <Link href={'/account' as Route} aria-label="Account">
-                Account
-              </Link>
+              <Link href={'/account' as Route}>Account</Link>
             </li>
             <li>
-              <Link href={'/cart' as Route} aria-label="Cart">
-                Cart
-              </Link>
+              <Link href={'/cart' as Route}>Cart</Link>
             </li>
           </ul>
         </nav>
