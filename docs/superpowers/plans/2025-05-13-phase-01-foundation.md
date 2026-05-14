@@ -959,7 +959,10 @@ describe('content loader', () => {
   it('finds the about-us page', () => {
     const entry = getContent('about-us')
     expect(entry).not.toBeNull()
-    expect(entry?.title).toContain('Animeniacs')
+    // Title is extracted from the first H1 of about-us.md (which is "# About Us").
+    // The Animeniacs mention lives in the body content.
+    expect(entry?.title).toBe('About Us')
+    expect(entry?.html).toContain('Animeniacs')
   })
 
   it('returns null for unknown slug', () => {
