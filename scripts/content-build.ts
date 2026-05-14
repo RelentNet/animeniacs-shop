@@ -7,6 +7,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import matter from 'gray-matter'
+import DOMPurify from 'isomorphic-dompurify'
 import { marked } from 'marked'
 
 const SOURCE_DIR = path.resolve('docs/superpowers/specs/static-content-source')
@@ -22,6 +23,7 @@ type ContentEntry = {
 async function build(): Promise<void> {
   await fs.mkdir(OUTPUT_DIR, { recursive: true })
   const files = await fs.readdir(SOURCE_DIR)
+  files.sort()
   const manifest: Record<string, ContentEntry> = {}
 
   for (const file of files) {
@@ -30,10 +32,11 @@ async function build(): Promise<void> {
     const raw = await fs.readFile(path.join(SOURCE_DIR, file), 'utf-8')
     const { content, data } = matter(raw)
     const html = await marked.parse(content)
+    const safeHtml = DOMPurify.sanitize(html)
     // First H1 in the source becomes the title; fall back to filename.
     const titleMatch = content.match(/^#\s+(.+)$/m)
     const title = (data.title as string) ?? titleMatch?.[1] ?? slug.replace(/-/g, ' ')
-    manifest[slug] = { slug, title, html }
+    manifest[slug] = { slug, title, html: safeHtml }
   }
 
   await fs.writeFile(OUTPUT_FILE, JSON.stringify(manifest, null, 2))
