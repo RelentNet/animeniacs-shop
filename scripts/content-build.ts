@@ -35,7 +35,8 @@ async function build(): Promise<void> {
     const safeHtml = DOMPurify.sanitize(html)
     // First H1 in the source becomes the title; fall back to filename.
     const titleMatch = content.match(/^#\s+(.+)$/m)
-    const title = (data.title as string) ?? titleMatch?.[1] ?? slug.replace(/-/g, ' ')
+    const frontmatterTitle = typeof data.title === 'string' ? data.title : undefined
+    const title = frontmatterTitle ?? titleMatch?.[1] ?? slug.replace(/-/g, ' ')
     manifest[slug] = { slug, title, html: safeHtml }
   }
 
