@@ -28,4 +28,17 @@ describe('env loader', () => {
     vi.stubEnv('DATABASE_URL', undefined)
     await expect(import('../src/lib/env')).rejects.toThrow('Invalid environment configuration')
   })
+
+  it('defaults SQUARE_ENV to sandbox', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5433/db')
+    vi.stubEnv('SQUARE_ENV', undefined)
+    const mod = await import('../src/lib/env')
+    expect(mod.env.SQUARE_ENV).toBe('sandbox')
+  })
+
+  it('rejects an invalid SQUARE_ENV value', async () => {
+    vi.stubEnv('DATABASE_URL', 'postgres://u:p@localhost:5433/db')
+    vi.stubEnv('SQUARE_ENV', 'staging')
+    await expect(import('../src/lib/env')).rejects.toThrow('Invalid environment configuration')
+  })
 })
