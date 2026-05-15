@@ -28,7 +28,9 @@
     "sq:snapshot": "tsx scripts/square-cleanup/snapshot.ts",
     "sq:mirror": "tsx scripts/square-cleanup/mirror.ts",
     "sq:audit": "tsx scripts/square-cleanup/audit.ts",
-    "sq:cleanup": "tsx scripts/square-cleanup/cleanup.ts"
+    "sq:cleanup": "tsx scripts/square-cleanup/cleanup.ts",
+    "goaffpro:probe": "tsx scripts/goaffpro/probe.ts",
+    "sq:account-probe": "tsx scripts/square-account-probe/probe.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
