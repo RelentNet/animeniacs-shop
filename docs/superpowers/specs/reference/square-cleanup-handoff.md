@@ -18,14 +18,14 @@ cleanup to production. The mirror script is the prerequisite.
 
 Five phases total:
 
-- **Phase A: Mirror prod → sandbox** ← we're here
-- Phase B: Audit report (read-only, generates markdown showing problems)
+- Phase A: Mirror prod → sandbox — **complete** (commit `75359ea`)
+- **Phase B: Audit report (read-only, generates markdown showing problems)** ← next session
 - Phase C: Define cleanup rules in YAML (you and user sit down together)
 - Phase D: Add `artist` custom attribute + assignments
 - Phase E: Apply cleanup to sandbox first, verify, then promote to production
 
-Phases B-E are designed but not yet plan-doc'd. Don't start them until A is
-verified working end-to-end.
+Phase A is verified working end-to-end. User has reviewed the result and
+approved Phase B to start.
 
 ---
 
@@ -236,8 +236,21 @@ https://app.squareupsandbox.com/dashboard/items/library
 
 ## Next: Phase B (audit report)
 
-**Do not start Phase B without explicit go-ahead.** User wants to review
-the Phase A mirror result first.
+**Status:** User reviewed Phase A and gave explicit go-ahead to start
+Phase B (commit `75359ea` accepted on 2026-05-15).
+
+**User's stated preferences (from the Phase A review):**
+
+1. **The IMAGE skip is acceptable.** Sandbox has 0 images vs production's
+   594; that's fine for cleanup rehearsal because cleanup operates on
+   metadata, not pixels. The audit report should still flag image-related
+   issues (broken URLs, orphans), but image *migration* itself is deferred
+   to a Phase 4 task (catalog UX wants real images for /shop).
+2. **Smoke-test the API before writing code.** Before the report
+   generator runs against real data, write a small probe that fetches a
+   sample of each object type from the sandbox and prints actual field
+   shapes. Document gotchas alongside the report. This catches things
+   like the BigInt/Number/ordinal quirks that bit Phase A.
 
 The Phase B design sketch:
 
@@ -265,6 +278,35 @@ flagging:
 
 Output: `docs/superpowers/specs/reference/square-production-audit.md` —
 read-only artifact. No writes.
+
+### Phase B success criteria
+
+Phase B is done when:
+
+1. `pnpm sq:audit <snapshot.json>` runs in <30 seconds against the
+   sandbox snapshot, emits a markdown report with one section per
+   issue category (17 categories above), and exits 0.
+2. The report's counts are independently verifiable (a column shows
+   "found X of Y total items"; spot-check the numbers in psql or
+   another script).
+3. No writes to Square. The script never calls anything beyond
+   `client.catalog.list`. The mirror script's hard production guard
+   is preserved.
+4. The report is committed to the repo under the path above and the
+   handoff doc is updated to reflect Phase B completion.
+5. Stop. Do NOT start Phase C — the user wants to read the report and
+   decide cleanup rules together before any rules-YAML work begins.
+
+### Phase B scope NON-goals
+
+- No fixes applied. Just reporting.
+- No image migration. Items missing images are flagged but not
+  re-uploaded.
+- No artist-attribute creation. That's Phase D.
+- No "best-guess" data fixes. Decisions belong to the user in Phase C.
+- No additional snapshots needed — re-use the latest production
+  snapshot in `/tmp/`. If `/tmp/` is empty (machine rebooted),
+  re-run `pnpm sq:snapshot production`.
 
 ## Why this is being handed off
 
