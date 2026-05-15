@@ -194,10 +194,33 @@ async function planOrphanImageDeletes(client: SquareClient): Promise<PlannedOp[]
   return ops
 }
 
-async function planCustomAttrDefinitionDeletes(client: SquareClient): Promise<PlannedOp[]> {
+/**
+ * Our Square app's own application ID. Square enforces source-app
+ * ownership on CUSTOM_ATTRIBUTE_DEFINITIONs: only the app that created
+ * a definition can delete it via the API. Definitions created by other
+ * apps (e.g., LitCommerce) must be deleted from the Square dashboard
+ * by the seller, not via API. We detect ownership and skip definitions
+ * we can't legally delete, with a clear warning.
+ */
+const OUR_APP_IDS = {
+  sandbox: 'sandbox-sq0idb-RDG62efYYgRFZVm6D8habA',
+  production: 'sq0idp-yvVs1zdcCJMsDeeCH4QUlA'
+}
+
+async function planCustomAttrDefinitionDeletes(
+  client: SquareClient,
+  env: SquareEnv
+): Promise<PlannedOp[]> {
   // Target the two LitCommerce-created definitions that conflict with the
   // working ITEM_OPTIONs of the same name. The 3 Square-system definitions
   // (is_alcoholic, ecom_*) are NEVER deleted by this script.
+  //
+  // KNOWN LIMITATION: Square's API requires source-app ownership for delete.
+  // The Media/Size definitions in production are owned by LitCommerce
+  // (applicationId sq0idp-uauiGDCgVKFsxIzOIKtTUA) and cannot be deleted
+  // via our app's token — they return 403 FORBIDDEN. Such definitions
+  // must be deleted from the Square dashboard by the seller. We detect
+  // and skip them in planning so the apply step doesn't fail loudly.
 
   const TARGET_KEYS = new Set(['Media', 'Size'])
   const SYSTEM_KEYS = new Set([
@@ -205,9 +228,11 @@ async function planCustomAttrDefinitionDeletes(client: SquareClient): Promise<Pl
     'ecom_target_classic_site_id',
     'ecom_gifting_enabled'
   ])
+  const ourAppId = OUR_APP_IDS[env]
 
   const defs = await listAll(client, 'CUSTOM_ATTRIBUTE_DEFINITION')
   const ops: PlannedOp[] = []
+  const skipped: Array<{ key: string; sourceApp: string | undefined }> = []
 
   for (const def of defs) {
     const data = def.customAttributeDefinitionData
@@ -216,18 +241,35 @@ async function planCustomAttrDefinitionDeletes(client: SquareClient): Promise<Pl
     if (SYSTEM_KEYS.has(key)) continue // never touch Square-system defs
     if (!TARGET_KEYS.has(key)) continue // narrow to our explicit targets
 
+    const sourceAppId: string | undefined = data.sourceApplication?.applicationId
+    const sourceAppName: string | undefined = data.sourceApplication?.name
+
+    // Square enforces source-app ownership; skip if we don't own it.
+    if (sourceAppId && sourceAppId !== ourAppId) {
+      skipped.push({ key, sourceApp: sourceAppName ?? sourceAppId })
+      continue
+    }
+
     ops.push({
       kind: 'delete-custom-attribute-definition',
       objectId: def.id,
       objectType: 'CUSTOM_ATTRIBUTE_DEFINITION',
       reason:
-        'LitCommerce-created definition that duplicates an existing ITEM_OPTION of the same name; zero items reference it',
+        'Definition that duplicates an existing ITEM_OPTION of the same name; zero items reference it',
       details: {
         key,
         name: data.name,
         allowedTypes: (data.allowedObjectTypes ?? []).join(', ')
       }
     })
+  }
+
+  // Surface skips so the user understands why nothing happens for those defs.
+  if (skipped.length > 0) {
+    console.log('\nSkipping definitions owned by other apps (delete via Square dashboard):')
+    for (const s of skipped) {
+      console.log(`  ${s.key.padEnd(15)} owned by ${s.sourceApp ?? '<unknown>'}`)
+    }
   }
 
   return ops
@@ -391,7 +433,7 @@ async function main(): Promise<void> {
 
   console.log('\nPlanning operations from live catalog state...')
   const imageOps = await planOrphanImageDeletes(client)
-  const defOps = await planCustomAttrDefinitionDeletes(client)
+  const defOps = await planCustomAttrDefinitionDeletes(client, opts.env)
   const ops = [...imageOps, ...defOps]
 
   reportDryRun(ops, opts.env)

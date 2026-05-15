@@ -75,17 +75,46 @@ inheritance from Phase A means sandbox couldn't rehearse the
 image-deletion path, but the script architecture is identical for
 both kinds of deletes — the production run will exercise it.
 
-### Production dry-run — clean
+### Production apply — partial success (commit `8160b04`+follow-up)
+
+User confirmed; ran on 2026-05-15:
 
 ```
-pnpm sq:cleanup production
-# 392 orphan IMAGEs + 4 URL-less IMAGEs + 2 definitions
-# Total: 398 operations
+pnpm sq:cleanup production --apply --i-mean-it --confirm "YES I MEAN IT"
 ```
 
-Counts cross-check against Phase B audit (396 orphans = 392 with-URL
-orphans + 4 without-URL). Awaiting explicit user confirmation to
-apply.
+Result: **396 of 398 operations succeeded**.
+
+| Operation | Count | Status |
+|---|---|---|
+| delete-orphan-image | 392 | ✅ all ok |
+| delete-image-without-url | 4 | ✅ all ok |
+| delete-custom-attribute-definition (Media) | 1 | ❌ 403 FORBIDDEN |
+| delete-custom-attribute-definition (Size) | 1 | ❌ 403 FORBIDDEN |
+
+Production IMAGEs went from 594 → 198 (exactly matching Phase B's
+predicted 198 referenced images). Two-thirds of the image catalog
+(the dead weight) is gone.
+
+**LitCommerce ownership gotcha:** Square's API enforces source-app
+ownership on CUSTOM_ATTRIBUTE_DEFINITIONs. The Media and Size
+definitions in production were created by LitCommerce (applicationId
+`sq0idp-uauiGDCgVKFsxIzOIKtTUA`), so our app's token cannot delete
+them — only LitCommerce or the seller (via the dashboard) can.
+
+The cleanup script has been patched to detect ownership and skip
+unowned definitions cleanly (with a console warning). The script
+remains idempotent: future runs of `pnpm sq:cleanup production` are
+0-op until new rules are added.
+
+**To finish removing Media/Size from production:** log into
+squareup.com → Items → Settings → Custom attributes → delete `Media`
+and `Size` manually. The dashboard runs as the seller, not as our
+app, so it bypasses the API restriction. ~30 seconds of manual work.
+
+Audit log: `cleanup-audit/cleanup-production-2026-05-15T03-27-07-887Z.jsonl`
+(gitignored; ~400 entries with full operation details and S3 URLs
+for forensic recovery).
 
 ---
 
