@@ -20,13 +20,72 @@ cleanup to production. The mirror script is the prerequisite.
 Five phases total:
 
 - Phase A: Mirror prod → sandbox — **complete** (commit `75359ea`)
-- Phase B: Audit report (read-only markdown of catalog hygiene issues) — **complete**
-- **Phase C: Define cleanup rules in YAML (you and user sit down together)** ← next session
+- Phase B: Audit report (read-only markdown of catalog hygiene issues) — **complete** (commit `c9abf17`)
+- Phase C: Define cleanup rules — **partial: easy automatic wins shipped** as a hard-coded ruleset in `scripts/square-cleanup/cleanup.ts`. Sandbox rehearsal complete. Production apply pending user go-ahead. The harder pattern-level decisions (artist SKU graveyard, category-tree disposition, duplicate adjudication) deferred to a YAML rules file in a future session.
 - Phase D: Add `artist` custom attribute + assignments
 - Phase E: Apply cleanup to sandbox first, verify, then promote to production
 
-Phases A and B are both verified. User to read the audit report and decide
-cleanup rules together before any Phase C work begins.
+### Phase C status (first iteration)
+
+The Phase B audit surfaced 17 issue categories. Discussion clustered them
+into 4 patterns:
+
+1. **Orphan image lifecycle** (issues #13/#14) — 396 orphan IMAGEs + 4
+   URL-less IMAGEs. Lowest-risk, highest-volume cleanup. Fully automatic.
+2. **Vestigial custom attribute definitions** (issues #16/#17) — `Media`
+   and `Size` LitCommerce-created definitions conflicting with the
+   working ITEM_OPTIONs. Fully automatic.
+3. **Artist SKU graveyard** (issues #1/#4/#11 overlap) — 30 artist-named
+   placeholder SKUs with no category, no image, no data. Needs user
+   decisions.
+4. **Category-tree disposition** (issues #8/#9) — 35 of 41 categories
+   empty; the entire franchise tree (Anime/Comics/Games) is built but
+   unused. Needs user decisions.
+
+This iteration ships patterns 1 and 2 (the easy automatic wins) so the
+end-to-end apply pipeline is proven on low-risk data before tackling
+the consequential decisions. Patterns 3 and 4 will become a YAML
+rules file in a future session once the user has reviewed the audit
+in depth.
+
+### Phase C apply script: `pnpm sq:cleanup`
+
+Script: `scripts/square-cleanup/cleanup.ts`. Hard-coded ruleset for
+patterns 1 and 2 (the easy wins). Pulls live state from Square at
+plan time (not from a snapshot, which would race with dashboard
+edits). Dry-run by default; `--apply` commits.
+
+Production has a triple guard:
+- `--apply` flag
+- `--i-mean-it` flag
+- `--confirm "YES I MEAN IT"` typed verbatim
+
+Every write goes to a JSONL audit log under `cleanup-audit/` (gitignored).
+
+### Sandbox rehearsal — complete
+
+```
+pnpm sq:cleanup sandbox            # dry-run: 2 op(s) planned
+pnpm sq:cleanup sandbox --apply    # 2 ok, 0 failed
+```
+
+Sandbox CUSTOM_ATTRIBUTE_DEFINITION count: 5 → 3 (Square-system
+definitions preserved; `Media` and `Size` removed). The 0-IMAGE
+inheritance from Phase A means sandbox couldn't rehearse the
+image-deletion path, but the script architecture is identical for
+both kinds of deletes — the production run will exercise it.
+
+### Production dry-run — clean
+
+```
+pnpm sq:cleanup production
+# 392 orphan IMAGEs + 4 URL-less IMAGEs + 2 definitions
+# Total: 398 operations
+```
+
+Counts cross-check against Phase B audit (396 orphans = 392 with-URL
+orphans + 4 without-URL). Awaiting explicit user confirmation to
+apply.
 
 ---
 

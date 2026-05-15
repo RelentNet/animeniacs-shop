@@ -27,7 +27,8 @@
     "prebuild": "pnpm content:build",
     "sq:snapshot": "tsx scripts/square-cleanup/snapshot.ts",
     "sq:mirror": "tsx scripts/square-cleanup/mirror.ts",
-    "sq:audit": "tsx scripts/square-cleanup/audit.ts"
+    "sq:audit": "tsx scripts/square-cleanup/audit.ts",
+    "sq:cleanup": "tsx scripts/square-cleanup/cleanup.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",

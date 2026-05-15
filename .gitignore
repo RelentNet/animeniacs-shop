@@ -41,3 +41,6 @@ public/sitemap.xml
 
 # Generated content
 src/lib/generated/
+
+# Cleanup audit logs (kept locally for forensics; not in repo)
+cleanup-audit/
