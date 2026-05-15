@@ -4,6 +4,7 @@ import {
   check,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   serial,
@@ -153,3 +154,40 @@ export const orderLog = pgTable('order_log', {
 
 export type OrderLogEntry = typeof orderLog.$inferSelect
 export type NewOrderLogEntry = typeof orderLog.$inferInsert
+
+export const artists = pgTable(
+  'artists',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    displayName: text('display_name').notNull(),
+    squareCategoryId: text('square_category_id').notNull(),
+    // TS-side enum is a type hint only; Drizzle does NOT emit CHECK from it.
+    // Explicit check below enforces at DB level (matches Phase 2 convention).
+    status: text('status', { enum: ['active', 'inactive'] })
+      .notNull()
+      .default('active'),
+    avatarUrl: text('avatar_url'),
+    bio: text('bio'),
+    instagram: text('instagram'),
+    twitter: text('twitter'),
+    facebook: text('facebook'),
+    youtube: text('youtube'),
+    tiktok: text('tiktok'),
+    website: text('website'),
+    commissionRate: numeric('commission_rate', { precision: 5, scale: 4 })
+      .notNull()
+      .default('0.2000'),
+    paymentMethod: text('payment_method'),
+    paymentEmail: text('payment_email'),
+    notes: text('notes'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    statusValid: check('artists_status_valid', sql`${table.status} IN ('active', 'inactive')`)
+  })
+)
+
+export type Artist = typeof artists.$inferSelect
+export type NewArtist = typeof artists.$inferInsert
