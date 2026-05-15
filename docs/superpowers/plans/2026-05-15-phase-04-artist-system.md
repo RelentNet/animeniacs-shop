@@ -552,7 +552,7 @@ The original design spec §11 placed admin auth in Phase 7. The artist admin (th
 
 **Decision needed:** sub-category slugs match GoAffPro display names exactly (`Bxnny.Arts`, `sarudrawss`, `Merc Da Artist`, `Addham`, …) or use a shorter house style (`Bxnny`, `Saru`, `Merc`, `Addham`). Both work. **Recommendation: match the GoAffPro display name** because (a) it makes the data-entry pass into the `artists` table trivial — `displayName` is literally the GoAffPro field, (b) Merc Da Artist already exists in this style in production, and (c) the user-facing artist page header reads the same string from the `artists.displayName` column.
 
-- [ ] **C.1.1: Record the decision in this plan** (overwrite this line with the chosen convention before C.2).
+- [x] **C.1.1: Decision recorded (2026-05-15 execution session).** Convention 1 — **match the GoAffPro display name exactly.** Each sub-category created under `Artist > X` uses the GoAffPro display name verbatim: `Bxnny.Arts`, `sarudrawss`, `Merc Da Artist` (already exists), `Addham`, `Saru`, etc. Casing and punctuation preserved as-is from GoAffPro. The user-facing artist page header reads `artists.displayName` (a separate column), so the operator can later clean up the public-facing name per-artist without renaming the Square category. This matches locked Decision #4 in the plan's `Decisions captured` section.
 
 ### Task C.2 — Create the sub-categories in Square production
 
