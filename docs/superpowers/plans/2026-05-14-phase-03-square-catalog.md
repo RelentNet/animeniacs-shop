@@ -10,13 +10,38 @@
 
 **Outcome at end of Phase 3:**
 - Square Node SDK installed and a typed singleton client exported.
-- Four custom-attribute definitions live in your Square sandbox catalog (`artist`, `ip`, `product_type`, `sibling_group`), idempotent setup script.
+- ~~Four custom-attribute definitions live in your Square sandbox catalog (`artist`, `ip`, `product_type`, `sibling_group`), idempotent setup script.~~ **DROPPED per the 2026-05-15 amendment below — see "Phase 3 amendment".**
 - `pnpm square:sync` backfills every catalog item into `product_cache` with images denormalized.
 - `POST /api/webhooks/square` is signature-verified, routes 5 event types, and writes to `order_log`. Catalog change events trigger a delta sync into `product_cache`.
 - 14 new unit tests (SDK mocked) + integration tests against the live sandbox.
 - Git tag `phase-3-square-catalog` marks the milestone.
 
 **API keys needed:** Square sandbox access token + sandbox location ID + webhook signature key. User supplies these between Task 3 and Task 4 (see the GATE block).
+
+---
+
+## Phase 3 amendment — 2026-05-15 (commit `5a0200e`)
+
+**The four planned Square custom-attribute definitions are no longer being created.** Square `categories[]` carries artist/IP signal instead (per the new structure in `docs/superpowers/specs/reference/artist-system-handoff.md` and `goaffpro-api-probes.md §11`).
+
+The implementing agent **must skip** the following items in this plan and treat them as superseded:
+
+| Item | Status | Notes |
+|---|---|---|
+| **Task 5** — One-time custom attribute setup script | **CANCELLED** | Do not create `src/lib/square/custom-attributes.ts`. Do not create `scripts/square-setup-custom-attributes.ts`. Do not add a `square:setup` script to `package.json`. Skip Steps 5.1–5.6 entirely. |
+| **Task 2** — `CUSTOM_ATTR_KEYS`, `PRODUCT_TYPES`, `isProductType`, `customAttributes` field on `CachedProduct` | **Already shipped (commit `b008982`); now carries dead constants** | The shipped `src/lib/square/types.ts` is harmless but contains constants the runtime no longer populates. Do not roll back the commit. A follow-up cleanup pass (probably during Phase 4 implementation or post-launch) will remove these dead constants. The implementing agent for the remaining Phase 3 tasks should leave them alone. |
+| **Task 6** — Catalog read functions (`listAllProducts`, `getProductById`, `listProductsChangedSince`, `denormalizeItem`) | **UNCHANGED** | Brief is explicit: *"The catalog-read parts unchanged."* These continue as planned. The `customAttributes` field on the returned object will just be empty for every item, which is correct now. |
+| **Task 7** — Product cache (`getCachedProduct`, `refreshAll`, etc.) | **UNCHANGED** | The cache layer is type-agnostic about whether `customAttributes` is populated. |
+| **Task 8** — `pnpm square:sync` backfill script | **UNCHANGED** | Backfill still does its job; the cached products simply won't have `customAttributes` populated (now correct). |
+| **Task 9** — Webhook signature verification | **UNCHANGED** | |
+| **Task 10** — `POST /api/webhooks/square` route handler | **UNCHANGED** | |
+| **Task 11** — Local dev tunnel + webhook subscription setup | **UNCHANGED** | |
+| **Task 12** — Integration tests against the live sandbox | **UNCHANGED** | Drop any assertions that reference the `artist`, `ip`, `product_type`, or `sibling_group` custom attributes being populated. The "reads custom attributes when set" test in `tests/integration/square/catalog-read.integration.test.ts` (Task 12 Step 12.2) becomes a no-op or should be removed. |
+| **Task 13** — End-to-end manual verification + tag | **Partially amended** | Step 13.3 (which invokes `pnpm square:setup` to verify all 4 definitions exist) is **CANCELLED**. The rest of Step 13 (services healthy, sandbox keys work, `pnpm square:sync` runs, webhook signed events land in `order_log`, cache refreshes after a price change) is unchanged. |
+
+**Why this amendment instead of a rewritten plan:** Phase 3 is in flight (Tasks 1–3 shipped at `b1ea6b7`, `b008982`, `f2b7edf`). Surgically dropping the cancelled work leaves the unchanged catalog-read / cache / webhook tracks intact and avoids re-litigating decisions that have already shipped. A fresh implementer reads this amendment before walking the plan and acts accordingly.
+
+**See also:** the new `docs/superpowers/plans/2026-05-15-phase-04-artist-system.md` which covers the replacement design (Postgres `artists` table, `/admin/artists` CRUD, public read paths, GoAffPro retirement).
 
 ---
 

@@ -147,6 +147,9 @@ Migration from local → Coolify is just: push to GitHub, point Coolify at the r
 
 ## 3. Product Catalog Model
 
+> **⚠️ Section partially superseded — 2026-05-15 (commit `5a0200e`).** The four planned Square custom-attribute definitions (`artist`, `ip`, `product_type`, `sibling_group`) are **no longer being created**. Square `categories[]` (which supports multiple categories per item) carries the artist and IP signal instead. The variant pattern (`ITEM_OPTION` + `ITEM_VARIATION` for `Media` / `Size`) is unchanged.
+> See `docs/superpowers/specs/reference/artist-system-handoff.md` and `docs/superpowers/specs/reference/goaffpro-api-probes.md §11` for the new design.
+
 Square is the source of truth. Staff manage everything through the Square dashboard.
 
 ### Square Categories (browsable taxonomy)
@@ -206,6 +209,9 @@ This pattern fits within Square's 10-definition custom-attribute limit (we'd use
 
 ## 4. Artist System
 
+> **⚠️ Section superseded — 2026-05-15 (commit `5a0200e`).** GoAffPro is **retired entirely** from this project; there is no runtime GoAffPro call anywhere. Artists are stored in a new local Postgres `artists` table joined to Square via `squareCategoryId`. The artist gallery and per-artist pages read from that table. Profile data is managed via a new `/admin/artists` CRUD area gated by Logto's existing `admin` role.
+> See `docs/superpowers/specs/reference/artist-system-handoff.md` and `docs/superpowers/specs/reference/goaffpro-api-probes.md §11`. The new plan lives at `docs/superpowers/plans/2026-05-15-phase-04-artist-system.md`.
+
 ### Data source
 **GoAffPro Admin API** is the source of truth for artist profiles.
 
@@ -233,6 +239,9 @@ GoAffPro webhook (if available — verify during impl) → POST to `/api/webhook
 ---
 
 ## 5. Product Detail Page (PDP)
+
+> **⚠️ Section partially superseded — 2026-05-15 (commit `5a0200e`).** The PDP layout below is structurally correct, but the **Artist meta line (item 4)** and **Related Products grouping (item 15)** no longer derive from GoAffPro or from `artist`/`ip` custom attributes. They derive from the item's Square `categories[]` array, joined to the local `artists` Postgres table by `squareCategoryId` (artist match) or treated as a taxonomy/IP pill (non-artist match). All other PDP items (mockup gallery, variant tabs, upsells, pillars, description, reviews, recently viewed) are unchanged.
+> See `docs/superpowers/specs/reference/artist-system-handoff.md` Plan D for the revised read path.
 
 ### Layout (top to bottom)
 
@@ -499,6 +508,8 @@ Square Checkout API provides **no `cancel_url`**. If the buyer closes the tab on
 
 ## 11. Admin Panel & Site Settings
 
+> **⚠️ Section extended — 2026-05-15 (commit `5a0200e`).** A new `/admin/artists` CRUD area is being added under the existing Logto-`admin`-gated `(admin)` route group. Schema, fields, and gating are specified in `docs/superpowers/specs/reference/artist-system-handoff.md` Plan B. The site-settings / event-logos / diagnostics scope described below is unchanged.
+
 ### Storage
 Postgres tables:
 
@@ -638,6 +649,9 @@ Anywhere we expose this calendar source to staff (the `/admin/settings` field fo
 ---
 
 ## 13. Affiliate Tracking (GoAffPro)
+
+> **⚠️ Section fully superseded — 2026-05-15 (commit `5a0200e`).** GoAffPro is being retired. There is no `?ref=` cookie, no `/sdk/track/visit` call, no `/sdk/track/conversion` call, no coupon middleware, and no affiliate-attribution layer in v1. **Artist commission** is product-based: revenue rolls up via Square's *Sales by Category* report, multiplied by the per-artist commission rate stored in the local `artists` table; payout is a manual monthly task in the Square dashboard. **Inbound external partners** (if/when relevant) get one Square Discount each plus a UTM-tagged link to Plausible — no code path.
+> See `docs/superpowers/specs/reference/goaffpro-api-probes.md §10–§11` and `docs/superpowers/specs/reference/artist-system-handoff.md` Plans D & E for the new operations.
 
 ### Visit tracking
 - `?ref=<code>` URL parameter on inbound links from affiliate sites → middleware reads it, sets `affiliate_ref` cookie (HTTP-only, 30 days), then strips the param from the URL on the redirect.
