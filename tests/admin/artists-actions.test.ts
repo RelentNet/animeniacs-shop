@@ -79,6 +79,11 @@ async function loadCreateAction() {
   return mod.createArtistAction
 }
 
+async function loadUpdateAction() {
+  const mod = await import('@/app/(admin)/admin/artists/[id]/actions')
+  return mod.updateArtistAction
+}
+
 describe('createArtistAction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -195,5 +200,89 @@ describe('createArtistAction', () => {
     const result = await action(undefined, fd)
     expect(result?.error?.fields?.avatarFile).toBe('File too big')
     expect(createArtistMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateArtistAction', () => {
+  const ID = 'uuid-existing'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.resetModules()
+  })
+
+  it('happy path: validates, calls updateArtist, revalidates, redirects', async () => {
+    updateArtistMock.mockResolvedValue({ id: ID, slug: 'bxnny.arts' })
+    const action = await loadUpdateAction()
+    await expect(action(ID, undefined, buildFormData({ bio: 'updated bio' }))).rejects.toThrow(
+      '__REDIRECT__:/admin/artists'
+    )
+
+    expect(updateArtistMock).toHaveBeenCalledTimes(1)
+    const [id, patch] = updateArtistMock.mock.calls[0]
+    expect(id).toBe(ID)
+    expect(patch.bio).toBe('updated bio')
+    // No avatar upload -> avatarUrl key absent from the patch
+    expect(patch).not.toHaveProperty('avatarUrl')
+    expect(revalidateMock).toHaveBeenCalledWith('/artist')
+    expect(revalidateMock).toHaveBeenCalledWith('/artist/bxnny.arts')
+    expect(redirectMock).toHaveBeenCalledWith('/admin/artists')
+  })
+
+  it('rejects commissionRate=1.5 with a per-field error', async () => {
+    const action = await loadUpdateAction()
+    const result = await action(ID, undefined, buildFormData({ commissionRate: '1.5' }))
+    expect(result?.error?.fields?.commissionRate).toMatch(/between 0 and 1/i)
+    expect(updateArtistMock).not.toHaveBeenCalled()
+  })
+
+  it('passes the new status through when the operator flips active <-> inactive', async () => {
+    updateArtistMock.mockResolvedValue({ id: ID, slug: 'bxnny.arts' })
+    const action = await loadUpdateAction()
+    await expect(action(ID, undefined, buildFormData({ status: 'inactive' }))).rejects.toThrow(
+      '__REDIRECT__:/admin/artists'
+    )
+    const [, patch] = updateArtistMock.mock.calls[0]
+    expect(patch.status).toBe('inactive')
+  })
+
+  it('injects the new avatarUrl into the patch when a file is uploaded', async () => {
+    updateArtistMock.mockResolvedValue({ id: ID, slug: 'bxnny.arts' })
+    saveAvatarMock.mockResolvedValue('/images/artists/bxnny.arts.webp')
+
+    const fd = buildFormData()
+    const file = new File([new Uint8Array([1, 2])], 'a.png', { type: 'image/png' })
+    fd.set('avatarFile', file)
+
+    const action = await loadUpdateAction()
+    await expect(action(ID, undefined, fd)).rejects.toThrow('__REDIRECT__:/admin/artists')
+
+    const [, patch] = updateArtistMock.mock.calls[0]
+    expect(patch.avatarUrl).toBe('/images/artists/bxnny.arts.webp')
+  })
+
+  it('omits avatarUrl from the patch when no file is uploaded (preserves existing avatar)', async () => {
+    updateArtistMock.mockResolvedValue({ id: ID, slug: 'bxnny.arts' })
+    const action = await loadUpdateAction()
+    await expect(action(ID, undefined, buildFormData())).rejects.toThrow(
+      '__REDIRECT__:/admin/artists'
+    )
+    const [, patch] = updateArtistMock.mock.calls[0]
+    // Crucial: avatarUrl is NOT in the patch -> updateArtist won't
+    // touch the column -> existing avatar URL survives the edit.
+    expect(patch).not.toHaveProperty('avatarUrl')
+  })
+
+  it('surfaces a friendly error when DB reports unique-slug violation', async () => {
+    updateArtistMock.mockRejectedValue(
+      Object.assign(new Error('duplicate key value'), { code: '23505' })
+    )
+    const action = await loadUpdateAction()
+    const result = await action(ID, undefined, buildFormData())
+    expect(result?.error?.fields?.slug).toMatch(/already in use/i)
+    expect(redirectMock).not.toHaveBeenCalled()
   })
 })
