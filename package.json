@@ -13,7 +13,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "biome check .",
-    "lint:fix": "biome check --apply .",
+    "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -24,7 +24,9 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "content:build": "tsx scripts/content-build.ts",
-    "prebuild": "pnpm content:build"
+    "prebuild": "pnpm content:build",
+    "sq:snapshot": "tsx scripts/square-cleanup/snapshot.ts",
+    "sq:mirror": "tsx scripts/square-cleanup/mirror.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",

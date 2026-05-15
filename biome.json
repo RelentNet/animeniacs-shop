@@ -50,6 +50,23 @@
           }
         }
       }
+    },
+    {
+      "include": ["scripts/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off",
+            "noUnusedTemplateLiteral": "off"
+          },
+          "performance": {
+            "noDelete": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
     }
   ],
   "javascript": {

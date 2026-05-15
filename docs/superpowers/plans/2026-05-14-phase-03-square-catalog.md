@@ -30,6 +30,18 @@ Every commit step in this plan ends with `pnpm lint:fix && pnpm typecheck` befor
 4. **`pnpm db:push` hangs without `--force`.** Every db-push step in this plan uses `DATABASE_URL="postgres://animeniacs:animeniacs@localhost:5433/animeniacs" pnpm db:push --force`. (Note port 5433.)
 5. **biome formatter runs before commit.** Every commit step does `pnpm lint:fix` first.
 
+## Standing rule (Phase 3 onward): smoke-test every external API before writing code that depends on it
+
+User direction: "I don't want their api to have a bug that we don't account for."
+
+**Before writing the wrapper code for any external API, hit the API directly with `curl` (or equivalent) and capture the actual response shape into the plan or a reference file.** Don't trust the published docs — they drift, lag, or omit edge cases. The published docs go in front of the SDK code only after the live API has confirmed the shape.
+
+Concretely for Phase 3 this means:
+- **Task 4a** (new) — exploratory smoke session against the Square sandbox. Run the four catalog calls we depend on (`ListCatalog`, `BatchRetrieve`, `SearchCatalogObjects`, `UpsertCatalogObject` for a `CUSTOM_ATTRIBUTE_DEFINITION`), capture the actual JSON response shapes into `docs/superpowers/specs/reference/square-sandbox-api-probes.md`, and only then proceed to Task 5 (which writes the wrapper code).
+- The probes also surface SDK quirks the published docs don't mention — pagination cursor field name, bigint vs string for amounts, optional fields that are actually required, etc.
+
+Future phases follow the same pattern: GoAffPro probe before Task X, Resend probe before Task Y, Antigro probe before v1.1 work begins, etc.
+
 ---
 
 ## File structure after Phase 3
