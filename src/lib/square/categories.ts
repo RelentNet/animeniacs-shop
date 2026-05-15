@@ -1,0 +1,81 @@
+import 'server-only'
+import { unstable_cache as cache } from 'next/cache'
+import { getSquareClient } from './client'
+
+export interface SquareCategory {
+  id: string
+  name: string
+  parentCategoryId: string | null
+}
+
+/**
+ * Production "Artist" parent category id, recorded from the production survey
+ * for human reference. Not used at runtime — `getArtistSubCategories()`
+ * discovers the parent dynamically by name (see note below), because the
+ * sandbox mirror produces fresh ids that don't match production.
+ *
+ * Smoke-tested 2026-05-15 against sandbox: Artist parent id is
+ * `73TDV4ACNYMCZ4G3E7XONXSE` there, not the prod id below.
+ */
+export const ARTIST_PARENT_CATEGORY_ID_PRODUCTION = 'B6I2KLCRDEHSF6XHODMNSG6P'
+
+/** Name used to locate the Artist parent category in either environment. */
+export const ARTIST_PARENT_CATEGORY_NAME = 'Artist'
+
+/**
+ * Lists every CATEGORY in the catalog, normalized to a flat shape.
+ * Cached for 5 minutes in-process via Next.js `unstable_cache`.
+ */
+export const listCategoriesFromSquare = cache(
+  async (): Promise<SquareCategory[]> => {
+    const client = getSquareClient()
+    const out: SquareCategory[] = []
+    const page = await client.catalog.list({ types: 'CATEGORY' })
+    for await (const obj of page) {
+      // biome-ignore lint/suspicious/noExplicitAny: SDK union is awkward; narrow via `type === 'CATEGORY'`
+      const c: any = obj
+      if (c.type !== 'CATEGORY') continue
+      out.push({
+        id: c.id,
+        name: c.categoryData?.name ?? '(unnamed)',
+        parentCategoryId: c.categoryData?.parentCategory?.id ?? null
+      })
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name))
+    return out
+  },
+  ['square-categories-list'],
+  { revalidate: 300 }
+)
+
+/**
+ * Returns the id of the top-level "Artist" category, or null if absent.
+ *
+ * Discovers by name + null-parent rather than by hard-coded id because
+ * `pnpm sq:mirror` generates fresh ids in sandbox; the production id
+ * (`ARTIST_PARENT_CATEGORY_ID_PRODUCTION` above) is for documentation
+ * only.
+ */
+export async function getArtistParentCategoryId(): Promise<string | null> {
+  const all = await listCategoriesFromSquare()
+  const match = all.find(
+    (c) => c.name === ARTIST_PARENT_CATEGORY_NAME && c.parentCategoryId === null
+  )
+  return match?.id ?? null
+}
+
+/** Filtered to children of the Artist parent category. */
+export async function getArtistSubCategories(): Promise<SquareCategory[]> {
+  const all = await listCategoriesFromSquare()
+  const parentId = all.find(
+    (c) => c.name === ARTIST_PARENT_CATEGORY_NAME && c.parentCategoryId === null
+  )?.id
+  if (!parentId) return []
+  return all.filter((c) => c.parentCategoryId === parentId)
+}
+
+/** Map of categoryId → name for the IP / breadcrumb path. */
+export async function getCategoryNameMap(): Promise<Map<string, string>> {
+  const all = await listCategoriesFromSquare()
+  return new Map(all.map((c) => [c.id, c.name]))
+}
