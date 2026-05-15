@@ -1,11 +1,12 @@
 # Square catalog cleanup — work-in-progress hand-off
 
-**Status:** Phase A (mirror production → sandbox) is **80% done**. The first
-live `--apply` run failed on production-location-ID validation; the rewriter
-has been patched but the patched version is **not yet tested**.
+**Status:** Phase A (mirror production → sandbox) is **complete**. Mirror
+runs end-to-end; live `--apply` succeeds; sandbox counts match production
+exactly except for IMAGE (594 prod, 0 sandbox — documented limitation).
+Mirror is idempotent: re-running wipes and replays cleanly.
 
-This doc tells the next session exactly what's done, what's pending, and the
-specific failure mode to debug first.
+This doc tells the next session what's done, the architectural decisions
+made along the way, and the specific scope of Phase B.
 
 ---
 
@@ -82,49 +83,140 @@ The production snapshot file lives at
 4. **Mirror's wipe step** — confirmed working in the live `--apply` run that
    failed later (the wipe ran cleanly; failure was on the upsert).
 
-## What's broken (the next session's first task)
+## Final mirror result (verified)
 
-5. **Mirror's upsert step (live, not dry-run)** — first attempt failed with:
+Run `pnpm sq:mirror <snapshot.json> --apply` end-to-end output:
 
-   ```
-   INVALID_VALUE: Invalid location id: Object contains unknown location id: L182TWM8YVZSR.
-   ```
+```
+  pass: leaves (definitions / taxes / discounts) — 36 object(s)
+    upserting... upserted 36 (collected 36 id mappings)
+  pass: item options — 2 object(s)
+    upserting... upserted 2 (collected 13 id mappings)
+  pass: categories — 41 object(s)
+    upserting... upserted 41 (collected 41 id mappings)
+  pass: items (with nested variations) — 231 object(s)
+    upserting... upserted 231 (collected 650 id mappings)
 
-   The production location `L182TWM8YVZSR` (Animeniacs Mobile, the main site)
-   leaked through the rewriter into upsert payloads via `presentAtLocationIds`,
-   `absentAtLocationIds`, `catalogV1Ids[].locationId`, and a few other paths.
+Mirror complete. Sandbox now matches the snapshot.
+```
 
-   **A patch has been applied** to `scripts/square-cleanup/lib.ts` — the
-   rewriter now strips `presentAtLocationIds`, `absentAtLocationIds`,
-   `presentAtAllLocations`, `catalogV1Ids` at every level it appears, plus
-   strips `categoryData.location_overrides` / `categoryData.locationOverrides`.
+`pnpm sq:snapshot sandbox` confirms:
 
-   **The patch has NOT been re-tested.** Re-run the mirror and watch what
-   surfaces next:
+| Type | Production | Sandbox | Status |
+|------|---|---|---|
+| CUSTOM_ATTRIBUTE_DEFINITION | 5 | 5 | exact |
+| TAX | 11 | 11 | exact |
+| CATEGORY | 41 | 41 | exact |
+| ITEM_OPTION | 2 | 2 | exact |
+| ITEM_OPTION_VAL | 11 | 11 | exact (nested) |
+| IMAGE | 594 | 0 | **skipped** — see below |
+| DISCOUNT | 20 | 20 | exact |
+| ITEM | 231 | 231 | exact |
+| ITEM_VARIATION (nested) | 419 | 419 | exact |
 
-   ```bash
-   set -a && source .env.local && set +a
-   SNAP=$(ls -t /tmp/animeniacs-square-snapshot-production-*.json | head -1)
-   pnpm sq:mirror "$SNAP" --apply
-   ```
+Spot-checked items resolve: "Custom UV Printed Decals" has 8 size variants
+with correct prices and Size ITEM_OPTION wired up; "10 for 10 Slaps" has
+its category assignment intact.
 
-   Likely next failures (in order of probability):
-   - **More fields the rewriter doesn't know about.** Square's catalog
-     payload has many optional fields; we discovered location IDs only
-     after the first run. There may be more. The rewriter is conservative
-     about stripping — add new strip rules as they surface, document them
-     in the rewriter's docstring, re-run.
-   - **Custom attribute definition shape mismatch.** Production has 5
-     definitions, including 3 Square-system ones (`is_alcoholic`,
-     `ecom_target_classic_site_id`, `ecom_gifting_enabled`). Sandbox may
-     reject these because they're system-managed. If so, filter them out
-     of the snapshot at upsert time (don't send if `app_visibility` starts
-     with `APP_VISIBILITY_HIDDEN` and the key is one of Square's reserved
-     keys).
-   - **TAX validity in sandbox.** Production tax rates reference a real
-     business address; sandbox may reject some configurations. If so, drop
-     all TAX upserts and let sandbox auto-generate a default tax — items
-     can be upserted without `taxIds` references.
+## Architectural decisions taken to get here
+
+The first live `--apply` failure was on production location IDs leaking
+through the rewriter. After patching that, the path to a clean mirror
+required several more rounds of debugging. The fixes accumulated in
+`scripts/square-cleanup/lib.ts` and `scripts/square-cleanup/mirror.ts`:
+
+1. **Recursive `stripRecursive` helper** in `lib.ts` instead of per-type
+   field deletes. Strips `version`, `updatedAt`, `createdAt`, `isDeleted`,
+   `presentAtLocationIds`, `absentAtLocationIds`, `presentAtAllLocations`,
+   `catalogV1Ids`, `channels`, `locationOverrides`,
+   `itemVariationVendorInfos`/`Ids` at every nesting level. Same helper
+   coerces every `*Money.amount` from `Number` back to `BigInt` (the
+   snapshot file stores BigInts as Numbers because JSON can't represent
+   BigInts; the SDK's Zod schema validates `amount` as bigint).
+
+2. **Generic `remapStringsRecursive` helper** that walks the entire
+   payload and remaps any string equal to a production Square ID into
+   its `#temp_<n>` placeholder. This catches any reference field we
+   haven't enumerated explicitly (e.g. `itemData.itemOptions[].itemOptionId`,
+   which we discovered the hard way — Square requires the order of
+   `itemOptions` on the parent ITEM to match the order of `itemOptionValues`
+   on each variation, and an unrewritten production ID broke that).
+
+3. **Pre-allocated temp IDs for nested ITEM_VARIATIONs and nested
+   ITEM_OPTION values**, not just top-level objects. Without this, Square
+   sees the original production variation/value IDs in the upsert payload
+   and tries to *update* a nonexistent object instead of creating a new
+   one.
+
+4. **`scrubUnresolvedTempRefs` helper** to remove any leftover `#temp_<n>`
+   references after rewrite. Used to drop image references on items (since
+   IMAGE objects are skipped — see below), without disturbing nested
+   objects' own `id` fields (which need to stay `#temp_<n>` until upsert).
+
+5. **Per-type-specific strips that the recursive strip can't handle by
+   key name alone:**
+   - `categoryData.parentCategory.ordinal`: a Square-internal sort key
+     that exceeds JS's safe integer range. The SDK validates it as a
+     bigint, but JSON.parse turns it into a Number, so it always fails
+     SDK validation. Same for `itemData.categories[].ordinal` and
+     `itemData.reportingCategory.ordinal`. Square regenerates ordering
+     on its own.
+   - `categoryData.rootCategory`: a production category ID; safest to
+     drop and let Square recompute it from `parentCategory`.
+   - `taxData.appliesToProductSetId`: production references a
+     `PRODUCT_SET` we don't snapshot. Stripping makes the tax apply to
+     all products, which is fine for sandbox.
+
+6. **Multi-pass upsert in `mirror.ts`** instead of one big atomic batch.
+   Square's batchUpsert atomic-batch limit is 1,000 *total* objects
+   (including nested variations). Our 915 top-level + 419 nested = 1,334.
+   And `#temp_<n>` IDs only resolve within a single atomic batch. So we
+   upsert in dependency-ordered passes (definitions/taxes/discounts →
+   item-options → categories → items), using the response's `id_mappings`
+   to rewrite `#temp_<n>` references into real IDs before the next pass.
+
+7. **IMAGE objects are skipped entirely.** Square requires images to be
+   created through the dedicated `CreateCatalogImage` endpoint with an
+   actual file upload — they cannot be created via batchUpsert. Items
+   with image references have those refs scrubbed before upsert. Result:
+   sandbox items have no images, but everything else (categories,
+   variants, prices, custom attributes) is faithful. This is acceptable
+   for development/cleanup-rehearsal because the cleanup work doesn't
+   touch images. If we ever need images in sandbox, we can either
+   re-upload from the production S3 URLs via `createCatalogImage`, or
+   write a separate image-mirror script.
+
+8. **ITEM_OPTION_VAL standalone objects are skipped on upsert** because
+   they're already nested inside their parent ITEM_OPTION; sending them
+   again would conflict on the parent reference. They're still entered
+   into the temp-ID map so cross-references from variations resolve.
+
+9. **Wipe step deletes in reverse RESTORE_ORDER** (ITEMs first, leaves
+   last) and skips ITEM_OPTION_VAL standalone deletes (deleting them
+   before the parent fails Square's "must have at least 1 value"
+   constraint; deleting the parent ITEM_OPTION cascades to the values).
+
+## How to re-run the mirror
+
+```bash
+set -a && source .env.local && set +a
+
+# Optional: refresh the production snapshot first.
+pnpm sq:snapshot production
+SNAP=$(ls -t /tmp/animeniacs-square-snapshot-production-*.json | head -1)
+
+# Dry run to confirm shapes:
+pnpm sq:mirror "$SNAP"
+
+# Live: wipe sandbox + replay.
+pnpm sq:mirror "$SNAP" --apply
+
+# Verify counts.
+pnpm sq:snapshot sandbox
+```
+
+Sandbox dashboard for spot-checks:
+https://app.squareupsandbox.com/dashboard/items/library
 
 ## Tools and patterns established
 
@@ -142,23 +234,12 @@ The production snapshot file lives at
   camelCase. Don't try to "fix" snake_case occurrences; the SDK does the
   conversion automatically.
 
-## After Phase A works
+## Next: Phase B (audit report)
 
-Once `pnpm sq:mirror <snap> --apply` completes successfully (231 ITEMs in
-sandbox), verify with:
+**Do not start Phase B without explicit go-ahead.** User wants to review
+the Phase A mirror result first.
 
-```bash
-pnpm sq:snapshot sandbox
-# Compare counts to the production snapshot — should be identical or close.
-```
-
-Spot-check a few items in the Square sandbox dashboard:
-https://app.squareupsandbox.com/dashboard/items/library
-
-Then commit, tag the milestone, and surface for user review before
-starting Phase B (audit report).
-
-## Phase B preview
+The Phase B design sketch:
 
 The audit report generator reads the snapshot and outputs a markdown report
 flagging:
