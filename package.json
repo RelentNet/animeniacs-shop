@@ -29,6 +29,7 @@
     "sq:mirror": "tsx scripts/square-cleanup/mirror.ts",
     "sq:audit": "tsx scripts/square-cleanup/audit.ts",
     "sq:cleanup": "tsx scripts/square-cleanup/cleanup.ts",
+    "sq:archive-graveyard": "tsx scripts/square-cleanup/archive-graveyard-skus.ts",
     "goaffpro:probe": "tsx scripts/goaffpro/probe.ts",
     "sq:account-probe": "tsx scripts/square-account-probe/probe.ts"
   },
