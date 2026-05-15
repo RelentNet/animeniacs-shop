@@ -134,20 +134,23 @@ animeniacs-shop/
 
 | # | Plan | Depends on | Blocks |
 |---|---|---|---|
-| **A** | Schema + query helpers + Square category list helper | — | B, D |
+| **A** | Cull dead Phase 3 constants (Task A.0), schema + query helpers + Square category list helper | — | B, D |
 | **C** | Square dashboard work (sub-category creation, item re-categorization, graveyard archival) | — | D |
-| **B** | `/admin/artists` CRUD | A | E |
-| **D** | Public read paths (PDP, `/artist`, `/artist/[slug]`) | A + at least one seeded artist row + C | E |
-| **E** | Cleanup & launch tail (production migration, GoAffPro retirement, doc) | A, B, C, D | — |
+| **B** | `/admin/artists` CRUD (incl. minimal `(admin)/layout.tsx`) | A | D, E |
+| **D** | Public read paths (PDP, `/artist`, `/artist/[slug]`) | A + at least one artist row entered via admin + C | E |
+| **E** | Cleanup & launch tail (smoke tests, `.env.example` cleanup, ops doc, tag) | A, B, C, D | — |
 
-A and C can run in parallel. B starts after A's schema lands. D needs both A (so it can read from `artists`) and ideally one seeded row + at least one re-categorized Square item from C (so there's something to look at). E is the closing sweep.
+A and C can run in parallel. B starts after A's schema lands and requires the admin to be able to add artist records before D's public pages have anything to render. D needs A's helpers and at least one artist record entered via B's admin UI plus at least one re-categorized Square item from C (so there's something to look at). E is the closing sweep.
 
 ---
 
 # Plan A — Schema + Artist Query Helpers + Category Helper
 
+> **Pre-task Task A.0 cleans up dead constants left over from Phase 3 before any new schema work begins.** This is the first thing the implementer does. See Task A.0 below; Tasks A.1+ depend on `src/lib/square/types.ts` being in its post-cleanup state.
+
 **Acceptance criteria:**
 
+- [ ] Task A.0 ships: `CUSTOM_ATTR_KEYS`, `PRODUCT_TYPES`, `isProductType`, the `customAttributes` field on `CachedProduct`, and the matching catalog-parser population logic are removed. `pnpm typecheck` clean. Any tests touching these are removed or updated.
 - [ ] `pnpm db:generate` produces a `0009_*_artists.sql` migration.
 - [ ] `pnpm db:push --force` applies cleanly against the local Postgres at `localhost:5433`.
 - [ ] `\d artists` in psql shows: 16 columns (incl. `id`, `slug` unique, `display_name`, `square_category_id` indexed, `status` CHECK-constrained, profile fields, commission fields, timestamps).
@@ -155,6 +158,47 @@ A and C can run in parallel. B starts after A's schema lands. D needs both A (so
 - [ ] `src/lib/square/categories.ts` exports `listCategoriesFromSquare()` and `getArtistSubCategories()`, the latter filtering to children of the production "Artist" parent category id (`B6I2KLCRDEHSF6XHODMNSG6P` per the production survey).
 - [ ] Integration test `tests/integration/artists.integration.test.ts` covers happy-path insert/select/update + the three guarded uniques (`slug` unique, `status` CHECK, indexed `square_category_id` lookup), using `testNamespace` + `cleanupByPrefix` per the existing convention.
 - [ ] `pnpm test`, `pnpm test:integration`, `pnpm typecheck`, `pnpm lint` all green.
+
+### Task A.0 — Cull dead Phase 3 constants (run first)
+
+The Phase 3 amendment at commit `7f330a6` marked four exports + one struct field as harmless dead weight. Task A.0 removes them now, before any new schema work builds on top.
+
+**Files:**
+- Modify: `src/lib/square/types.ts` — delete 4 dead exports
+- Modify: `src/lib/square/catalog.ts` — strip the `customAttributes`-population block inside `denormalizeItem`
+- Modify or delete: `tests/square/types.test.ts` — covers `isProductType`; remove the test file if `isProductType` is its only subject
+- Modify: `tests/square/catalog-parser.test.ts` — remove the "reads custom attributes when set" test case; the variation-id round-trip and image denorm tests stay
+
+**Steps:**
+
+- [ ] **A.0.1: Grep first.** `grep -rn 'CUSTOM_ATTR_KEYS\|PRODUCT_TYPES\|isProductType\|customAttributes' src/ tests/ scripts/`. Expected hits:
+  - `src/lib/square/types.ts` — defines the 4 things
+  - `src/lib/square/catalog.ts` — `denormalizeItem` populates `customAttributes`
+  - `tests/square/types.test.ts` — tests `isProductType`
+  - `tests/square/catalog-parser.test.ts` — one case asserts the `customAttributes` round-trip
+  - **If any other consumer turns up, halt and re-scope.** No production caller should exist; the Phase 3 amendment claimed they're dead.
+
+- [ ] **A.0.2: Edit `src/lib/square/types.ts`.** Delete:
+  - the entire `CUSTOM_ATTR_KEYS` const + its JSDoc
+  - `export type CustomAttrKey = ...`
+  - `PRODUCT_TYPES` const + its JSDoc
+  - `export type ProductType = ...`
+  - `export function isProductType(...)` and its JSDoc
+  - The `customAttributes: Partial<Record<CustomAttrKey, string>>` field on `CachedProduct`
+
+  Keep `CachedMoney`, `CachedVariation`, `CachedProduct` (minus the deleted field), and any other types that don't reference the deleted symbols.
+
+- [ ] **A.0.3: Edit `src/lib/square/catalog.ts`.** Find the block in `denormalizeItem` that populates `customAttributes`. Delete the block. Delete the `customAttributes` assignment inside the returned object literal. Delete any `CustomAttrKey` import.
+
+- [ ] **A.0.4: Run typecheck.** `pnpm typecheck` should fail loudly on any remaining consumer not caught by the grep. Fix any that surface (likely none).
+
+- [ ] **A.0.5: Delete the now-empty `tests/square/types.test.ts`** (if `isProductType` was its only subject). Run `pnpm test tests/square/types.test.ts` first to confirm what's in there before deletion.
+
+- [ ] **A.0.6: Edit `tests/square/catalog-parser.test.ts`.** Remove the test case that asserts `customAttributes` round-tripping. Other cases (variation IDs, image denorm, price coercion to BigInt) stay.
+
+- [ ] **A.0.7: Final verification.** `pnpm test`, `pnpm typecheck`, `pnpm lint` all green.
+
+- [ ] **A.0.8: Commit.** `Task A.0: Phase 4 — cull dead Square custom-attribute constants (carried over from Phase 3 amendment)`.
 
 ### Task A.1 — Drizzle schema: append `artists` table
 
@@ -206,7 +250,10 @@ export type Artist = typeof artists.$inferSelect
 export type NewArtist = typeof artists.$inferInsert
 ```
 
-> **Note on timestamps:** the original handoff brief snippet used `timestamp('created_at').notNull().defaultNow()` without `withTimezone: true`. Every other timestamp column in the codebase uses `withTimezone: true` (Phase 2 convention). The plan normalizes to `withTimezone: true` for consistency. **Flagged for user review** — if you specifically wanted naive timestamps for some reason, change before running A.1.
+> **Note on timestamps:** the original handoff brief snippet used `timestamp('created_at').notNull().defaultNow()` without `withTimezone: true`. Locked at `withTimezone: true` for three reasons:
+> 1. Square's API returns every timestamp as ISO-8601 UTC with the `Z` suffix (re-probed 2026-05-15 against production: `created_at: '2026-04-18T11:06:18.888Z'` on items, same shape on locations + orders + variations). Postgres `timestamp with time zone` stores UTC internally — direct match.
+> 2. Matches every existing column in the codebase (all 9 Phase 2 tables use `withTimezone: true`).
+> 3. Future-proofs cross-table comparisons (e.g., joining artist updates with order timestamps when the operator runs the monthly commission report).
 
 - [ ] **A.1.3: Run `pnpm db:generate`.** Expected: a new file `drizzle/migrations/0009_<some-random-name>_artists.sql` is created. Inspect it; confirm CREATE TABLE, UNIQUE on `slug`, CHECK on `status`. (Drizzle will likely *not* emit an index on `square_category_id` by default — handled in A.1.5.)
 - [ ] **A.1.4: Manually add the `square_category_id` index to the generated migration.** Append the following to the bottom of the new migration file:
@@ -438,11 +485,13 @@ export async function getCategoryNameMap(): Promise<Map<string, string>> {
 ### Task B.1 — Admin route group + auth gate
 
 **Files:**
-- Verify (do not modify if present): `src/app/(admin)/layout.tsx` — should already exist per design spec §11. If it does **not** exist yet (Phase 7 hasn't shipped), this plan ships a minimal version here as the first usage of the `(admin)` route group. **Flagged for user review** — the original spec §11 placed admin auth in Phase 7; the artist admin is the first concrete consumer, so the route group's `layout.tsx` may need to be created here. If you'd rather wait until Phase 7 is plotted, defer Plan B and ship Plans A + C + D + E with manual seed scripts replacing the admin UI; that path is viable but trades 30 min of admin work for ~2 hr of seed-script work.
+- Create: `src/app/(admin)/layout.tsx`
 
-**Steps (only if `(admin)/layout.tsx` does not already exist):**
+The original design spec §11 placed admin auth in Phase 7. The artist admin (this plan's Plan B) is the first concrete consumer of the `(admin)` route group, so Phase 4 ships the minimal layout here. Phase 7 will plug additional admin pages (site-settings, event-logos, diagnostics, etc.) into the same route group without redoing the layout. The layout body is intentionally minimal (auth gate + `<div>{children}</div>`); chrome/styling is Phase 7's call.
 
-- [ ] **B.1.1: Create `src/app/(admin)/layout.tsx`.** Calls `getLogtoContext(logtoConfig)` (the import + setup mirrors design spec §10), redirects to `/sign-in` if `!claims?.isAuthenticated`, returns a 403 page component if `!claims?.roles?.includes('admin')`. Render `<div>{children}</div>` (or a thin admin chrome).
+**Steps:**
+
+- [ ] **B.1.1: Create `src/app/(admin)/layout.tsx`.** Calls `getLogtoContext(logtoConfig)` (the import + setup mirrors design spec §10), redirects to `/sign-in` if `!claims?.isAuthenticated`, returns a 403 page component if `!claims?.roles?.includes('admin')`. Render `<div>{children}</div>` (no nav, no styling — Phase 7's call).
 - [ ] **B.1.2: Unit-test the gate.** Mock `getLogtoContext` to return: (a) unauthenticated, (b) authenticated non-admin, (c) authenticated admin. Verify the three responses (redirect / 403 / render). Test file: `tests/admin/layout-auth.test.tsx`.
 - [ ] **B.1.3: Commit.** `Task B.1: Phase 4 — (admin) route group with Logto admin gate`.
 
@@ -463,7 +512,7 @@ export async function getCategoryNameMap(): Promise<Map<string, string>> {
   2. Invalid slug → returns an error state, no DB write.
   3. Duplicate slug → DB throws, action surfaces a "slug already in use" error.
   4. Missing required field → validation error in returned state.
-- [ ] **B.2.2: Implement `src/lib/images/upload.ts`.** Function `saveAvatar(file: File, slug: string): Promise<string>` returns the public URL path (`/images/artists/<slug>.webp`). Uses `sharp` if available; if `sharp` is not yet a project dependency, add it (it's a sensible new dev dep here). Validates: max 2 MB, mime type in whitelist; resizes to 500×500 (square crop, center); writes to `public/images/artists/`. **Flagged for user review** — `sharp` is the standard for Node-side image processing but it is a new dependency; if you'd rather defer image handling, the field can be a plain URL input for v1 and uploads added later.
+- [ ] **B.2.2: Implement `src/lib/images/upload.ts`.** Function `saveAvatar(file: File, slug: string): Promise<string>` returns the public URL path (`/images/artists/<slug>.webp`). Adds `sharp` as a new dependency (`pnpm add sharp`). Validates: max 2 MB, mime type in whitelist (png / jpg / webp); resizes to 500×500 (square crop, center); writes to `public/images/artists/`. **Deploy target is Coolify**, which has writable `public/` at runtime — no need to swap to Vercel Blob / S3.
 - [ ] **B.2.3: Implement the shared `ArtistForm.tsx`** — server component renders, fields per the brief (slug, displayName, squareCategoryId via picker, status radio, avatarUrl file input or text input depending on B.2.2 outcome, bio textarea, six social URL inputs, commissionRate, paymentMethod select, paymentEmail, notes). All fields are progressive-enhancement HTML forms — no client-side form library.
 - [ ] **B.2.4: Implement `SquareCategoryPicker.tsx`.** Server-renders a `<select>` populated from `getArtistSubCategories()` (Plan A's helper). Includes a "Create new in Square dashboard" link as a `<small>` hint underneath the select.
 - [ ] **B.2.5: Implement the create server action** in `new/actions.ts`. Receives the `FormData`, parses through `ArtistInputSchema`, on success calls `createArtist()` and `redirect('/admin/artists')`, on failure returns an error state for the form to render.
@@ -609,75 +658,47 @@ revalidatePath('/artist/[slug]', 'page')
 
 # Plan E — Cleanup & launch tail
 
+> **Phase 4 explicitly ships no GoAffPro code.** No one-time API export, no fallback path, no migration script that touches GoAffPro. The 23 artists are entered manually by the operator through the `/admin/artists` UI (built in Plan B), reading their data from wherever the operator wants (the GoAffPro web dashboard, written notes, memory). The `scripts/goaffpro/probe.ts` from commit `5a0200e` stays in-tree as historical reference only and is never executed by Phase 4 work.
+>
+> **The dead-constant cull is now Task A.0** (run as the first task of Phase 4, before any new schema work). Plan E no longer carries an E.4 task for that scope.
+
 **Acceptance criteria:**
 
-- [ ] One-shot data dump from GoAffPro for the 23 approved artists captured to `/tmp/goaffpro-approved-artists-<ts>.json` for human review.
-- [ ] `artists` table seeded in production with all 23 records — every row has a real `squareCategoryId` (from Plan C.2), `displayName` from GoAffPro, `slug` derived from displayName, `bio` / social links copied from GoAffPro where present, `commissionRate` set to `0.2000` unless the operator overrides per artist.
-- [ ] Avatar images either uploaded via admin or left blank for the operator to fill in later.
+- [ ] `artists` table seeded in production with the operator's chosen set of artists — every row has a real `squareCategoryId` (from Plan C.2), `displayName`, `slug`, `bio` / social links / avatar as the operator chooses, `commissionRate` set per artist (default `0.2000`).
 - [ ] Sandbox smoke-test passes end-to-end: artist gallery loads, per-artist page loads, PDP joins to artist correctly, admin CRUD round-trips.
 - [ ] Production smoke-test passes (same flow).
-- [ ] GoAffPro subscription cancelled (manual; operator does this).
-- [ ] `GOAFFPRO_ADMIN_API_KEY` and `GOAFFPRO_PUBLIC_TOKEN` removed from `.env.local` and `.env.example`.
-- [ ] `src/lib/square/types.ts` dead constants (`CUSTOM_ATTR_KEYS`, `PRODUCT_TYPES`, `isProductType`, the `customAttributes` field on `CachedProduct`) culled — see E.4 below for the precise scope.
+- [ ] `GOAFFPRO_ADMIN_API_KEY` and `GOAFFPRO_PUBLIC_TOKEN` removed from `.env.example` (operator removes from their `.env.local` separately at their convenience).
 - [ ] `docs/operations/commission-payouts.md` shipped.
 - [ ] Tag `phase-4-artist-system` after sandbox + production smoke passes.
 
-### Task E.1 — One-shot GoAffPro data dump
+### Task E.2 — Seed the `artists` table (manual via admin UI)
 
-**Files:**
-- (No new files — uses the existing `scripts/goaffpro/probe.ts`.)
+The operator opens `/admin/artists/new` and creates each artist record. Source of truth for the data is the operator's choice — most likely the GoAffPro web dashboard, opened in another tab as a reference. Phase 4 does not automate this.
 
 **Steps:**
 
-- [ ] **E.1.1: Run `pnpm goaffpro:probe`** (existing script from commit `5a0200e`). Output lands in `/tmp/goaffpro-snapshot-<ts>.json`.
-- [ ] **E.1.2: Filter to `status === 'approved'`** — the 23 artists. Capture this filtered subset to `/tmp/goaffpro-approved-artists-<ts>.json` for the data-entry pass.
-- [ ] **E.1.3: No commit needed** — these are local artifacts under `/tmp/`. The probe script itself stays in-tree as historical reference.
-
-### Task E.2 — Seed the `artists` table
-
-**Two paths depending on operator preference:**
-
-**Path A — Manual via admin UI.** Open `/admin/artists/new`, transcribe each of the 23 artists' data from the dump file. ~5 minutes per artist × 23 = ~2 hours. Pros: every row gets human review; avatars can be uploaded inline. Cons: 2 hours of typing.
-
-**Path B — One-shot seed script.** Create `scripts/seed-artists.ts` that reads `/tmp/goaffpro-approved-artists-<ts>.json` + a hand-prepared CSV mapping GoAffPro id → `squareCategoryId` from Plan C.2, and inserts directly via `createArtist`. ~30 minutes of script work, then ~5 minutes to run, then ~30 minutes to spot-check via the admin UI.
-
-- [ ] **E.2.1: Decide between Path A and Path B.** Flagged for user review.
-- [ ] **E.2.2: Execute the chosen path.**
-- [ ] **E.2.3: Verify** — `SELECT count(*) FROM artists WHERE status='active'` returns 23 (or whatever subset the operator approved during review).
-- [ ] **E.2.4: Commit** (Path B only) — `Task E.2: Phase 4 — one-shot artists seed script`.
+- [ ] **E.2.1: Operator creates each artist record** via `/admin/artists/new`. Slug, displayName, squareCategoryId (chosen from the dropdown populated by Plan A.3's `getArtistSubCategories()`), status `active`, optional avatar upload, bio, social links, commissionRate, paymentMethod, paymentEmail, notes.
+- [ ] **E.2.2: Verify** — `SELECT count(*) FROM artists WHERE status='active'` returns the expected count.
+- [ ] **E.2.3: No commit** — data entry produces DB rows, not repo changes.
 
 ### Task E.3 — Sandbox + production smoke-test
 
-- [ ] **E.3.1: Sandbox** — mirror production to sandbox via the existing `pnpm sq:mirror`, seed the same `artists` data into the local Postgres pointing at the sandbox-paired DB if separate (the current setup uses one Postgres, so no extra step). Walk through admin CRUD, `/artist` gallery, `/artist/[slug]`, PDP for at least 5 real items.
-- [ ] **E.3.2: Production** — deploy to staging / production per the project's existing deploy story (out of scope for this plan; the deploy pipeline is whatever it is for the project). Walk through the same flow against real production data.
+- [ ] **E.3.1: Sandbox** — mirror production to sandbox via the existing `pnpm sq:mirror`. Walk through admin CRUD, `/artist` gallery, `/artist/[slug]`, PDP for at least 5 real items. (Sandbox can use a small subset of artist records — the test is the integration shape, not the full data set.)
+- [ ] **E.3.2: Production** — deploy via Coolify, run the same flow against real production data.
 
-### Task E.4 — Cull dead constants from `src/lib/square/types.ts`
+### Task E.5 — Slim GoAffPro env-var cleanup
 
-**Decision flag:** the original Phase 3 amendment marked `CUSTOM_ATTR_KEYS`, `PRODUCT_TYPES`, `isProductType`, and the `customAttributes` field on `CachedProduct` as harmless dead weight. They can be culled now or left for a future cleanup pass.
-
-**Recommendation:** cull them in Plan E because (a) the Phase 4 code is touching this area anyway when Plan D wires the PDP, and (b) every line of dead code is a future-reader confusion source. Cull is a ~10-line diff.
-
-**Files:**
-- Modify: `src/lib/square/types.ts`
-- Possibly modify: any consumers — check via grep before deleting.
+The operator cancels the GoAffPro subscription on their own schedule (calendar reminder, not a code task). This task only handles the `.env.example` cleanup so the committed template doesn't keep documenting env vars the project no longer uses.
 
 **Steps:**
 
-- [ ] **E.4.1: Grep** — `grep -rn "CUSTOM_ATTR_KEYS\|PRODUCT_TYPES\|isProductType\|customAttributes" src/ tests/`. Expected: references only in `types.ts` and possibly its own unit test. If there are real consumers, hold and re-scope.
-- [ ] **E.4.2: Delete the four exports** from `types.ts` and delete the `customAttributes` field from `CachedProduct`.
-- [ ] **E.4.3: Delete the `types.test.ts` file** if it exists and only tested these exports.
-- [ ] **E.4.4: Run `pnpm typecheck && pnpm lint && pnpm test`.** Expected: clean.
-- [ ] **E.4.5: Commit.** `Task E.4: Phase 4 — cull dead Square custom-attribute constants`.
-
-### Task E.5 — Cancel GoAffPro + remove env vars
-
-**Steps:**
-
-- [ ] **E.5.1: Operator cancels GoAffPro subscription** in the GoAffPro dashboard.
-- [ ] **E.5.2: Remove from `.env.local`** the `GOAFFPRO_ADMIN_API_KEY` and `GOAFFPRO_PUBLIC_TOKEN` lines.
-- [ ] **E.5.3: Remove from `.env.example`** the same two lines.
-- [ ] **E.5.4: Search for any other GoAffPro references** in code or docs that need cleanup. The probe script and the reference docs stay (historical). Expected hits: zero in `src/`; some in `docs/` reference docs (left alone — they are historical context).
-- [ ] **E.5.5: Commit.** `Task E.5: Phase 4 — remove GoAffPro env vars after subscription cancellation`.
+- [ ] **E.5.1: Remove `GOAFFPRO_ADMIN_API_KEY` and `GOAFFPRO_PUBLIC_TOKEN` from `.env.example`.**
+- [ ] **E.5.2: Verification grep** — `grep -rn "GOAFFPRO\|goaffpro" src/ tests/ scripts/`. Expected hits:
+  - `scripts/goaffpro/probe.ts` — historical reference, stays
+  - Zero hits in `src/` or `tests/`
+  - `docs/superpowers/specs/reference/*` may carry historical context — those stay
+  - **If any other consumer turns up in `src/` or `tests/`, halt** — something escaped the Phase 4 design.
+- [ ] **E.5.3: Commit.** `Task E.5: Phase 4 — remove GoAffPro env vars from .env.example template`.
 
 ### Task E.6 — Operations doc
 
@@ -701,25 +722,26 @@ revalidatePath('/artist/[slug]', 'page')
 Before declaring complete:
 
 - [ ] **Spec coverage.** Every superseded section in the design spec (§3, §4, §5, §11, §13) now has a banner pointing to this plan and to the handoff brief. Every concrete bullet in `artist-system-handoff.md` (Plans A through E) maps to a Task in this plan.
-- [ ] **No GoAffPro at runtime.** `grep -rn "goaffpro\|GoAffPro" src/` returns zero hits (script directory and docs are OK).
-- [ ] **No new vendors.** No new package added beyond `sharp` (if Plan B.2.2 chose to include it).
+- [ ] **No GoAffPro code anywhere.** `grep -rn "goaffpro\|GoAffPro" src/ tests/` returns zero hits. (The probe script under `scripts/goaffpro/probe.ts` stays as historical reference; doc references under `docs/superpowers/specs/reference/*` stay as historical context.)
+- [ ] **No new vendors.** Only one new package added: `sharp` (Plan B.2.2, for server-side avatar resize).
 - [ ] **No `artist` Square custom attribute definition.** `grep -rn "artist.*custom.*attribute\|custom_attribute_definition.*artist" src/` returns zero hits.
+- [ ] **Dead Phase 3 constants culled.** `grep -rn 'CUSTOM_ATTR_KEYS\|PRODUCT_TYPES\|isProductType' src/` returns zero hits (Task A.0 outcome).
 - [ ] **One Postgres table.** Only `artists` was added. No `affiliates`, `commission_*`, `attribution_*`, `clicks` tables.
 - [ ] **Logto auth reused.** `(admin)/layout.tsx` calls `getLogtoContext()`; no separate auth code.
-- [ ] **Sandbox-first discipline.** Every production write (graveyard archival, seed) was rehearsed in sandbox first.
+- [ ] **Sandbox-first discipline.** Every production write (graveyard archival) rehearsed in sandbox first.
 - [ ] **All commit steps ran `pnpm lint:fix` before `git add`.**
 
 ---
 
-## Open items for user review
+## Decisions captured
 
-These are decisions that were ambiguous in the brief or that need an explicit call before the implementing agent dispatches:
+The six ambiguity flags surfaced in the original draft of this plan have been resolved. Locked-in decisions, all incorporated above:
 
-1. **Timestamp timezone consistency** — the brief snippet used `timestamp('created_at').notNull().defaultNow()` (no timezone). This plan normalizes to `withTimezone: true` matching the existing schema convention. If you specifically wanted naive timestamps, change A.1.2 before running.
-2. **`(admin)` route group origin** — the original spec §11 placed admin auth in Phase 7. The artist admin is the first concrete consumer. This plan (Task B.1) ships the minimal `(admin)/layout.tsx` if it isn't already present. If you'd rather defer admin entirely and use a seed script + psql for v1, drop Plan B and bump it to Phase 7.
-3. **Avatar uploads** — this plan adds `sharp` as a new dev dependency to do server-side resize. Acceptable? Or skip image uploads in v1 (avatar is a plain URL field that admin pastes manually)?
-4. **Sub-category naming convention** (Task C.1) — recommendation is "match GoAffPro display name exactly" (e.g., `Bxnny.Arts`, `sarudrawss`, `Merc Da Artist`). Confirm before starting Plan C.
-5. **Seed path** (Task E.2) — manual via admin UI (~2 hours of typing, good for review) or one-shot script (~30 min build + ~30 min spot-check, faster but bypasses review). Pick one.
-6. **Cull `types.ts` dead constants** (Task E.4) — recommendation is yes, cull now. Confirm or defer.
+1. **Timestamp timezone:** `withTimezone: true` on every column. Confirmed by re-probe of Square API on 2026-05-15 — Square returns every timestamp as ISO-8601 UTC with `Z` suffix (e.g. `'2026-04-18T11:06:18.888Z'`). Postgres `timestamp with time zone` stores UTC internally, matching Square's wire format and the existing schema convention across all 9 Phase 2 tables.
+2. **`(admin)` route group origin:** Phase 4 Plan B Task B.1 ships the minimal `(admin)/layout.tsx`. Phase 7 will add more admin pages under the same route group without redoing the layout. **All GoAffPro code is dropped from Phase 4** — no one-time API export, no bootstrap script. The operator enters artist data manually through the admin UI built in Plan B.
+3. **Avatar uploads:** Approach A — server-side file upload with `sharp` resize to 500×500 webp, stored to `public/images/artists/<slug>.webp`. Coolify deploy has writable `public/` at runtime, so no need to swap to Vercel Blob / S3.
+4. **Sub-category naming convention:** Convention 1 — match GoAffPro display name exactly (`Bxnny.Arts`, `sarudrawss`, `Merc Da Artist`, etc.). The existing `Merc Da Artist` production sub-category stays as-is. The public-facing artist name (set in `artists.displayName` via the admin form) is independent and can be cleaned up per-artist.
+5. **Seed path:** Manual via admin UI only. No seed script. Task E.2 is just "operator opens `/admin/artists/new` and creates records." Source of truth for the data is the operator's choice (GoAffPro dashboard in another tab, written notes, memory).
+6. **Cull `types.ts` dead constants:** Option C — moved to a new Task A.0 at the start of Phase 4. The cull is the first thing the implementer does, before any new schema work builds on top.
 
-Stop after the plan ships and surface these for review before dispatching the implementer.
+All six are now locked in and reflected in the task list above. No outstanding open items.
