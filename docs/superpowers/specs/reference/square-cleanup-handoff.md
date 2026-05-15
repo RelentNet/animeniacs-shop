@@ -1,12 +1,13 @@
 # Square catalog cleanup — work-in-progress hand-off
 
-**Status:** Phase A (mirror production → sandbox) is **complete**. Mirror
-runs end-to-end; live `--apply` succeeds; sandbox counts match production
-exactly except for IMAGE (594 prod, 0 sandbox — documented limitation).
-Mirror is idempotent: re-running wipes and replays cleanly.
+**Status:** Phase A (mirror production → sandbox) and Phase B (audit
+report) are **both complete**. Mirror runs end-to-end; live `--apply`
+succeeds; sandbox counts match production exactly except for IMAGE (594
+prod, 0 sandbox — documented limitation). Audit report committed at
+`docs/superpowers/specs/reference/square-production-audit.md`.
 
 This doc tells the next session what's done, the architectural decisions
-made along the way, and the specific scope of Phase B.
+made along the way, and the specific scope of Phase C.
 
 ---
 
@@ -19,13 +20,13 @@ cleanup to production. The mirror script is the prerequisite.
 Five phases total:
 
 - Phase A: Mirror prod → sandbox — **complete** (commit `75359ea`)
-- **Phase B: Audit report (read-only, generates markdown showing problems)** ← next session
-- Phase C: Define cleanup rules in YAML (you and user sit down together)
+- Phase B: Audit report (read-only markdown of catalog hygiene issues) — **complete**
+- **Phase C: Define cleanup rules in YAML (you and user sit down together)** ← next session
 - Phase D: Add `artist` custom attribute + assignments
 - Phase E: Apply cleanup to sandbox first, verify, then promote to production
 
-Phase A is verified working end-to-end. User has reviewed the result and
-approved Phase B to start.
+Phases A and B are both verified. User to read the audit report and decide
+cleanup rules together before any Phase C work begins.
 
 ---
 
@@ -234,7 +235,77 @@ https://app.squareupsandbox.com/dashboard/items/library
   camelCase. Don't try to "fix" snake_case occurrences; the SDK does the
   conversion automatically.
 
-## Next: Phase B (audit report)
+## Phase B (audit report) — COMPLETE
+
+**Status:** Done. Report committed at
+`docs/superpowers/specs/reference/square-production-audit.md`.
+User to review before authorizing Phase C.
+
+### Phase B headline findings (from the production snapshot)
+
+| # | Issue | Count |
+|---|---|---|
+| 1 | Items with no category | 30 / 231 |
+| 2 | Items in `Uncategorized` / `Not Online` / `Slaps` | 1 / 231 |
+| 3 | Items with empty / "test" / suspicious names | 3 / 231 |
+| 4 | Items with no images | 34 / 231 |
+| 5 | Items with `ecom_visibility` UNAVAILABLE/UNINDEXED | 2 / 231 |
+| 6 | Items with `isArchived: true` | 2 / 231 |
+| 7 | Placeholder pricing (VARIABLE_PRICING + no price) | 2 / 419 |
+| 8 | Categories with zero items | 35 / 41 |
+| 9 | Categories with weird casing | 1 / 41 |
+| 10 | Duplicate or near-duplicate item names | 12 / 231 |
+| 11 | Items missing artist info | 231 / 231 |
+| 12 | Items with placeholder description text | 0 / 231 |
+| 13 | IMAGE objects with broken URLs | 4 / 594 |
+| 14 | Orphaned IMAGE objects (referenced by no item) | 396 / 594 |
+| 15 | Orphaned ITEM_VARIATIONs (parent deleted) | 0 / 419 |
+| 16 | Unused custom attribute definitions | 5 / 5 |
+| 17 | `Media` / `Size` custom attrs conflicting with ITEM_OPTIONs | 2 / 5 |
+
+The standout numbers: **only 6 of 41 categories actually contain items**
+(189 of 201 items sit in "Acrylic Wall Art"); **396 of 594 IMAGE objects
+are orphaned**; the entire Anime/Comics/Games sub-taxonomy is unpopulated.
+30 items have no category at all, all of which look like artist-named
+items (Bxnny.Arts, MercDaArtist, Saru, Noah, Juda, Zybhorn, …) that
+predate the half-built `Artist` taxonomy.
+
+### Files shipped in Phase B
+
+- `scripts/square-cleanup/audit.ts` — the report generator
+- `scripts/square-cleanup/probe.ts` — the one-shot API-shape probe used to
+  document SDK gotchas before writing the audit (kept in-tree for future
+  reference; not wired to package.json — invoke directly via `tsx`)
+- `package.json` — added `sq:audit` script
+- `docs/superpowers/specs/reference/square-production-audit.md` — the
+  report itself
+
+### Phase B SDK gotchas surfaced
+
+The probe found new gotchas beyond the ones Phase A documented:
+
+1. **Mixed casing in returned payloads.** Some fields are snake_case
+   (`itemData.ecom_visibility`, `itemData.ecom_available`,
+   `categoryData.location_overrides`, object-level `created_at`) while
+   most are camelCase. The audit reads both casings via a helper
+   (`readField`) so it doesn't matter which side the SDK returns.
+2. **`customAttributeValues` is unset on every item.** All 5 custom
+   attribute definitions in production are dead weight; 2 of them
+   (`Media`, `Size`) duplicate existing ITEM_OPTION names.
+3. **`reportingCategory` is barely used** — only 1 item of 231 sets it.
+   Most use `categories[]` instead.
+4. **`description` vs `descriptionHtml` vs `descriptionPlaintext`.** All
+   three exist on any item with a description. `description` contains
+   raw HTML; `descriptionHtml` contains double-encoded HTML (Square-side
+   artifact); `descriptionPlaintext` is the canonical text. The audit
+   reads `descriptionPlaintext` for text matching.
+5. **`categoryType` is `REGULAR_CATEGORY` for all 41 categories** — no
+   special types in this account.
+6. **Money amounts are Numbers (not BigInts) in the snapshot**, because
+   `snapshot.ts` casts BigInt → Number on write. Safe — all prices fit
+   in the JS safe integer range.
+
+### Phase B (audit report) — ORIGINAL SCOPE (kept here as reference)
 
 **Status:** User reviewed Phase A and gave explicit go-ahead to start
 Phase B (commit `75359ea` accepted on 2026-05-15).
@@ -307,6 +378,14 @@ Phase B is done when:
 - No additional snapshots needed — re-use the latest production
   snapshot in `/tmp/`. If `/tmp/` is empty (machine rebooted),
   re-run `pnpm sq:snapshot production`.
+
+## Next: Phase C (cleanup rules in YAML)
+
+Phase C is intentionally NOT auto-started by Phase B. Stop after the audit
+report ships; the user wants to read the report and decide cleanup rules
+together before any rules-YAML work begins.
+
+When you do start Phase C, the audit report is the canonical input.
 
 ## Why this is being handed off
 
