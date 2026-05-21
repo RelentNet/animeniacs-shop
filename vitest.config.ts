@@ -15,7 +15,11 @@ export default defineConfig({
     globals: true,
     // Unit tests only by default. Integration tests run via `pnpm test:integration`.
     include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
-    exclude: ['tests/integration/**', 'node_modules/**', '.next/**']
+    exclude: ['tests/integration/**', 'node_modules/**', '.next/**'],
+    // The default 5s timeout flakes on busy machines because vitest's
+    // first-test environment cold-start can take 4+ s by itself. Bump
+    // to 15s so we're not chasing phantom failures.
+    testTimeout: 15_000
   },
   resolve: {
     alias: {
