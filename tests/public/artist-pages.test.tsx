@@ -8,6 +8,12 @@ vi.mock('@/lib/db/queries/artists', () => ({
   getArtistBySlug: (slug: string) => getArtistBySlugMock(slug)
 }))
 
+// Default: no items for any category. Individual tests override.
+const getItemsByCategoryIdMock = vi.fn().mockResolvedValue([])
+vi.mock('@/lib/square/items', () => ({
+  getItemsByCategoryId: (catId: string) => getItemsByCategoryIdMock(catId)
+}))
+
 const notFoundMock = vi.fn(() => {
   throw new Error('__NOT_FOUND__')
 })
@@ -124,8 +130,9 @@ describe('/artist/[slug] profile page', () => {
     expect(container.querySelector('a[href^="https://instagram.com/"]')).toBeTruthy()
   })
 
-  it('renders empty-drops placeholder pointing at Instagram when no products are wired', async () => {
+  it('renders empty-drops placeholder pointing at Instagram when artist has no items', async () => {
     getArtistBySlugMock.mockResolvedValue(makeArtist())
+    getItemsByCategoryIdMock.mockResolvedValue([])
     const mod = await import('@/app/artist/[slug]/page')
     const element = await mod.default({ params: { slug: 'bxnny.arts' } })
     const { container } = render(element)
@@ -135,11 +142,44 @@ describe('/artist/[slug] profile page', () => {
 
   it('omits the Instagram-follow CTA when no instagram URL is set', async () => {
     getArtistBySlugMock.mockResolvedValue(makeArtist({ instagram: null }))
+    getItemsByCategoryIdMock.mockResolvedValue([])
     const mod = await import('@/app/artist/[slug]/page')
     const element = await mod.default({ params: { slug: 'bxnny.arts' } })
     const { container } = render(element)
     expect(container.textContent).toMatch(/doesn.t have any drops yet/i)
     expect(container.textContent).not.toMatch(/follow them on Instagram/i)
+  })
+
+  it('renders product grid when Square returns items for this artist', async () => {
+    getArtistBySlugMock.mockResolvedValue(makeArtist())
+    getItemsByCategoryIdMock.mockResolvedValue([
+      { id: 'IT_1', name: 'Saru Naruto', imageUrl: 'https://cdn/n.png', priceCents: 7500, categoryIds: ['CAT_BXNNY'] },
+      { id: 'IT_2', name: 'Saru Gaara',  imageUrl: 'https://cdn/g.png', priceCents: 2500, categoryIds: ['CAT_BXNNY'] }
+    ])
+    const mod = await import('@/app/artist/[slug]/page')
+    const element = await mod.default({ params: { slug: 'bxnny.arts' } })
+    const { container, getByText } = render(element)
+    expect(getByText('Saru Naruto')).toBeTruthy()
+    expect(getByText('Saru Gaara')).toBeTruthy()
+    expect(getByText('$75.00')).toBeTruthy()
+    expect(getByText('$25.00')).toBeTruthy()
+    // Empty-state copy must NOT appear when there are products.
+    expect(container.textContent).not.toMatch(/doesn.t have any drops yet/i)
+    // Each product links to its PDP.
+    expect(container.querySelector('a[href="/product/IT_1"]')).toBeTruthy()
+    expect(container.querySelector('a[href="/product/IT_2"]')).toBeTruthy()
+  })
+
+  it('renders no-image placeholder when an item has imageUrl=null', async () => {
+    getArtistBySlugMock.mockResolvedValue(makeArtist())
+    getItemsByCategoryIdMock.mockResolvedValue([
+      { id: 'IT_X', name: 'Imageless', imageUrl: null, priceCents: 5000, categoryIds: ['CAT_BXNNY'] }
+    ])
+    const mod = await import('@/app/artist/[slug]/page')
+    const element = await mod.default({ params: { slug: 'bxnny.arts' } })
+    const { container } = render(element)
+    expect(container.textContent).toMatch(/Imageless/)
+    expect(container.textContent).toMatch(/No image/)
   })
 
   it('404s when the artist does not exist', async () => {

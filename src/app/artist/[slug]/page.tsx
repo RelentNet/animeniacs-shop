@@ -1,6 +1,9 @@
 import { getArtistBySlug } from '@/lib/db/queries/artists'
 import type { Artist } from '@/lib/db/schema'
+import { type ArtistProduct, getItemsByCategoryId } from '@/lib/square/items'
+import type { Route } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 interface PageProps {
@@ -22,18 +25,16 @@ export default async function ArtistProfilePage({ params }: PageProps): Promise<
     notFound()
   }
 
+  // Fetch active items in this artist's Square category. When operators
+  // haven't re-categorized real items yet, the result is empty and we
+  // show the design-spec empty state.
+  const products = await getItemsByCategoryId(artist.squareCategoryId)
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <ArtistHeader artist={artist} />
 
-      {/*
-       * Product grid is wired in Task D.2 once Plan C.3 (item
-       * re-categorization in Square) is complete and items carry
-       * the artist's squareCategoryId in their categories[] array.
-       * Until then, show the empty-state message from the original
-       * design spec.
-       */}
-      <ProductGridPlaceholder artist={artist} />
+      {products.length === 0 ? <EmptyState artist={artist} /> : <ProductGrid products={products} />}
     </div>
   )
 }
@@ -111,7 +112,46 @@ function SocialLinks({ artist }: { artist: Artist }): JSX.Element | null {
   )
 }
 
-function ProductGridPlaceholder({ artist }: { artist: Artist }): JSX.Element {
+function ProductGrid({ products }: { products: ArtistProduct[] }): JSX.Element {
+  return (
+    <section className="mt-12">
+      <h2 className="sr-only">Drops</h2>
+      <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+        {products.map((p) => (
+          <li key={p.id}>
+            <Link
+              href={`/product/${p.id}` as Route}
+              className="block rounded-lg transition hover:opacity-90"
+            >
+              {p.imageUrl ? (
+                <Image
+                  src={p.imageUrl}
+                  alt={p.name}
+                  width={600}
+                  height={900}
+                  className="aspect-[2/3] w-full rounded-md object-cover"
+                />
+              ) : (
+                <div
+                  aria-hidden="true"
+                  className="flex aspect-[2/3] w-full items-center justify-center rounded-md bg-gray-200 text-sm text-gray-500"
+                >
+                  No image
+                </div>
+              )}
+              <div className="mt-2 text-sm font-medium">{p.name}</div>
+              {p.priceCents !== null && (
+                <div className="text-sm text-gray-600">${(p.priceCents / 100).toFixed(2)}</div>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function EmptyState({ artist }: { artist: Artist }): JSX.Element {
   const instagram = artist.instagram
   return (
     <section className="mt-12 rounded-lg bg-gray-50 p-8 text-center">
