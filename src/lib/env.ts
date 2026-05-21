@@ -26,7 +26,13 @@ const envSchema = z.object({
   SQUARE_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
   SQUARE_ACCESS_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SQUARE_LOCATION_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  SQUARE_WEBHOOK_SIGNATURE_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional())
+  SQUARE_WEBHOOK_SIGNATURE_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+
+  // Plausible analytics — script URL on the central instance.
+  // Public (NEXT_PUBLIC_*) because the values end up in the
+  // rendered <script> tag. Domain defaults to animeniacs.shop.
+  NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  NEXT_PUBLIC_PLAUSIBLE_DOMAIN: z.preprocess(emptyToUndefined, z.string().min(1).optional())
 })
 
 export type Env = z.infer<typeof envSchema>
