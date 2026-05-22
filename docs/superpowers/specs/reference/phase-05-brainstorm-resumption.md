@@ -17,6 +17,82 @@ without an explicit user signal.
 
 ---
 
+## Scope of this handoff: the master-terminal role across all remaining phases
+
+This handoff transfers the entire **master-terminal** role to the resuming
+agent. That role is broader than just finishing Phase 5 — it persists through
+every remaining phase of the project. The previous master terminal owned the
+project from Phase 1 through the start of Phase 5; this new master terminal
+owns it from "finishing Phase 5 brainstorming" through "every subsequent phase
+the project still has."
+
+### The phase cycle this master terminal owns
+
+For each phase N (starting with finishing Phase 5):
+
+1. **Brainstorm** — use `superpowers:brainstorming`. Read prior context, run
+   baseline verification, ask multiple-choice clarifying questions, present
+   design sections, get approval after each. Output: a design spec at
+   `docs/superpowers/specs/YYYY-MM-DD-phase-NN-<topic>-design.md`.
+2. **Plan** — invoke `superpowers:writing-plans` after spec approval.
+   Output: an implementation plan at
+   `docs/superpowers/plans/YYYY-MM-DD-phase-NN-<topic>.md`.
+3. **Write the execution-handoff prompt** — text to paste into a separate
+   execution terminal. Match the style of the Phase 4 execution-handoff
+   prompt that ran successfully (commit history shows the result).
+4. **Stop and surface to the operator.** Do not run the plan in the master
+   terminal. The execution terminal is always separate.
+5. **Wait** — the operator runs the execution terminal. That terminal ships
+   commits, tags `phase-N-<topic>`, and writes its own
+   `docs/superpowers/specs/reference/phase-NN-handoff.md` at the end.
+6. **Operator returns** with a message saying "Phase N done, here's the
+   handoff." Master terminal reads the new handoff doc.
+7. **Loop:** begin brainstorming Phase N+1 against the new handoff. Go to
+   step 1.
+
+### Why this stays in one master terminal (instead of one per phase)
+
+Phases 1-4 each had their own master terminal. The cost of starting fresh
+each phase was real: re-reading prior commits + prior plans + prior
+constraints to get oriented before the brainstorm could start. That setup
+overhead eats meaningful context every cycle.
+
+A persistent master terminal does that setup once. Each new phase only
+needs to digest the previous phase's handoff doc, not the whole project
+history.
+
+### When to spawn a NEW master terminal instead of continuing
+
+The previous master terminal hit a real ceiling — context grew large
+enough that productivity dropped. That's the trigger for spawning a new
+master. Not a fixed phase number, not a fixed token count, but the
+felt-experience signal "I'm spending more energy re-reading than thinking."
+
+If you (the resuming agent) feel that signal: pause, write a fresh
+resumption doc just like this one, hand off to another master terminal,
+commit and surface. Treat it as a natural cycle, not a failure.
+
+### What the execution terminals never carry forward
+
+The execution terminals are throwaway. They exist to run one plan, ship
+commits, write a handoff doc at the end, and stop. They do not own the
+"big picture." If an execution terminal needs to re-litigate a design
+decision, that's a signal to stop, surface to the operator, and let the
+master terminal (you) handle it.
+
+### Hard rule for the master terminal
+
+You never run the plan yourself. You only ever:
+- Brainstorm + write specs + write plans + write execution-handoff prompts.
+- Read prior phase handoff docs to bootstrap each new phase.
+- Pause to spawn a new master terminal when context gets too heavy.
+
+If the operator asks you to run the plan directly, push back: that's
+what the execution terminal is for. The split is what keeps the
+master terminal's context lean enough to last across multiple phases.
+
+---
+
 ## Required reading order (resuming agent)
 
 Same as the Phase 4 → Phase 5 handoff, plus this doc:
@@ -346,7 +422,7 @@ Restated here for the resuming agent so they don't have to re-read:
 
 ---
 
-## Hand-off integrity checklist
+## Hand-off integrity checklist — Phase 5 (immediate)
 
 When the resuming agent is ready to start, they should:
 
@@ -354,7 +430,7 @@ When the resuming agent is ready to start, they should:
 2. ✅ Read the doc list in "Required reading order" above.
 3. ✅ Run the "Baseline verification" commands. Confirm `phase-4-artist-system`
      tag, clean lint + typecheck, 15 active artists.
-4. ✅ Re-load the `superpowers:brainstorming` skill (this session has it
+4. ✅ Load `superpowers:brainstorming` skill (this session had it
      loaded; a new session needs to invoke `Skill` for it).
 5. ✅ Present Section 4 of 7 (Admin UI). Use multiple-choice questions
      for any sub-decisions (e.g., cover image upload approach).
@@ -364,26 +440,86 @@ When the resuming agent is ready to start, they should:
 8. Ask user to review the written spec.
 9. After spec approval, invoke `superpowers:writing-plans` to produce
    `docs/superpowers/plans/2026-05-XX-phase-05-product-detail-page.md`.
-10. Write the Phase 5 implementation handoff prompt (for a separate
-    execution terminal). Style: match the Phase 4 execution-handoff
-    prompt that lived in chat at the end of the Phase 4 planning
-    session.
+10. Write the Phase 5 execution-handoff prompt (for a separate execution
+    terminal). Style: match the Phase 4 execution-handoff prompt that
+    lived in chat at the end of the Phase 4 planning session. **Crucial
+    addition:** that prompt must instruct the execution agent to write
+    a `docs/superpowers/specs/reference/phase-05-handoff.md` at the
+    end of the phase, matching the structure of `phase-04-handoff.md`.
+    Without that doc, the master terminal can't pick up Phase 6.
 11. **Stop. No implementation.** A separate execution terminal will
     pick up the plan.
+12. **Wait for the operator** to return with the Phase 5 handoff doc.
+
+## Hand-off integrity checklist — Phase 6 and onward (recurring)
+
+After every phase ships:
+
+1. Operator returns with "Phase N done, here's the handoff" message
+   (or implicit: a commit ships `phase-NN-handoff.md`).
+2. Master terminal reads the new handoff doc end to end.
+3. Re-runs baseline verification commands (now-different expected
+   values for tag, row counts, etc., per the new handoff's
+   "Verification state at handoff" section).
+4. Loads `superpowers:brainstorming`.
+5. Brainstorm Phase N+1 against the new handoff's "Phase N+1 scope
+   (suggested, not locked)" section — treat it as input, not a
+   contract. Same as the user instruction that bootstrapped this
+   Phase 5 brainstorm.
+6. Ask multiple-choice clarifying questions until enough is decided
+   to propose 2-3 approaches.
+7. Present design sections, get section-by-section approval.
+8. Write the spec doc.
+9. Spec self-review.
+10. Operator reviews written spec.
+11. Invoke `superpowers:writing-plans`.
+12. Write the next execution-handoff prompt, including the explicit
+    "produce phase-NN-handoff.md at the end" instruction.
+13. Stop. Surface for operator review.
+
+## Pause + spawn-new-master triggers
+
+While serving as the master terminal across multiple phases, watch for
+these signals that indicate it's time to pause and write a fresh
+resumption doc handing off to another master terminal:
+
+- **Length-based:** the current conversation has accumulated many phase
+  cycles' worth of brainstorming history.
+- **Felt-experience-based:** more energy goes into re-reading prior
+  context than thinking about the current question.
+- **Operator-directed:** the operator says "context is getting too big"
+  or similar (this is exactly what triggered the current handoff).
+
+When any of those triggers fire:
+
+1. Write a fresh `phase-NN-brainstorm-resumption.md` (or similar) doc
+   matching this document's structure.
+2. Commit it.
+3. Surface a prompt for a new master terminal (matching the prompt
+   that bootstrapped this session — see the chat transcript).
+4. Stop.
+
+The handoff itself never gets handed off — each new master terminal
+inherits the role afresh, but with a smaller, more focused context.
 
 ---
 
-## What the resuming agent should NOT do
+## What the resuming agent (and every subsequent master terminal) should NOT do
 
-- Do not re-ask the 13 captured decisions.
-- Do not re-present Sections 1-3 of the design.
+- Do not re-ask captured decisions from any prior phase.
+- Do not re-present already-approved design sections.
 - Do not start implementation (no code, no migrations, no commits other
-  than the spec doc + the plan doc + this handoff doc tweaks if needed).
+  than spec docs + plan docs + handoff doc tweaks).
 - Do not skip the multiple-choice format for clarifying questions.
-- Do not invoke any skill other than `superpowers:brainstorming` (now)
-  and `superpowers:writing-plans` (after spec is approved).
-- Do not exit brainstorming until all 7 design sections are approved
-  and the spec doc is written + user-reviewed.
+- Do not invoke any skill other than `superpowers:brainstorming` and
+  `superpowers:writing-plans`.
+- Do not run any execution plan yourself. Execution always happens in
+  a separate terminal.
+- Do not exit a brainstorming session until all design sections are
+  approved and the spec doc is written + user-reviewed.
+- Do not skip writing the "produce phase-NN-handoff.md at the end"
+  instruction inside each execution-handoff prompt. Without it, the
+  chain breaks.
 
 ---
 
@@ -400,5 +536,28 @@ and a new DB table. Decomposing across two brainstorming sessions
 (this one + a fresh resumption) keeps each session focused and lets
 the spec doc emerge fully digested rather than rushed.
 
-The execution itself will then be a third terminal, dispatched via
+The execution itself will then be a separate terminal, dispatched via
 `superpowers:executing-plans` against the not-yet-written plan doc.
+And the master-terminal role continues from there into Phases 6, 7,
+8, etc., per the "Phase 6 and onward" checklist above.
+
+## Provenance — what this handoff inherited
+
+For completeness, the master terminal that paused here owned (across
+its lifetime):
+
+- Phase 1: foundation (Next.js scaffold, Docker, Postgres, Logto, Plausible)
+- Phase 2: schema (`event_logos`, `sms_recipients`, `wishlists`, `reviews`,
+  `abandoned_carts`, `customer_link`, `product_cache`, `order_log`)
+- Phase 3: Square catalog SDK integration (partial — the unfinished
+  Tasks 7-12 are Phase 5/later territory)
+- Phase 4: artist system replacing the originally-planned GoAffPro
+  runtime integration
+- Phase 5 (start): brainstormed Sections 1-3 of the PDP design, captured
+  13 decisions, paused
+
+The new master terminal inherits no obligation to re-read any of that.
+The "Required reading order" above is sufficient. Phases 1-3 history
+is in commit history and design-spec banners; the resuming agent only
+needs to know what's CURRENTLY in force, which is what this doc
+captures.
