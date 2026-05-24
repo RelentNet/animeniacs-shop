@@ -68,8 +68,9 @@ function VariationNameSelect({
   initialVariationId?: string
 }): JSX.Element {
   const id = useId()
-  const initial =
-    (initialVariationId && variations.find((v) => v.id === initialVariationId)) ?? variations[0]
+  const initial: CachedVariation =
+    (initialVariationId ? variations.find((v) => v.id === initialVariationId) : undefined) ??
+    variations[0]
   const [selectedId, setSelectedId] = useState(initial.id)
   const fired = useRef(false)
 
@@ -108,8 +109,9 @@ function OptionSelects({
   onChange,
   initialVariationId
 }: VariantPickerProps): JSX.Element {
-  const initialVariation =
-    (initialVariationId && variations.find((v) => v.id === initialVariationId)) ?? variations[0]
+  const initialVariation: CachedVariation =
+    (initialVariationId ? variations.find((v) => v.id === initialVariationId) : undefined) ??
+    variations[0]
   const initialSelected = new Map<string, string>()
   for (const opt of itemOptions) {
     const pickedValueId = initialVariation.optionValueIds.find((vid) =>

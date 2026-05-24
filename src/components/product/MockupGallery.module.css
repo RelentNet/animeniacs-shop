@@ -36,7 +36,7 @@
   border-radius: 4px;
 }
 
-.thumb[aria-pressed='true'] {
+.thumb[aria-pressed="true"] {
   border-color: #333;
 }
 
@@ -65,11 +65,11 @@
   transition: opacity 400ms ease;
 }
 
-.bg[data-active='true'] {
+.bg[data-active="true"] {
   opacity: 1;
 }
 
-.display[data-reduced-motion='true'] .bg {
+.display[data-reduced-motion="true"] .bg {
   transition: none;
 }
 

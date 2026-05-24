@@ -48,8 +48,10 @@ export function MockupGallery({
     <div
       ref={containerRef}
       className={styles.container}
+      // biome-ignore lint/a11y/useSemanticElements: <fieldset> would impose form-control semantics this gallery doesn't have
       role="group"
       aria-labelledby={titleId}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: gallery container is keyboard-navigable via arrow keys (handled below)
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
