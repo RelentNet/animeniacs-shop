@@ -53,11 +53,7 @@ export function PdpPurchasePanel({
           style={{ width: '4rem', textAlign: 'center' }}
           readOnly
         />
-        <button
-          type="button"
-          aria-label="Increase quantity"
-          onClick={() => setQty((q) => q + 1)}
-        >
+        <button type="button" aria-label="Increase quantity" onClick={() => setQty((q) => q + 1)}>
           +
         </button>
       </div>

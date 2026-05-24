@@ -90,10 +90,7 @@ export default async function ProductDetailPage({ params }: PageProps): Promise<
                       className="aspect-[2/3] w-full rounded object-cover"
                     />
                   ) : (
-                    <div
-                      className="aspect-[2/3] w-full rounded bg-gray-200"
-                      aria-hidden="true"
-                    />
+                    <div className="aspect-[2/3] w-full rounded bg-gray-200" aria-hidden="true" />
                   )}
                   <div className="mt-1 text-sm">{p.name}</div>
                 </Link>

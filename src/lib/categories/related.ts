@@ -50,7 +50,7 @@ export async function getRelatedProducts(
   // Priority 2: IP nickname
   for (const id of categoryIds) {
     const nickname = await getIpNicknameByCategoryId(id)
-    if (nickname && nickname.isPublic) {
+    if (nickname?.isPublic) {
       const items = (await getItemsByCategoryId(nickname.squareCategoryId))
         .filter((it) => it.id !== currentItemId)
         .slice(0, MAX_RELATED)
