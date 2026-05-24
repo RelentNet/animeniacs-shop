@@ -4,7 +4,11 @@ const config = {
   poweredByHeader: false,
   output: 'standalone',
   experimental: {
-    typedRoutes: true
+    typedRoutes: true,
+    // isomorphic-dompurify pulls in jsdom (heavy native deps); keep it
+    // out of the server-component bundle so Next traces the package's
+    // own files (including jsdom's default-stylesheet.css).
+    serverComponentsExternalPackages: ['isomorphic-dompurify']
   },
   images: {
     remotePatterns: [
