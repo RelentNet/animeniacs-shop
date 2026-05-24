@@ -191,3 +191,19 @@ export const artists = pgTable(
 
 export type Artist = typeof artists.$inferSelect
 export type NewArtist = typeof artists.$inferInsert
+
+export const ipNicknames = pgTable('ip_nicknames', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  squareCategoryId: text('square_category_id').notNull().unique(),
+  slug: text('slug').notNull().unique(),
+  nickname: text('nickname').notNull(),
+  description: text('description'),
+  // Nullable in Phase 5; no UI populates this column. Future phases add upload UI.
+  coverImageUrl: text('cover_image_url'),
+  isPublic: boolean('is_public').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type IpNickname = typeof ipNicknames.$inferSelect
+export type NewIpNickname = typeof ipNicknames.$inferInsert

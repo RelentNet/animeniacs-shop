@@ -71,6 +71,13 @@
       "when": 1778830759337,
       "tag": "0009_married_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1779644687339,
+      "tag": "0010_tricky_korvac",
+      "breakpoints": true
     }
   ]
 }
