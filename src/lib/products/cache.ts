@@ -78,7 +78,6 @@ export function denormalize(sdkItem: any, ctx: DenormalizeContext): CachedProduc
       const amount = typeof raw === 'bigint' ? Number(raw) : Number(raw)
       price = { amount, currency: vd.priceMoney.currency ?? 'USD' }
     }
-    // biome-ignore lint/suspicious/noExplicitAny: SDK
     const optionValueIds: string[] = (vd.itemOptionValues ?? [])
       // biome-ignore lint/suspicious/noExplicitAny: SDK
       .map((ov: any) => ov.itemOptionValueId)

@@ -1,10 +1,6 @@
 import { db } from '@/lib/db/client'
 import { productCache } from '@/lib/db/schema'
-import {
-  PRODUCT_CACHE_TTL_MS,
-  __forceRefresh,
-  getProductById
-} from '@/lib/products/cache'
+import { PRODUCT_CACHE_TTL_MS, __forceRefresh, getProductById } from '@/lib/products/cache'
 import { eq, sql } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { testNamespace } from '../helpers/db'

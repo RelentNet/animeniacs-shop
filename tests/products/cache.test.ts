@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mocks must be hoisted; declare before importing the SUT.
 vi.mock('@/lib/db/client', () => ({
