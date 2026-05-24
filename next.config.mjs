@@ -6,9 +6,17 @@ const config = {
   experimental: {
     typedRoutes: true
   },
-  // Square CDN images will be added in Phase 3
   images: {
-    remotePatterns: []
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'items-images-production.s3.us-west-2.amazonaws.com'
+      },
+      {
+        protocol: 'https',
+        hostname: 'items-images-sandbox.s3.us-west-2.amazonaws.com'
+      }
+    ]
   }
 }
 
