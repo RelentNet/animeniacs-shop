@@ -8,10 +8,7 @@ export const metadata = {
 }
 
 export default async function AdminIpNicknamesListPage(): Promise<JSX.Element> {
-  const [nicknames, categoryNames] = await Promise.all([
-    getAllIpNicknames(),
-    getCategoryNameMap()
-  ])
+  const [nicknames, categoryNames] = await Promise.all([getAllIpNicknames(), getCategoryNameMap()])
 
   return (
     <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>

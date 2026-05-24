@@ -22,10 +22,7 @@ export interface SquareIpCategoryOption {
 export async function loadIpCategoryOptions(
   alreadyMappedCategoryIds: Set<string> = new Set()
 ): Promise<SquareIpCategoryOption[]> {
-  const [all, nonArtist] = await Promise.all([
-    listCategoriesFromSquare(),
-    getNonArtistCategories()
-  ])
+  const [all, nonArtist] = await Promise.all([listCategoriesFromSquare(), getNonArtistCategories()])
   const allById = new Map(all.map((c) => [c.id, c]))
   return nonArtist
     .filter((c) => !alreadyMappedCategoryIds.has(c.id))

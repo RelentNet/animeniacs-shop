@@ -34,9 +34,7 @@ afterEach(() => {
 describe('createIpNicknameAction', () => {
   it('happy path: validates, creates, redirects', async () => {
     mockCreate.mockResolvedValueOnce({ id: 'X', slug: 'naruto-ramen', nickname: 'Ramen Shop' })
-    const { createIpNicknameAction } = await import(
-      '@/app/(admin)/admin/ip-nicknames/new/actions'
-    )
+    const { createIpNicknameAction } = await import('@/app/(admin)/admin/ip-nicknames/new/actions')
     const form = makeForm({
       slug: 'naruto-ramen',
       nickname: 'Ramen Shop',
@@ -52,9 +50,7 @@ describe('createIpNicknameAction', () => {
   })
 
   it('rejects invalid slug (uppercase) without hitting DB', async () => {
-    const { createIpNicknameAction } = await import(
-      '@/app/(admin)/admin/ip-nicknames/new/actions'
-    )
+    const { createIpNicknameAction } = await import('@/app/(admin)/admin/ip-nicknames/new/actions')
     const form = makeForm({
       slug: 'BadSlug',
       nickname: 'Ramen',
@@ -71,9 +67,7 @@ describe('createIpNicknameAction', () => {
       code: '23505',
       message: 'duplicate key value violates unique constraint "ip_nicknames_slug_unique"'
     })
-    const { createIpNicknameAction } = await import(
-      '@/app/(admin)/admin/ip-nicknames/new/actions'
-    )
+    const { createIpNicknameAction } = await import('@/app/(admin)/admin/ip-nicknames/new/actions')
     const form = makeForm({
       slug: 'naruto-ramen',
       nickname: 'Ramen',
@@ -91,9 +85,7 @@ describe('createIpNicknameAction', () => {
       message:
         'duplicate key value violates unique constraint "ip_nicknames_square_category_id_unique"'
     })
-    const { createIpNicknameAction } = await import(
-      '@/app/(admin)/admin/ip-nicknames/new/actions'
-    )
+    const { createIpNicknameAction } = await import('@/app/(admin)/admin/ip-nicknames/new/actions')
     const form = makeForm({
       slug: 'naruto-ramen',
       nickname: 'Ramen',
@@ -108,9 +100,7 @@ describe('createIpNicknameAction', () => {
 describe('updateIpNicknameAction', () => {
   it('happy path: validates, updates, redirects', async () => {
     mockUpdate.mockResolvedValueOnce({ id: 'X', slug: 'ramen-shop' })
-    const { updateIpNicknameAction } = await import(
-      '@/app/(admin)/admin/ip-nicknames/[id]/actions'
-    )
+    const { updateIpNicknameAction } = await import('@/app/(admin)/admin/ip-nicknames/[id]/actions')
     const form = makeForm({
       slug: 'ramen-shop',
       nickname: 'Ramen',
