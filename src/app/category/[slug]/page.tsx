@@ -14,8 +14,7 @@ export async function generateMetadata({ params }: PageProps) {
   if (!nickname || !nickname.isPublic) return { title: 'Not found | Animeniacs' }
   return {
     title: `${nickname.nickname} | Animeniacs`,
-    description:
-      nickname.description?.slice(0, 160) ?? `Drops featuring ${nickname.nickname}.`
+    description: nickname.description?.slice(0, 160) ?? `Drops featuring ${nickname.nickname}.`
   }
 }
 
@@ -75,9 +74,7 @@ export default async function CategoryPage({ params }: PageProps): Promise<JSX.E
                   )}
                   <div className="mt-2 text-sm font-medium">{p.name}</div>
                   {p.priceCents !== null && (
-                    <div className="text-sm text-gray-600">
-                      ${(p.priceCents / 100).toFixed(2)}
-                    </div>
+                    <div className="text-sm text-gray-600">${(p.priceCents / 100).toFixed(2)}</div>
                   )}
                 </Link>
               </li>
