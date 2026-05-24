@@ -79,3 +79,44 @@ export async function getCategoryNameMap(): Promise<Map<string, string>> {
   const all = await listCategoriesFromSquare()
   return new Map(all.map((c) => [c.id, c.name]))
 }
+
+/**
+ * Every category that is NOT the Artist parent and NOT one of its
+ * children. Used by the IP-nicknames admin to assign nicknames to
+ * non-artist categories.
+ *
+ * If the Artist parent doesn't exist (test fixture / fresh sandbox),
+ * returns the full list — defensive, matches the principle that
+ * absence-of-Artist means there are no Artist sub-categories to exclude.
+ */
+export async function getNonArtistCategories(): Promise<SquareCategory[]> {
+  const all = await listCategoriesFromSquare()
+  const parentId = all.find(
+    (c) => c.name === ARTIST_PARENT_CATEGORY_NAME && c.parentCategoryId === null
+  )?.id
+  if (!parentId) return all
+  return all.filter((c) => c.id !== parentId && c.parentCategoryId !== parentId)
+}
+
+/**
+ * Walks parentCategoryId up the chain, joining names with ` > `.
+ * Used to build hierarchical labels for the IP category picker.
+ * Detects cycles (returns the partial chain it has so far).
+ */
+export function buildHierarchicalLabel(
+  category: SquareCategory,
+  allById: Map<string, SquareCategory>
+): string {
+  const parts: string[] = [category.name]
+  const seen = new Set<string>([category.id])
+  let current = category
+  while (current.parentCategoryId) {
+    if (seen.has(current.parentCategoryId)) break // cycle guard
+    const parent = allById.get(current.parentCategoryId)
+    if (!parent) break
+    parts.unshift(parent.name)
+    seen.add(parent.id)
+    current = parent
+  }
+  return parts.join(' > ')
+}
