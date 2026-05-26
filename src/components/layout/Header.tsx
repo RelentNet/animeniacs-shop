@@ -1,3 +1,4 @@
+import { CartButton } from '@/components/cart/CartButton'
 import type { Route } from 'next'
 import Link from 'next/link'
 
@@ -9,7 +10,7 @@ export function Header() {
           Animeniacs
         </Link>
         <nav aria-label="Primary">
-          <ul className="flex gap-4 text-sm">
+          <ul className="flex items-center gap-4 text-sm">
             <li>
               <Link href="/">Home</Link>
             </li>
@@ -29,7 +30,7 @@ export function Header() {
               <Link href={'/account' as Route}>Account</Link>
             </li>
             <li>
-              <Link href={'/cart' as Route}>Cart</Link>
+              <CartButton />
             </li>
           </ul>
         </nav>

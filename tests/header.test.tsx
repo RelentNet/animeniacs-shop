@@ -1,17 +1,22 @@
 import { Header } from '@/components/layout/Header'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import { renderWithCart } from './cart/helpers'
 
 describe('Header', () => {
   it('renders the brand name', () => {
-    render(<Header />)
+    renderWithCart(<Header />)
     expect(screen.getByText('Animeniacs')).toBeInTheDocument()
   })
 
   it('includes primary navigation links', () => {
-    render(<Header />)
+    renderWithCart(<Header />)
     expect(screen.getByRole('link', { name: 'Shop' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Artists' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Cart' })).toBeInTheDocument()
+  })
+
+  it('renders the cart button', () => {
+    renderWithCart(<Header />)
+    expect(screen.getByRole('button', { name: /open cart/i })).toBeInTheDocument()
   })
 })
