@@ -2,7 +2,7 @@
 
 import { cartReducer, totalQuantity } from '@/lib/cart/reducer'
 import { CART_STORAGE_KEY, readPersistedCart, writePersistedCart } from '@/lib/cart/storage'
-import { INITIAL_CART_STATE, type CartEntry } from '@/lib/cart/types'
+import { type CartEntry, INITIAL_CART_STATE } from '@/lib/cart/types'
 import { type ReactNode, useCallback, useEffect, useMemo, useReducer } from 'react'
 import { CartDrawer } from './CartDrawer'
 import { CartContext, type UseCartReturn } from './useCart'
