@@ -1,8 +1,9 @@
 import { PdpPurchasePanel } from '@/components/product/PdpPurchasePanel'
 import type { CachedItemOption, CachedVariation } from '@/lib/square/types'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import '@testing-library/jest-dom/vitest'
+import { renderWithCart } from '../cart/helpers'
 
 const SIZE: CachedItemOption = {
   id: 'OPT_SIZE',
@@ -31,8 +32,9 @@ const VARIATIONS: CachedVariation[] = [
 
 describe('<PdpPurchasePanel>', () => {
   it('renders the initial variation price', () => {
-    render(
+    renderWithCart(
       <PdpPurchasePanel
+        productId="P1"
         variations={VARIATIONS}
         itemOptions={[SIZE]}
         productionTimeText="Ships in 3-10 days."
@@ -42,20 +44,22 @@ describe('<PdpPurchasePanel>', () => {
   })
 
   it('updates price when variation changes', () => {
-    render(
+    renderWithCart(
       <PdpPurchasePanel
+        productId="P1"
         variations={VARIATIONS}
         itemOptions={[SIZE]}
         productionTimeText="Ships in 3-10 days."
       />
     )
-    fireEvent.change(screen.getByLabelText(/size/i), { target: { value: 'M' } })
+    fireEvent.change(screen.getByLabelText('Size'), { target: { value: 'M' } })
     expect(screen.getByText('$35.00')).toBeInTheDocument()
   })
 
   it('renders the production time text', () => {
-    render(
+    renderWithCart(
       <PdpPurchasePanel
+        productId="P1"
         variations={VARIATIONS}
         itemOptions={[SIZE]}
         productionTimeText="Ships in 3-10 days."
@@ -64,29 +68,34 @@ describe('<PdpPurchasePanel>', () => {
     expect(screen.getByText('Ships in 3-10 days.')).toBeInTheDocument()
   })
 
-  it('Add-to-Cart button is disabled and has the launch tooltip', () => {
-    render(
-      <PdpPurchasePanel variations={VARIATIONS} itemOptions={[SIZE]} productionTimeText="x" />
+  it('Add-to-Cart button is enabled when a variation is selected', () => {
+    renderWithCart(
+      <PdpPurchasePanel
+        productId="P1"
+        variations={VARIATIONS}
+        itemOptions={[SIZE]}
+        productionTimeText="x"
+      />
     )
-    const btn = screen.getByRole('button', { name: /add to cart/i })
-    expect(btn).toBeDisabled()
-    expect(btn).toHaveAttribute('title', expect.stringMatching(/launching soon/i))
+    expect(screen.getByRole('button', { name: /add to cart/i })).not.toBeDisabled()
   })
 
-  it('quantity stepper increments and decrements (cannot go below 1)', () => {
-    render(
-      <PdpPurchasePanel variations={VARIATIONS} itemOptions={[SIZE]} productionTimeText="x" />
+  it('clicking Add to Cart adds the line and opens the drawer', () => {
+    renderWithCart(
+      <PdpPurchasePanel
+        productId="P1"
+        variations={VARIATIONS}
+        itemOptions={[SIZE]}
+        productionTimeText="x"
+      />
     )
-    const qty = screen.getByLabelText('Quantity') as HTMLInputElement
-    expect(qty.value).toBe('1')
-    fireEvent.click(screen.getByRole('button', { name: /increase quantity/i }))
-    expect(qty.value).toBe('2')
-    fireEvent.click(screen.getByRole('button', { name: /decrease quantity/i }))
-    fireEvent.click(screen.getByRole('button', { name: /decrease quantity/i }))
-    expect(qty.value).toBe('1')
+    fireEvent.click(screen.getByRole('button', { name: /add to cart/i }))
+    // The provider mounts <CartDrawer> automatically, so the drawer dialog
+    // becomes findable after the click.
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
-  it('renders "Combination unavailable" when picker yields null', () => {
+  it('Add-to-Cart is disabled when picker resolves to no variation', () => {
     const VS: CachedVariation[] = [
       {
         id: 'V_S_AC',
@@ -119,10 +128,34 @@ describe('<PdpPurchasePanel>', () => {
         { id: 'VI', name: 'Vinyl' }
       ]
     }
-    render(
-      <PdpPurchasePanel variations={VS} itemOptions={[SIZE2, MEDIA]} productionTimeText="x" />
+    renderWithCart(
+      <PdpPurchasePanel
+        productId="P1"
+        variations={VS}
+        itemOptions={[SIZE2, MEDIA]}
+        productionTimeText="x"
+      />
     )
-    fireEvent.change(screen.getByLabelText(/media/i), { target: { value: 'VI' } })
+    fireEvent.change(screen.getByLabelText('Media'), { target: { value: 'VI' } })
     expect(screen.getByText(/combination unavailable/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add to cart/i })).toBeDisabled()
+  })
+
+  it('quantity stepper increments and decrements (cannot go below 1)', () => {
+    renderWithCart(
+      <PdpPurchasePanel
+        productId="P1"
+        variations={VARIATIONS}
+        itemOptions={[SIZE]}
+        productionTimeText="x"
+      />
+    )
+    const qty = screen.getByLabelText('Quantity') as HTMLInputElement
+    expect(qty.value).toBe('1')
+    fireEvent.click(screen.getByRole('button', { name: /increase quantity/i }))
+    expect(qty.value).toBe('2')
+    fireEvent.click(screen.getByRole('button', { name: /decrease quantity/i }))
+    fireEvent.click(screen.getByRole('button', { name: /decrease quantity/i }))
+    expect(qty.value).toBe('1')
   })
 })
