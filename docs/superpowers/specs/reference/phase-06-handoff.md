@@ -239,6 +239,32 @@ D.4 commit. Pure code-hygiene workaround; no runtime impact.
   reformatting and import-order. Not committed standalone —
   bundled with the task that introduced the file.
 
+### 12. Styling baseline commit landed alongside Phase 6 (authored by master terminal)
+
+The phase ended with a single styling commit
+(`Phase 6 styling baseline (authored by master terminal, not Phase 6 plan)`)
+that touches `src/app/globals.css`, `src/components/layout/Header.tsx`,
+and `src/components/layout/Footer.tsx`. It locks `color-scheme: light`
+and adds explicit text/background colors so the header/footer aren't
+invisible on white backgrounds during local smoke. **It is NOT part of
+the Phase 6 plan or spec** — it was added by the master terminal so
+the operator could complete the manual smoke checklist without
+spending time on a styling phase first. Phase 7 should expect this
+as the starting visual baseline. A real visual-design phase is queued
+separately.
+
+### 13. Image rendering: code path works; sandbox catalog has no images
+
+During smoke testing, every product hydrated via `/api/cart/hydrate`
+returned `images: []`. Direct Square SDK probe confirmed all 98 active
+items in the sandbox catalog have zero `imageIds` attached. The image
+pipeline itself (Phase 4's `getItemsByCategoryId` + Phase 5's
+`getProductById` + the `items-images-{sandbox,production}.s3...`
+allowlist in `next.config.mjs`) is fully wired and tested at the unit
+level. Production cutover will surface images automatically (the
+229-item production catalog has product photography). No code change
+needed for Phase 7.
+
 ---
 
 ## Hard constraints (still in force)
@@ -367,11 +393,11 @@ brainstorm will refine.
 - `pnpm build`: clean. 30 routes total (up from 29 in Phase 5):
   - 1 new dynamic route: `ƒ /api/cart/hydrate`
   - All other routes unchanged from Phase 5
-- Git tag `phase-6-cart` to be applied at HEAD after operator manual
-  smoke confirmation. Pre-tag HEAD: `7793bbc` (or the commit of the
-  handoff doc itself).
-- Phase 6 commit count: 18 commits from `phase-5-product-detail-page`
-  tag to the pre-handoff HEAD.
+- Git tag `phase-6-cart` applied at the commit of this handoff-doc
+  amendment, which includes the styling-baseline commit from the
+  master terminal (see deviation #12).
+- Phase 6 commit count: 20 commits from `phase-5-product-detail-page`
+  tag to the tagged HEAD.
 - Local DB: 15 active artist rows, 0 `ip_nicknames` rows (operator
   hasn't created any yet — fine; Phase 6 doesn't read or write that
   table).
