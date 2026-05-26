@@ -22,11 +22,3 @@ export const DISABLED_CHECKOUT_TOOLTIP =
 export const CART_BADGE_DELIVERY = 'Ships in 3-10 days depending on convention schedule.'
 export const CART_BADGE_HANGING_STRIPS = 'Free hanging strips included with every order.'
 export const CART_BADGE_SUPPORT_ARTIST = 'Every purchase supports an independent artist.'
-
-/**
- * @deprecated Renamed to `DISABLED_CHECKOUT_TOOLTIP` in Phase 6. This alias
- * exists for one commit window to keep `PdpPurchasePanel` compiling between
- * D.1 (this rename) and D.4 (the panel's rewrite that drops the constant
- * entirely). Remove once D.4 lands.
- */
-export const DISABLED_ADD_TO_CART_TOOLTIP = DISABLED_CHECKOUT_TOOLTIP

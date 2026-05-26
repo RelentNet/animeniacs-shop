@@ -1,11 +1,13 @@
 'use client'
 
+import { useCart } from '@/components/cart/useCart'
 import { VariantPicker } from '@/components/product/VariantPicker'
-import { DISABLED_ADD_TO_CART_TOOLTIP } from '@/lib/site-copy'
 import type { CachedItemOption, CachedVariation } from '@/lib/square/types'
 import { useState } from 'react'
 
 interface PdpPurchasePanelProps {
+  /** Square catalog item id — required so addItem can record the line. */
+  productId: string
   variations: CachedVariation[]
   itemOptions: CachedItemOption[]
   productionTimeText: string
@@ -17,12 +19,24 @@ function formatPrice(v: CachedVariation | null): string {
 }
 
 export function PdpPurchasePanel({
+  productId,
   variations,
   itemOptions,
   productionTimeText
 }: PdpPurchasePanelProps): JSX.Element {
   const [selected, setSelected] = useState<CachedVariation | null>(variations[0] ?? null)
   const [qty, setQty] = useState(1)
+  const { addItem, openDrawer } = useCart()
+
+  function handleAddToCart() {
+    if (!selected) return
+    addItem({
+      catalogItemId: productId,
+      variationId: selected.id,
+      quantity: qty
+    })
+    openDrawer()
+  }
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
@@ -60,20 +74,20 @@ export function PdpPurchasePanel({
 
       <button
         type="button"
-        disabled
-        title={DISABLED_ADD_TO_CART_TOOLTIP}
+        onClick={handleAddToCart}
+        disabled={!selected}
         style={{
           padding: '0.75rem 1.5rem',
-          background: '#ddd',
-          color: '#555',
+          background: selected ? '#222' : '#ddd',
+          color: selected ? 'white' : '#555',
           border: 'none',
           borderRadius: '0.25rem',
-          cursor: 'not-allowed'
+          cursor: selected ? 'pointer' : 'not-allowed',
+          fontWeight: 600
         }}
       >
         Add to Cart
       </button>
-      <small style={{ color: '#666' }}>{DISABLED_ADD_TO_CART_TOOLTIP}</small>
     </div>
   )
 }

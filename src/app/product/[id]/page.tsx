@@ -54,6 +54,7 @@ export default async function ProductDetailPage({ params }: PageProps): Promise<
           <h1 className="text-3xl font-bold">{product.name}</h1>
           <ArtistMetaLine categoryIds={product.categoryIds} />
           <PdpPurchasePanel
+            productId={product.id}
             variations={product.variations}
             itemOptions={product.itemOptions}
             productionTimeText={PRODUCTION_TIME_TEXT}
