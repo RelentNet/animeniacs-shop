@@ -1,11 +1,34 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: light dark;
+  /* Force light-mode rendering site-wide for v1. A proper light/dark
+     theme is a future styling phase. Without this, browsers in OS
+     dark mode flip default text color to white, which makes our
+     light-background layouts (header, footer, drawer, etc.) unreadable. */
+  color-scheme: light;
 }
 
 html,
 body {
   margin: 0;
   padding: 0;
+}
+
+body {
+  /* Explicit base text color + background so nothing renders white-on-white
+     even before component-level classes apply. */
+  color: #111827; /* tailwind gray-900 */
+  background: #ffffff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Default link styling: visible, underlined on hover. Components can
+   still override (e.g. nav links that should look like plain text). */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
 }

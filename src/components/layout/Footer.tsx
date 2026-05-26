@@ -3,10 +3,10 @@ import { NewsletterSignupStub } from './NewsletterSignupStub'
 
 export function Footer() {
   return (
-    <footer className="mt-16 border-t border-gray-200 bg-gray-50">
+    <footer className="mt-16 border-t border-gray-200 bg-gray-50 text-gray-700">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-4">
         <section aria-labelledby="footer-help">
-          <h2 id="footer-help" className="text-sm font-semibold uppercase">
+          <h2 id="footer-help" className="text-sm font-semibold uppercase text-gray-900">
             Need Help
           </h2>
           <ul className="mt-3 space-y-1 text-sm">
@@ -23,7 +23,7 @@ export function Footer() {
         </section>
 
         <section aria-labelledby="footer-follow">
-          <h2 id="footer-follow" className="text-sm font-semibold uppercase">
+          <h2 id="footer-follow" className="text-sm font-semibold uppercase text-gray-900">
             Follow Us
           </h2>
           <ul className="mt-3 space-y-1 text-sm">
@@ -49,7 +49,7 @@ export function Footer() {
         </section>
 
         <section aria-labelledby="footer-partner">
-          <h2 id="footer-partner" className="text-sm font-semibold uppercase">
+          <h2 id="footer-partner" className="text-sm font-semibold uppercase text-gray-900">
             Partner with Us
           </h2>
           <ul className="mt-3 space-y-1 text-sm">
@@ -80,7 +80,7 @@ export function Footer() {
         </section>
 
         <section aria-labelledby="footer-info">
-          <h2 id="footer-info" className="text-sm font-semibold uppercase">
+          <h2 id="footer-info" className="text-sm font-semibold uppercase text-gray-900">
             Info
           </h2>
           <ul className="mt-3 space-y-1 text-sm">
