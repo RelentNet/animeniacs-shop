@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import {
   boolean,
   check,
+  index,
   integer,
   jsonb,
   numeric,
@@ -144,13 +145,24 @@ export const productCache = pgTable('product_cache', {
 export type ProductCacheEntry = typeof productCache.$inferSelect
 export type NewProductCacheEntry = typeof productCache.$inferInsert
 
-export const orderLog = pgTable('order_log', {
-  id: serial('id').primaryKey(),
-  squareOrderId: text('square_order_id').notNull(),
-  eventType: text('event_type').notNull(), // e.g. "order.created", "payment.created"
-  payload: jsonb('payload').notNull(), // raw webhook body
-  receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow()
-})
+export const orderLog = pgTable(
+  'order_log',
+  {
+    id: serial('id').primaryKey(),
+    squareOrderId: text('square_order_id').notNull(),
+    eventType: text('event_type').notNull(), // e.g. "order.created", "payment.created"
+    /** Square event_id from the webhook payload. Used for idempotency
+     *  in the webhook handler — duplicate events get logged but skip
+     *  notification fanout. Nullable so backfilled rows (none yet) and
+     *  any future non-webhook log writes don't violate. */
+    eventId: text('event_id'),
+    payload: jsonb('payload').notNull(), // raw webhook body
+    receivedAt: timestamp('received_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    eventIdIdx: index('order_log_event_id_idx').on(table.eventId)
+  })
+)
 
 export type OrderLogEntry = typeof orderLog.$inferSelect
 export type NewOrderLogEntry = typeof orderLog.$inferInsert
