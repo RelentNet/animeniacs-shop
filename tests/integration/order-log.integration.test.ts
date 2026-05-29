@@ -1,6 +1,7 @@
 import { db } from '@/lib/db/client'
+import { appendOrderLog, hasEventId } from '@/lib/db/queries/order-log'
 import { orderLog } from '@/lib/db/schema'
-import { desc, eq } from 'drizzle-orm'
+import { desc, eq, sql } from 'drizzle-orm'
 import { afterAll, describe, expect, it } from 'vitest'
 import { cleanupByPrefix, testNamespace } from '../helpers/db'
 
@@ -71,5 +72,51 @@ describe('order_log integration', () => {
 
   afterAll(async () => {
     await cleanupByPrefix(orderLog, 'square_order_id', NS)
+  })
+})
+
+const NS_HELPERS = testNamespace('orderlog')
+
+afterAll(async () => {
+  await db.delete(orderLog).where(sql`${orderLog.squareOrderId} LIKE ${`${NS_HELPERS}%`}`)
+})
+
+describe('order_log query helpers', () => {
+  it('appendOrderLog inserts a row and returns it', async () => {
+    const row = await appendOrderLog({
+      squareOrderId: `${NS_HELPERS}_order_1`,
+      eventType: 'payment.created',
+      eventId: `${NS_HELPERS}_event_1`,
+      payload: { foo: 'bar' }
+    })
+    expect(row.squareOrderId).toBe(`${NS_HELPERS}_order_1`)
+    expect(row.eventType).toBe('payment.created')
+    expect(row.eventId).toBe(`${NS_HELPERS}_event_1`)
+    expect(row.receivedAt).toBeInstanceOf(Date)
+  })
+
+  it('hasEventId returns true after appendOrderLog with the same id', async () => {
+    await appendOrderLog({
+      squareOrderId: `${NS_HELPERS}_order_2`,
+      eventType: 'payment.created',
+      eventId: `${NS_HELPERS}_event_2`,
+      payload: {}
+    })
+    expect(await hasEventId(`${NS_HELPERS}_event_2`)).toBe(true)
+  })
+
+  it('hasEventId returns false for unknown id', async () => {
+    expect(await hasEventId(`${NS_HELPERS}_event_unknown`)).toBe(false)
+  })
+
+  it('hasEventId distinguishes empty string from null', async () => {
+    // Null eventIds (e.g. non-webhook log writes) should never match a lookup.
+    await appendOrderLog({
+      squareOrderId: `${NS_HELPERS}_order_null`,
+      eventType: 'manual',
+      eventId: null,
+      payload: {}
+    })
+    expect(await hasEventId('')).toBe(false)
   })
 })
