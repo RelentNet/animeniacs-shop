@@ -74,8 +74,16 @@ services:
       SMSEDGE_BASE_URL: ${SMSEDGE_BASE_URL:-https://sms-edge.relentnet.dev}
       NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL: ${NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL:-}
       NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-animeniacs.shop}
-    ports:
-      - "${APP_PORT:-3000}:3000"
+    # No host port binding: in Coolify (and any reverse-proxied deploy)
+    # Traefik routes to the container via the shared Docker network using
+    # `expose`. Local devs use `pnpm dev` for hot-reload work; the
+    # compose stack with `--profile local` is for verifying the Docker
+    # build end-to-end and is reached via the container's internal IP
+    # or a temporary `docker compose run -p 3000:3000 app` override.
+    # Phase 7.5 plan deviation: spec had `ports: 3000:3000` but the
+    # Coolify host port 3000 is already allocated by another container.
+    expose:
+      - "3000"
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/health || exit 1"]
       interval: 10s
