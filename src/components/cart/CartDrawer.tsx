@@ -3,11 +3,10 @@
 import {
   CART_BADGE_DELIVERY,
   CART_BADGE_HANGING_STRIPS,
-  CART_BADGE_SUPPORT_ARTIST,
-  DISABLED_CHECKOUT_TOOLTIP
+  CART_BADGE_SUPPORT_ARTIST
 } from '@/lib/site-copy'
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import styles from './CartDrawer.module.css'
 import { CartLine } from './CartLine'
 import { useCart } from './useCart'
@@ -19,10 +18,12 @@ function lineKey(catalogItemId: string, variationId: string): string {
 
 export function CartDrawer(): JSX.Element {
   const { items, isDrawerOpen, openDrawer, closeDrawer, totalQuantity, removeItem } = useCart()
-  const { products, isLoading } = useCartHydration()
+  const { products, isLoading, refresh } = useCartHydration()
   const prevOpenRef = useRef(isDrawerOpen)
   const warnedKeysRef = useRef<Set<string>>(new Set())
   const processedThisOpenRef = useRef(false)
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   // Decision 9: auto-strip stale entries on the SECOND drawer open after
   // staleness is first detected. Mechanism:
@@ -70,6 +71,49 @@ export function CartDrawer(): JSX.Element {
     return sum + variation.price.amount * entry.quantity
   }, 0)
 
+  async function handleCheckout(): Promise<void> {
+    if (items.length === 0 || isCheckingOut) return
+    setIsCheckingOut(true)
+    setCheckoutError(null)
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map((entry) => {
+            const product = products[entry.catalogItemId]
+            const variation = product?.variations.find((v) => v.id === entry.variationId)
+            return {
+              catalogItemId: entry.catalogItemId,
+              variationId: entry.variationId,
+              quantity: entry.quantity,
+              expectedUnitPriceCents: variation?.price?.amount ?? 0
+            }
+          })
+        })
+      })
+      if (res.status === 409) {
+        setCheckoutError('Some prices have changed. Please review your cart.')
+        refresh()
+        return
+      }
+      if (!res.ok) {
+        setCheckoutError('Could not start checkout. Please try again.')
+        return
+      }
+      const json = await res.json()
+      if (typeof json.checkoutUrl !== 'string') {
+        setCheckoutError('Unexpected checkout response. Please try again.')
+        return
+      }
+      window.location.href = json.checkoutUrl
+    } catch {
+      setCheckoutError('Network error. Please try again.')
+    } finally {
+      setIsCheckingOut(false)
+    }
+  }
+
   return (
     <Dialog.Root open={isDrawerOpen} onOpenChange={(o) => (o ? openDrawer() : closeDrawer())}>
       <Dialog.Portal>
@@ -102,15 +146,19 @@ export function CartDrawer(): JSX.Element {
               <li>{CART_BADGE_HANGING_STRIPS}</li>
               <li>{CART_BADGE_SUPPORT_ARTIST}</li>
             </ul>
+            {checkoutError && (
+              <p role="alert" className={styles.checkoutError}>
+                {checkoutError}
+              </p>
+            )}
             <button
               type="button"
-              disabled
-              title={DISABLED_CHECKOUT_TOOLTIP}
+              onClick={handleCheckout}
+              disabled={items.length === 0 || isCheckingOut}
               className={styles.checkout}
             >
-              Checkout
+              {isCheckingOut ? 'Starting checkout…' : 'Checkout'}
             </button>
-            <small className={styles.checkoutHint}>{DISABLED_CHECKOUT_TOOLTIP}</small>
           </footer>
 
           <Dialog.Close className={styles.close} aria-label="Close cart">

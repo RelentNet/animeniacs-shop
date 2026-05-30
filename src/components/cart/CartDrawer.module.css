@@ -67,17 +67,24 @@
 
 .checkout {
   padding: 0.75rem 1.5rem;
-  background: #ddd;
-  color: #555;
+  background: #111;
+  color: white;
   border: none;
   border-radius: 0.25rem;
-  cursor: not-allowed;
+  cursor: pointer;
   font-weight: 600;
 }
 
-.checkoutHint {
-  color: #666;
-  font-size: 0.85em;
+.checkout:disabled {
+  background: #ddd;
+  color: #555;
+  cursor: not-allowed;
+}
+
+.checkoutError {
+  color: #b91c1c;
+  font-size: 0.875rem;
+  margin: 0 0 0.5rem 0;
 }
 
 .close {
