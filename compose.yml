@@ -48,6 +48,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      # MUST specify target explicitly: the Dockerfile ends with the
+      # migrate-runtime stage, and `docker build` (no --target) picks
+      # the LAST stage as the default. Without `target: runner` the
+      # app service would build from migrate-runtime and run
+      # `pnpm db:migrate` as CMD instead of `node server.js`.
+      # Discovered in Phase 7.5/B.6 — first Coolify deploy was running
+      # drizzle migrate in the app container forever.
+      target: runner
     container_name: animeniacs-app
     restart: unless-stopped
     depends_on:
