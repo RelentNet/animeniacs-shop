@@ -2,6 +2,12 @@ import { logtoConfig } from '@/lib/logto'
 import { signIn } from '@logto/next/server-actions'
 import { redirect } from 'next/navigation'
 
+// Logto's CookieStorage needs the cookie-secret env var at evaluation
+// time; that var isn't available during Next.js's build-time prerender
+// pass. Forcing dynamic moves evaluation to request time where the
+// runtime env is fully populated. Phase 7.5/B.6 fix.
+export const dynamic = 'force-dynamic'
+
 /**
  * Sign-in route handler. Initiates the Logto OIDC flow:
  * builds the authorize URL and redirects the browser to Logto's

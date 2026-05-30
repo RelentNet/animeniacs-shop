@@ -3,6 +3,12 @@ import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
+// Reads the live artists list from Postgres at request time. Forcing
+// dynamic stops Next.js from attempting build-time prerender, which
+// would try to resolve the runtime Postgres hostname during build.
+// Phase 7.5/B.6 fix.
+export const dynamic = 'force-dynamic'
+
 export const metadata = {
   title: 'Artists | Animeniacs',
   description: 'Browse the artists who make every Animeniacs drop.'

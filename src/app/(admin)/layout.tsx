@@ -2,6 +2,12 @@ import { isLogtoConfigured, logtoConfig } from '@/lib/logto'
 import { getLogtoContext } from '@logto/next/server-actions'
 import { redirect } from 'next/navigation'
 
+// Admin routes always read auth cookies + DB at request time. Forcing
+// dynamic stops Next.js from attempting build-time prerender, which
+// would try to resolve the Postgres hostname and call Square in an
+// environment that has neither. Phase 7.5/B.6 fix.
+export const dynamic = 'force-dynamic'
+
 /**
  * Auth gate for every page under the (admin) route group.
  *
