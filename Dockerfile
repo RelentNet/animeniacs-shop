@@ -39,3 +39,15 @@ ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
+
+# --- Stage 4: migration runner ---
+# A one-shot image used by the `migrate` compose service.
+# Inherits pnpm + node_modules from the deps stage. Copies only the
+# files drizzle-kit needs to read its config and apply migrations.
+FROM deps AS migrate-runtime
+WORKDIR /app
+COPY drizzle.config.ts ./
+COPY drizzle ./drizzle
+COPY src/lib/db ./src/lib/db
+COPY tsconfig.json ./
+CMD ["pnpm", "db:migrate"]
