@@ -1,24 +1,51 @@
 import 'server-only'
 import { getSquareClient } from '@/lib/square/client'
+import type { ValidatedLine } from './validate-cart'
 
 export interface CreatePaymentLinkArgs {
-  orderId: string
+  /** Validated cart lines (post validateCart). */
+  lines: ValidatedLine[]
+  /** Our generated cart UUID. Used as the idempotency key AND as the Square Order's referenceId + metadata.cart_id. */
+  cartId: string
+  /** Square sandbox/prod location ID — from SQUARE_LOCATION_ID env. */
+  locationId: string
+  /** Where Square should redirect after payment — e.g. https://dev.animeniacs.shop/checkout/success */
   redirectUrl: string
+}
+
+export interface CreatePaymentLinkResult {
+  /** Hosted Square checkout URL the buyer is redirected to. */
+  checkoutUrl: string
+  /** Square-assigned order id. Square creates the order atomically with the payment link. */
+  orderId: string
 }
 
 export async function createPaymentLink(
   args: CreatePaymentLinkArgs
-): Promise<{ checkoutUrl: string }> {
+): Promise<CreatePaymentLinkResult> {
   const client = getSquareClient()
   const response = await client.checkout.paymentLinks.create({
-    idempotencyKey: args.orderId,
-    orderId: args.orderId,
+    idempotencyKey: args.cartId,
+    order: {
+      locationId: args.locationId,
+      referenceId: args.cartId,
+      lineItems: args.lines.map((line) => ({
+        catalogObjectId: line.variationId,
+        quantity: String(line.quantity)
+      })),
+      metadata: { cart_id: args.cartId }
+    },
     checkoutOptions: { redirectUrl: args.redirectUrl }
   })
   // biome-ignore lint/suspicious/noExplicitAny: SDK return shape varies
-  const url = (response as any).paymentLink?.url
+  const link = (response as any).paymentLink
+  const url: string | undefined = link?.url
+  const orderId: string | undefined = link?.orderId
   if (typeof url !== 'string' || url.length === 0) {
     throw new Error('Square checkout.paymentLinks.create returned no payment link URL')
   }
-  return { checkoutUrl: url }
+  if (typeof orderId !== 'string' || orderId.length === 0) {
+    throw new Error('Square checkout.paymentLinks.create returned no order id')
+  }
+  return { checkoutUrl: url, orderId }
 }
