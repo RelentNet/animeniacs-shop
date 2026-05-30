@@ -8,9 +8,12 @@ import { notifyEnabledRecipients, sendOrderSms } from '@/lib/notifications/sms'
 const fetchMock = vi.fn()
 beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch
-  process.env.SMSGATE_BASE_URL = 'https://sms.example'
-  process.env.SMSGATE_USER = 'user'
-  process.env.SMSGATE_PASS = 'pass'
+  process.env.SMSEDGE_BASE_URL = 'https://sms.example'
+  process.env.SMSEDGE_TOKEN = 'test-token-abc123'
+  // Clear old SMSGATE_* in case some prior test set them.
+  process.env.SMSGATE_BASE_URL = undefined
+  process.env.SMSGATE_USER = undefined
+  process.env.SMSGATE_PASS = undefined
 })
 afterEach(() => {
   fetchMock.mockReset()
@@ -18,7 +21,7 @@ afterEach(() => {
 })
 
 describe('sendOrderSms', () => {
-  it('POSTs to SMSGATE_BASE_URL/send with Basic auth header', async () => {
+  it('POSTs to SMSEDGE_BASE_URL/sms with Bearer auth header', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 200 }))
     await sendOrderSms({
       recipient: { phone: '+14155552671', label: 'Owner' },
@@ -28,9 +31,9 @@ describe('sendOrderSms', () => {
     })
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toBe('https://sms.example/send')
+    expect(url).toBe('https://sms.example/sms')
     expect(init.method).toBe('POST')
-    expect(init.headers.Authorization).toBe(`Basic ${Buffer.from('user:pass').toString('base64')}`)
+    expect(init.headers.Authorization).toBe('Bearer test-token-abc123')
     const body = JSON.parse(String(init.body))
     expect(body.to).toBe('+14155552671')
     expect(body.message).toContain('$45.00')
