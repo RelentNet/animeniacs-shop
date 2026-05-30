@@ -240,13 +240,11 @@ async function fetchItemsByIds(
   for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100))
 
   for (const chunk of chunks) {
-    // biome-ignore lint/suspicious/noExplicitAny: SDK envelope
-    const resp: any = await client.catalog.batchGet({
+    const resp = (await client.catalog.batchGet({
       objectIds: chunk,
       includeRelatedObjects: false
-    })
-    // biome-ignore lint/suspicious/noExplicitAny: SDK
-    const objects: any[] = resp.objects ?? []
+    })) as { objects?: CatalogObject[] }
+    const objects = resp.objects ?? []
     for (const obj of objects) {
       if (obj && typeof obj.id === 'string') {
         out.set(obj.id, obj as CatalogObject)
