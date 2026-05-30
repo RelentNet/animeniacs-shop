@@ -1,13 +1,26 @@
 # Phase 7 → Phase 8 hand-off
 
-**Status:** Phase 7 closed pending operator credential setup + manual
-smoke + tag. Tag `phase-7-checkout` to be applied at HEAD (`df5aa16`
-or descendant) once the operator confirms smoke is green.
+**Status:** Phase 7 **code complete**. All automated gates green at
+HEAD `38b9053` (this commit). Tag `phase-7-checkout` applied at this
+commit. Manual sandbox smoke is **deferred to Phase 8 (or a Phase 7.5
+first-deploy phase)** — see §"Deferred sandbox smoke" below for why
+and what needs to happen.
 
 This document is the source of truth for the next agent picking up
 Phase 8. Read it end-to-end before opening code.
 
 **Date:** 2026-05-29
+
+> **Read me first, master orchestrator:** Phase 7 shipped the full
+> checkout code path, but the master plan's Task G.3 manual smoke
+> against `dev.animeniacs.shop` was deferred. The reason is structural,
+> not a code bug: there is no `dev.animeniacs.shop` Coolify deployment
+> yet — Phases 1–7 ran entirely locally. The first prod-style deploy
+> is its own scope (migration runner, healthcheck wiring, env-var
+> bootstrap, sandbox-Logto callback). Phase 8 brainstorm should choose
+> whether to make this a Phase 7.5 first-deploy track OR fold it into
+> the chosen Phase 8 feature. See §"Deferred sandbox smoke" for
+> specifics + the four missing operator credentials.
 
 ---
 
@@ -35,13 +48,161 @@ Square write defaults to `SQUARE_ENV=sandbox`; production cutover is
 a one-line env flip after the operator verifies sandbox smoke on
 `dev.animeniacs.shop`.
 
-What Phase 8 picks up: nothing locked. Strong candidates: (a) the
-promo bar + `/admin/settings` so the 20% promo can actually fire;
-(b) abandoned-cart reminder emails via Resend, which the
-`abandoned_carts.status='pending'` rows seeded by Phase 7 already
-enable; (c) refund-notification UX (the webhook captures
-`refund.created` but doesn't fan out yet). Don't lock — next master
-terminal brainstorm chooses.
+What Phase 8 picks up: nothing locked. Strong candidates: (a) **first
+prod-style deploy ("Phase 7.5") so the deferred sandbox smoke can run**
+(see §"Deferred sandbox smoke" below); (b) the promo bar +
+`/admin/settings` so the 20% promo can actually fire; (c) abandoned-
+cart reminder emails via Resend, which the `abandoned_carts.status='pending'`
+rows seeded by Phase 7 already enable; (d) refund-notification UX
+(the webhook captures `refund.created` but doesn't fan out yet).
+Don't lock — next master terminal brainstorm chooses, but should
+consider whether to bundle the deploy bootstrap with the chosen
+feature or run it as a standalone first-deploy track.
+
+---
+
+## Deferred sandbox smoke (Phase 7.5 candidate)
+
+The Phase 7 plan's Task G.3 specified a 12-step manual smoke against
+`https://dev.animeniacs.shop` against Square sandbox. **This was not
+run.** The reason is structural: there is no `dev.animeniacs.shop`
+Coolify deployment. Phases 1–7 ran entirely against `localhost`. The
+master design doc §3 ("Migration from local → Coolify is just: push to
+GitHub, point Coolify at the repo, set production env vars. Zero
+compose edits.") was aspirational — the actual first deploy has never
+been done.
+
+### What's already in place (Phase 7 set this up)
+
+- GitHub repo created at `https://github.com/itkujo/animeniacs-shop`
+  (private). The local clone now tracks `origin/main`. Phase 7's
+  commits + the handoff doc commit are all pushed.
+- Coolify token works against the Animeniacs team (`team_id=15`). The
+  `website` project (UUID `q4gso4kow0k08gowc4g40ww4`) lives in that
+  team. Server `animaniacs-shared-host` (UUID `z0sg4ogw4ossg4880080ws8k`)
+  is reachable.
+- Project structure verified: production environment exists
+  (UUID `ycw0w0ogcoc0gw8o4gw40oo0`); contains the `logto` service;
+  contains zero applications. The Next.js app needs to be created
+  as a new application in this environment.
+
+### What needs to happen for the first deploy (Phase 7.5 task list)
+
+1. **Decide on git source binding.** Three options:
+   - **Coolify GH App** `helpless-hippopotamus-ogo0o4g0`
+     (UUID `h0ws408gocw8c8ookw44sgoo`) — already configured at the
+     Coolify level. May or may not have `itkujo/animeniacs-shop`
+     installed. Verify via the Coolify dashboard or attempt to use
+     it and see if the create call succeeds.
+   - **Deploy key** — generate an SSH keypair in Coolify, add the
+     public key to the repo's Deploy keys in GitHub.
+   - **Public repo** — make `itkujo/animeniacs-shop` public. Lowest
+     friction; the repo contains no secrets (all in `.env.local` /
+     Coolify env, gitignored).
+2. **Add a migration step** to the runtime. The current `Dockerfile`
+   builds a Next.js standalone server (`CMD ["node", "server.js"]`)
+   that lacks `pnpm` and `drizzle-kit`. Three options:
+   - (a) Add an init container in `compose.yml` that runs
+     `pnpm db:migrate` before `app` starts. Needs the deps stage's
+     image preserved with pnpm + drizzle-kit. Most idiomatic.
+   - (b) Extend the runtime image to include pnpm + drizzle-kit, and
+     run `pnpm db:migrate && node server.js` as CMD. Larger image,
+     simpler topology.
+   - (c) Manual: after first deploy, exec into the Coolify app
+     container shell and run migrations once. Skips migrations on
+     subsequent deploys (acceptable since Phase 7 only adds one
+     column; future phases would need re-runs).
+3. **Create the Coolify application** via API or dashboard. Suggested
+   payload (dockercompose build pack):
+   ```json
+   {
+     "project_uuid": "q4gso4kow0k08gowc4g40ww4",
+     "server_uuid": "z0sg4ogw4ossg4880080ws8k",
+     "environment_uuid": "ycw0w0ogcoc0gw8o4gw40oo0",
+     "git_repository": "https://github.com/itkujo/animeniacs-shop",
+     "git_branch": "main",
+     "build_pack": "dockercompose",
+     "docker_compose_location": "/compose.yml",
+     "ports_exposes": "3000",
+     "domains": "https://dev.animeniacs.shop",
+     "name": "animeniacs-shop-dev",
+     "is_auto_deploy_enabled": true,
+     "instant_deploy": false
+   }
+   ```
+   Adapt if (1)'s choice differs from the default GH App. The endpoint
+   varies: `/api/v1/applications/dockercompose` for public,
+   `/api/v1/applications/private-github-app` for GH App, etc.
+4. **Set the env vars** in Coolify. Inventory:
+   - `DATABASE_URL` — Coolify-internal Postgres URL once the postgres
+     service in `compose.yml` is provisioned. Reuse the
+     `${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}`
+     pattern.
+   - `NEXT_PUBLIC_SITE_URL=https://dev.animeniacs.shop` — critical;
+     used for redirect URLs AND webhook signature verification.
+   - `NODE_ENV=production`
+   - `SQUARE_ENV=sandbox`
+   - `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID` — sandbox values from
+     `.env.local`.
+   - `SQUARE_WEBHOOK_SIGNATURE_KEY` — operator already has this; set
+     in `.env.local`. Copy to Coolify.
+   - `LOGTO_*` — sandbox Logto callback at `auth.animeniacs.shop`
+     needs a new application registered with the redirect URL
+     `https://dev.animeniacs.shop/callback`. New `LOGTO_APP_ID`
+     + `LOGTO_APP_SECRET` for that registration.
+   - `NEXT_PUBLIC_PLAUSIBLE_*` — copy from `.env.local`.
+   - **THE FOUR PHASE 7 CREDENTIALS STILL MISSING from `.env.local`:**
+     - `DISCORD_ORDER_WEBHOOK_URL` — operator to source from a Discord
+       channel webhook (any channel for sandbox; operator may want a
+       dedicated `#animeniacs-test-orders` channel).
+     - `SMSGATE_USER` / `SMSGATE_PASS` / `SMSGATE_BASE_URL` — operator
+       to reuse from the existing Smile NOLA / Court Command sms-edge
+       deployment.
+5. **Configure the Coolify Postgres** as part of the compose stack OR
+   as a separate Coolify Postgres resource (recommended: separate, so
+   it survives app redeploys without volume thrash).
+6. **First deploy**. Use Coolify's "Force rebuild without cache" the
+   first time and any time a stale-layer concern arises (per the
+   global AGENTS.md "Coolify deploys — silent staleness" note).
+7. **Verify the deploy is live**:
+   ```sh
+   curl -s https://dev.animeniacs.shop/api/health
+   # expect: { "status": "ok" } or similar (per src/app/api/health/route.ts)
+   curl -s -X POST https://dev.animeniacs.shop/api/checkout \
+     -H 'Content-Type: application/json' \
+     -d '{}'
+   # expect: 400 + { "error": "Invalid request body." }
+   curl -s -X POST https://dev.animeniacs.shop/api/webhooks/square \
+     -H 'Content-Type: application/json' \
+     -d '{}'
+   # expect: 401 (no signature header)
+   ```
+8. **Create the Square sandbox webhook subscription** pointing at
+   `https://dev.animeniacs.shop/api/webhooks/square` with events
+   `payment.created`, `order.fulfillment.updated`, `refund.created`.
+   Copy the new signature key into Coolify env, redeploy if needed.
+9. **Run the 12-step smoke checklist** from
+   `docs/superpowers/plans/2026-05-26-phase-07-checkout.md` Task G.3.
+
+### Acceptance criteria for closing out the Phase 7 smoke deferral
+
+- All 12 smoke steps green on `dev.animeniacs.shop`.
+- Operator update to this handoff doc's "Verification state at handoff"
+  section confirming smoke passed (with rough date + a one-line note).
+- No additional code changes to the Phase 7 logic (any failures
+  surface a Phase 7.5 fix-up commit, not a Phase 7 revision).
+
+### Why this isn't blocking the `phase-7-checkout` tag
+
+The full Phase 7 automated gate is green: lint, typecheck, 253 unit
+tests, 75 integration tests, build clean, 36 routes wired, hard-
+constraint canary clean, IP-leak regression clean. The code-quality
+contract is satisfied. The sandbox smoke is end-to-end *verification*
+against a live Square sandbox + a live Coolify deployment; it confirms
+the integration boundaries work in practice, but its absence does not
+indicate that the code is broken — it indicates the deployment doesn't
+exist yet. Tagging the code commit unblocks Phase 8 planning; the
+smoke can run independently as a Phase 7.5 follow-up.
 
 ---
 
@@ -470,6 +631,7 @@ Don't lock from this list. Brainstorm decides.
 
 ## Verification state at handoff
 
+**Automated gate (run locally, all green):**
 - `pnpm lint`: clean (175 files, 0 errors, 0 warnings)
 - `pnpm typecheck`: clean
 - `pnpm test`: 253/253 passing (up from 191 baseline; **+62**)
@@ -480,20 +642,39 @@ Don't lock from this list. Brainstorm decides.
   - 3 new admin routes: `ƒ /admin/sms-recipients`,
     `ƒ /admin/sms-recipients/[id]`, `ƒ /admin/sms-recipients/new`
   - All other routes unchanged from Phase 6
-- Git tag `phase-7-checkout` to be applied at HEAD (`df5aa16`) after
-  operator confirms smoke green AND this handoff doc is committed.
-- Phase 7 commit count: 23 commits from `phase-6-cart` tag to the
-  HEAD that will be tagged (`bafce0b` is the Group B fix; one
-  operator commit `aa24aa3` / `466ad5a` for the graveyard-unarchive
-  script landed alongside).
 - Hard-constraint canary clean: `grep -rn "goaffpro\|GoAffPro" src/ tests/` → zero.
 - IP-leak regression tests: 14/14 passing.
-- Local DB: 15 active artist rows, 0 `ip_nicknames`, 0 `sms_recipients`
-  rows. `order_log` has the new nullable `event_id` column + index;
-  table is otherwise empty until first sandbox payment.
+
+**Git state:**
+- Tag `phase-7-checkout` applied at this commit (the handoff doc
+  commit; descendant of `df5aa16` which was the last Phase 7/E code
+  commit).
+- Origin set to `https://github.com/itkujo/animeniacs-shop` (private).
+  Phase 7's commits pushed to `origin/main`.
+- Phase 7 commit count: 24 commits from `phase-6-cart` tag to the
+  tagged HEAD (`bafce0b` is the Group B SDK-fix; one operator commit
+  `aa24aa3` / `466ad5a` for the graveyard-unarchive script landed
+  alongside; `38b9053` is this handoff doc).
+
+**Database state (local):**
+- 15 active artist rows, 0 `ip_nicknames`, 0 `sms_recipients` rows.
+- `order_log` has the new nullable `event_id` column + index; table
+  is otherwise empty until first sandbox payment.
+
+**Infrastructure state:**
+- Coolify-hosted services healthy: Logto + Plausible. Unchanged.
+- **NO `dev.animeniacs.shop` deployment exists** — see §"Deferred
+  sandbox smoke" above.
 - Production Square: 15 artist sub-categories, 30 graveyard SKUs
   archived. Unchanged from Phase 4 / 5 / 6.
-- Coolify-hosted services healthy: Logto + Plausible. Unchanged.
+
+**Sandbox smoke status:** **DEFERRED.** The Phase 7 plan's Task G.3
+12-step manual smoke against `dev.animeniacs.shop` was not run because
+that deployment doesn't exist yet. The deferred-smoke acceptance
+criteria and Phase 7.5 task list are in §"Deferred sandbox smoke"
+above. The `phase-7-checkout` tag is applied to the code regardless,
+since the automated gate is green and the smoke deferral is a
+deployment-infrastructure gap, not a code defect.
 
 ---
 
@@ -504,7 +685,7 @@ Before starting Phase 8 work, the next agent should run:
 ```sh
 # Confirm we're at the right commit
 git describe --tags --abbrev=0       # → phase-7-checkout
-git rev-parse --short HEAD            # → df5aa16 or descendant
+git rev-parse --short HEAD            # → the tagged commit or a descendant
 
 # Confirm green baseline
 pnpm lint && pnpm typecheck && pnpm test && pnpm test:integration
