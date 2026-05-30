@@ -7,8 +7,7 @@ import { notifyEnabledRecipients, sendOrderSms } from '@/lib/notifications/sms'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
-  // biome-ignore lint/suspicious/noExplicitAny: stub
-  global.fetch = fetchMock as any
+  global.fetch = fetchMock as unknown as typeof fetch
   process.env.SMSGATE_BASE_URL = 'https://sms.example'
   process.env.SMSGATE_USER = 'user'
   process.env.SMSGATE_PASS = 'pass'
@@ -31,9 +30,7 @@ describe('sendOrderSms', () => {
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('https://sms.example/send')
     expect(init.method).toBe('POST')
-    expect(init.headers.Authorization).toBe(
-      `Basic ${Buffer.from('user:pass').toString('base64')}`
-    )
+    expect(init.headers.Authorization).toBe(`Basic ${Buffer.from('user:pass').toString('base64')}`)
     const body = JSON.parse(String(init.body))
     expect(body.to).toBe('+14155552671')
     expect(body.message).toContain('$45.00')

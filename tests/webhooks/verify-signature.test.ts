@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
-import { describe, expect, it } from 'vitest'
 import { verifySquareSignature } from '@/lib/webhooks/verify-signature'
+import { describe, expect, it } from 'vitest'
 
 const KEY = 'super-secret-signature-key'
 const URL = 'https://dev.animeniacs.shop/api/webhooks/square'

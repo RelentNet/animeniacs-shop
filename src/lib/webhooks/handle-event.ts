@@ -38,10 +38,7 @@ function countItemsInSnapshot(snapshot: unknown): number {
   // biome-ignore lint/suspicious/noExplicitAny: snapshot is jsonb
   const items: any[] | undefined = (snapshot as any)?.items
   if (!Array.isArray(items)) return 0
-  return items.reduce(
-    (sum, e) => sum + (typeof e?.quantity === 'number' ? e.quantity : 0),
-    0
-  )
+  return items.reduce((sum, e) => sum + (typeof e?.quantity === 'number' ? e.quantity : 0), 0)
 }
 
 export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {

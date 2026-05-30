@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const fetchMock = vi.fn()
 beforeEach(() => {
-  // biome-ignore lint/suspicious/noExplicitAny: stub
-  global.fetch = fetchMock as any
+  global.fetch = fetchMock as unknown as typeof fetch
 })
 afterEach(() => fetchMock.mockReset())
 
