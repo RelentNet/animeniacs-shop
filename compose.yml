@@ -5,6 +5,7 @@ services:
     image: postgres:16-alpine
     container_name: animeniacs-postgres
     restart: unless-stopped
+    profiles: [local]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-animeniacs}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-animeniacs}
@@ -26,6 +27,23 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate-runtime
+    container_name: animeniacs-migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    restart: "no"
+    # Locally (with --profile local), wait for the embedded postgres.
+    # In Coolify (no profile), Coolify ensures the managed Postgres
+    # resource is up before this stack starts, so we mark required:false.
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+
   app:
     build:
       context: .
@@ -33,17 +51,29 @@ services:
     container_name: animeniacs-app
     restart: unless-stopped
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
+        required: false
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgres://${POSTGRES_USER:-animeniacs}:${POSTGRES_PASSWORD:-animeniacs}@postgres:5432/${POSTGRES_DB:-animeniacs}
+      DATABASE_URL: ${DATABASE_URL}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
-      # Logto now lives at auth.animeniacs.shop (Coolify); see .env.local
+      # Logto lives at auth.animeniacs.shop (Coolify); see .env.local
       LOGTO_ENDPOINT: ${LOGTO_ENDPOINT:-https://auth.animeniacs.shop}
       LOGTO_COOKIE_SECRET: ${LOGTO_COOKIE_SECRET}
       LOGTO_APP_ID: ${LOGTO_APP_ID:-}
       LOGTO_APP_SECRET: ${LOGTO_APP_SECRET:-}
+      SQUARE_ENV: ${SQUARE_ENV:-sandbox}
+      SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN}
+      SQUARE_LOCATION_ID: ${SQUARE_LOCATION_ID}
+      SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY:-}
+      DISCORD_ORDER_WEBHOOK_URL: ${DISCORD_ORDER_WEBHOOK_URL:-}
+      SMSEDGE_TOKEN: ${SMSEDGE_TOKEN:-}
+      SMSEDGE_BASE_URL: ${SMSEDGE_BASE_URL:-https://sms-edge.relentnet.dev}
+      NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL: ${NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL:-}
+      NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-animeniacs.shop}
     ports:
       - "${APP_PORT:-3000}:3000"
     healthcheck:
