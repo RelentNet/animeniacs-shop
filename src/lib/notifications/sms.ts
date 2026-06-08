@@ -8,26 +8,32 @@ export interface SendSmsArgs {
   itemCount: number
 }
 
-function buildMessage(args: { orderId: string; totalCents: number; itemCount: number }): string {
-  return `New order $${(args.totalCents / 100).toFixed(2)} (${args.itemCount} items) on animeniacs.shop — order ${args.orderId}`
-}
-
 /**
  * Send a single order-confirmation SMS via sms-edge.
  *
- * sms-edge contract (verified via the sms-edge tenant dashboard):
+ * sms-edge contract (verified against the live server + design spec §15):
  *   POST {SMSEDGE_BASE_URL}/sms
  *   Authorization: Bearer {SMSEDGE_TOKEN}
  *   Content-Type: application/json
- *   { "to": "+E164", "message": "..." }
+ *   {
+ *     "to": "+E164",
+ *     "type": "OrderAlert",          // named server-side template
+ *     "payload": { orderId, total, itemCount }
+ *   }
+ * The server renders the message body from the template + payload, so
+ * the client sends structured fields, not a pre-built message string.
  *
  * Tenant `animeniacs` provisioned in sms-edge; SMSEDGE_TOKEN is the
  * per-tenant API token (NOT a user/password). Cannot be retrieved
  * from sms-edge after creation — recorded once in .env.local +
  * Coolify env.
  *
- * Phase 7 originally used SMSGATE_USER/SMSGATE_PASS Basic auth +
- * /send — that was wrong; corrected in Phase 7.5/A.0.
+ * History:
+ *   - Phase 7 used SMSGATE_USER/SMSGATE_PASS Basic auth + /send (wrong).
+ *   - Phase 7.5/A.0 fixed auth/path/host but kept a flat {to,message}
+ *     body, which sms-edge rejects with 400 (it wants {to,type,payload}).
+ *   - Phase 7.5/B.8 corrected the body to the OrderAlert envelope and
+ *     added response-status logging (sends previously failed silently).
  */
 export async function sendOrderSms(args: SendSmsArgs): Promise<void> {
   const baseUrl = process.env.SMSEDGE_BASE_URL
@@ -37,7 +43,7 @@ export async function sendOrderSms(args: SendSmsArgs): Promise<void> {
     return
   }
   try {
-    await fetch(`${baseUrl}/sms`, {
+    const res = await fetch(`${baseUrl}/sms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -45,13 +51,18 @@ export async function sendOrderSms(args: SendSmsArgs): Promise<void> {
       },
       body: JSON.stringify({
         to: args.recipient.phone,
-        message: buildMessage({
+        type: 'OrderAlert',
+        payload: {
           orderId: args.orderId,
-          totalCents: args.totalCents,
+          total: args.totalCents,
           itemCount: args.itemCount
-        })
+        }
       })
     })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      console.error(`[sms] send to ${args.recipient.phone} returned ${res.status}: ${detail}`)
+    }
   } catch (err) {
     console.error(`[sms] failed to send to ${args.recipient.phone}:`, err)
   }

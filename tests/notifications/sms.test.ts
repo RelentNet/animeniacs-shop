@@ -21,8 +21,8 @@ afterEach(() => {
 })
 
 describe('sendOrderSms', () => {
-  it('POSTs to SMSEDGE_BASE_URL/sms with Bearer auth header', async () => {
-    fetchMock.mockResolvedValue(new Response('', { status: 200 }))
+  it('POSTs the sms-edge OrderAlert envelope with Bearer auth', async () => {
+    fetchMock.mockResolvedValue(new Response('{"ok":true}', { status: 200 }))
     await sendOrderSms({
       recipient: { phone: '+14155552671', label: 'Owner' },
       orderId: 'ORDER_X',
@@ -35,9 +35,10 @@ describe('sendOrderSms', () => {
     expect(init.method).toBe('POST')
     expect(init.headers.Authorization).toBe('Bearer test-token-abc123')
     const body = JSON.parse(String(init.body))
+    // sms-edge contract (design spec §15): { to, type, payload }
     expect(body.to).toBe('+14155552671')
-    expect(body.message).toContain('$45.00')
-    expect(body.message).toContain('ORDER_X')
+    expect(body.type).toBe('OrderAlert')
+    expect(body.payload).toEqual({ orderId: 'ORDER_X', total: 4500, itemCount: 2 })
   })
 
   it('does not throw on network error', async () => {
