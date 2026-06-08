@@ -668,13 +668,24 @@ Don't lock from this list. Brainstorm decides.
 - Production Square: 15 artist sub-categories, 30 graveyard SKUs
   archived. Unchanged from Phase 4 / 5 / 6.
 
-**Sandbox smoke status:** **DEFERRED.** The Phase 7 plan's Task G.3
-12-step manual smoke against `dev.animeniacs.shop` was not run because
-that deployment doesn't exist yet. The deferred-smoke acceptance
-criteria and Phase 7.5 task list are in §"Deferred sandbox smoke"
-above. The `phase-7-checkout` tag is applied to the code regardless,
-since the automated gate is green and the smoke deferral is a
-deployment-infrastructure gap, not a code defect.
+**Sandbox smoke status:** **PASSED (2026-06-08, Phase 7.5).** The
+Phase 7 plan's Task G.3 12-step manual smoke was run end-to-end against
+the live `https://dev.animeniacs.shop` Coolify deployment provisioned
+during Phase 7.5. All 12 steps verified green: product page → cart →
+Square sandbox hosted checkout (test card `4111 1111 1111 1111`) →
+`/checkout/success`; `abandoned_carts` row `status='completed'` with
+populated `square_order_id`; `order_log` holds 63 `payment.created`
+rows with distinct `event_id`s; Discord order embed delivered; SMS
+delivered to enabled recipient via sms-edge; disable-recipient →
+no SMS; re-enable → delete → row gone; Square sandbox shows the test
+orders (location `L1T00JYXSKVM3`); `grep -rn "goaffpro" src/ tests/`
+is zero and IP-leak regression tests pass. Four production bugs
+surfaced and were fixed during the smoke (Logto reverse-proxy
+`redirect_uri`, Logto secret rotation, missing Square webhook
+subscription, sms-edge request-body contract) — see
+`docs/superpowers/specs/reference/phase-07.5-handoff.md` for full
+detail. The `phase-7-checkout` tag remains on the code; Phase 7.5
+work is tagged `phase-7.5-first-deploy`.
 
 ---
 
