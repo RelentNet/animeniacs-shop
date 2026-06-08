@@ -36,7 +36,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // handleSignIn finishes the OIDC dance and stores the session cookie.
   await handleSignIn(logtoConfig, publicCallbackUrl)
-  // Successful sign-in → land on /admin/artists for now. Phase 7 will
-  // route to /account for non-admin users.
-  return NextResponse.redirect(new URL('/admin/artists', logtoConfig.baseUrl))
+  // Successful sign-in → land on the /admin hub. A future phase will
+  // route non-admin users to /account.
+  return NextResponse.redirect(new URL('/admin', logtoConfig.baseUrl))
 }
