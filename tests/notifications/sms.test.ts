@@ -35,10 +35,13 @@ describe('sendOrderSms', () => {
     expect(init.method).toBe('POST')
     expect(init.headers.Authorization).toBe('Bearer test-token-abc123')
     const body = JSON.parse(String(init.body))
-    // sms-edge contract (design spec §15): { to, type, payload }
+    // sms-edge contract: { to, type: 'Generic', payload: { text } }
     expect(body.to).toBe('+14155552671')
-    expect(body.type).toBe('OrderAlert')
-    expect(body.payload).toEqual({ orderId: 'ORDER_X', total: 4500, itemCount: 2 })
+    expect(body.type).toBe('Generic')
+    expect(typeof body.payload.text).toBe('string')
+    expect(body.payload.text).toContain('$45.00')
+    expect(body.payload.text).toContain('ORDER_X')
+    expect(body.payload.text).toContain('2 items')
   })
 
   it('does not throw on network error', async () => {

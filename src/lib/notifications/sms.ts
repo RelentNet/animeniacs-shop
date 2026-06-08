@@ -8,20 +8,24 @@ export interface SendSmsArgs {
   itemCount: number
 }
 
+function buildMessage(args: { orderId: string; totalCents: number; itemCount: number }): string {
+  return `New order $${(args.totalCents / 100).toFixed(2)} (${args.itemCount} items) on animeniacs.shop — order ${args.orderId}`
+}
+
 /**
  * Send a single order-confirmation SMS via sms-edge.
  *
- * sms-edge contract (verified against the live server + design spec §15):
+ * sms-edge contract (verified against the live server + the
+ * @itkujo/sms-core default template renderer):
  *   POST {SMSEDGE_BASE_URL}/sms
  *   Authorization: Bearer {SMSEDGE_TOKEN}
  *   Content-Type: application/json
- *   {
- *     "to": "+E164",
- *     "type": "OrderAlert",          // named server-side template
- *     "payload": { orderId, total, itemCount }
- *   }
- * The server renders the message body from the template + payload, so
- * the client sends structured fields, not a pre-built message string.
+ *   { "to": "+E164", "type": "Generic", "payload": { "text": "..." } }
+ *
+ * `SmsType` built-ins are SignIn / Register / ForgotPassword / Test
+ * (all OTP, require payload.code) and `Generic` (free text, requires a
+ * non-empty payload.text). Order alerts are arbitrary text, so we use
+ * `Generic` and build the body client-side.
  *
  * Tenant `animeniacs` provisioned in sms-edge; SMSEDGE_TOKEN is the
  * per-tenant API token (NOT a user/password). Cannot be retrieved
@@ -31,9 +35,10 @@ export interface SendSmsArgs {
  * History:
  *   - Phase 7 used SMSGATE_USER/SMSGATE_PASS Basic auth + /send (wrong).
  *   - Phase 7.5/A.0 fixed auth/path/host but kept a flat {to,message}
- *     body, which sms-edge rejects with 400 (it wants {to,type,payload}).
- *   - Phase 7.5/B.8 corrected the body to the OrderAlert envelope and
- *     added response-status logging (sends previously failed silently).
+ *     body → sms-edge 400 (wants {to,type,payload}).
+ *   - Phase 7.5/B.8 first tried a non-existent `OrderAlert` template →
+ *     sms-edge 500 ("unknown SMS type"). Final fix: `Generic` + text.
+ *     Also logs non-2xx status (sends previously failed silently).
  */
 export async function sendOrderSms(args: SendSmsArgs): Promise<void> {
   const baseUrl = process.env.SMSEDGE_BASE_URL
@@ -51,11 +56,13 @@ export async function sendOrderSms(args: SendSmsArgs): Promise<void> {
       },
       body: JSON.stringify({
         to: args.recipient.phone,
-        type: 'OrderAlert',
+        type: 'Generic',
         payload: {
-          orderId: args.orderId,
-          total: args.totalCents,
-          itemCount: args.itemCount
+          text: buildMessage({
+            orderId: args.orderId,
+            totalCents: args.totalCents,
+            itemCount: args.itemCount
+          })
         }
       })
     })
