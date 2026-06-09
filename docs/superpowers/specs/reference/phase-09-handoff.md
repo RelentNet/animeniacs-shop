@@ -137,15 +137,23 @@ settings-page. Integration unchanged at 75.
    Biome's `useOptionalChain` flagged the plan's verbatim `parsed &&
    parsed.success`. Rewrote to the optional-chain form; identical behavior.
 
-5. **`force-dynamic` was NOT added to the root layout** (per the hard
-   constraint). `pnpm build` succeeded without it. Consequence: `/` remains
-   `○ (Static)` — the promo bar is rendered at build time and cached (the
-   `getSetting` `unstable_cache` `revalidate:60`). The admin save action's
-   `revalidatePath('/')` busts that cache, and the 60s ISR window backstops it,
-   so an enabled bar appears on `/` after the next revalidation/rebuild. If an
-   instant per-request bar is ever required, add `export const dynamic =
-   'force-dynamic'` to `src/app/page.tsx` (NOT the root layout). Not needed for
-   the current operator workflow.
+5. **`force-dynamic` WAS added to the root layout — `pnpm build` initially
+   passed locally but failed in the Coolify Docker builder.** This is the
+   correction to the original (wrong) call to omit it. The hard constraint said
+   "do NOT add `force-dynamic` to the root layout unless the build fails
+   specifically on it." A clean local `pnpm build` (DB reachable via
+   `.env.local`) masked the problem, so it shipped without the directive — and
+   the **first Coolify deploy failed**. The builder cannot resolve the Postgres
+   host, so prerendering every static page (all share the root layout, which now
+   renders `<PromoBar>` → `getSetting` → DB) threw `ENOTFOUND` and failed
+   `pnpm build` (exit 1). Per-page `force-dynamic` on `/` alone would NOT have
+   fixed it — all 15+ static pages render the layout. Fix: `export const dynamic
+   = 'force-dynamic'` in `src/app/layout.tsx` (commit `ad8b67b`), which opts the
+   whole tree out of build-time static generation. Verified by reproducing the
+   failure locally with an unreachable `DATABASE_URL` (build exit 1 before the
+   fix → exit 0 after; 0 `ENOTFOUND` during build). Consequence: `/` and all
+   pages are now `ƒ` (dynamic), so the promo bar reads at request time and
+   reflects changes immediately. See §11 for the full post-mortem.
 
 6. **Test count matched the plan exactly: 280 unit** (267 baseline + 5
    `site-settings` + 6 `promo-bar` + 2 `settings-page` = +13), **75
@@ -187,8 +195,8 @@ currently hidden — this is expected until the operator enables it.
 - **Unit tests:** `pnpm test` → **280 passed** (48 files) — up from 267 (+13).
 - **Integration tests:** `pnpm test:integration` → **75 passed** (12 files) — unchanged.
 - **Build:** `pnpm build` → clean; route table includes
-  **`ƒ /admin/settings` (1.02 kB, dynamic)**. `/` remains `○ (Static)` (see
-  deviation 5).
+  **`ƒ /admin/settings` (1.02 kB, dynamic)**. `/` and all pages are now `ƒ`
+  (dynamic) — see deviation 5 (corrected) and §11.
 - **Canary:** `grep -rn "goaffpro\|GoAffPro" src/ tests/` → **0**.
 - **Deploy script:** `scripts/deploy.sh` exists, is executable (100755),
   `bash -n` clean, contains no hardcoded secret
@@ -316,3 +324,53 @@ use `./scripts/deploy.sh`, which force-deploys via the Coolify API. If a live
 change is missing, verify the deployed commit via the deployments API
 (`GET {COOLIFY_API_BASE}/api/v1/deployments/applications/h4400cg04wg8www84ggks4sg?take=5`,
 Bearer `COOLIFY_API_TOKEN_ANIMANIACS_TEAM`) and re-run the script.
+
+---
+
+## 11. Post-mortem: first deploy failed (build), then fixed (`ad8b67b`)
+
+**What happened.** The close-of-phase `./scripts/deploy.sh` pushed `6df3cc1`
+and queued a Coolify deploy that **failed at `RUN pnpm build`** (Dockerfile
+line 41, exit 1). The previous *finished* deploy was `a081c09` (pre-Phase-9),
+so for a window the live site did **not** have any Phase 9 code — including the
+`/admin/settings` hub card.
+
+**Root cause.** The root layout renders `<PromoBar />`, which calls
+`getSetting('promo_bar')` → Postgres. Without `force-dynamic`, Next.js tries to
+**statically prerender** every page that uses the root layout (i.e. all of
+them) at build time. The Coolify Docker builder cannot resolve the Postgres
+host (`getaddrinfo ENOTFOUND <postgres-uuid>`), so each prerender threw and the
+build aborted with "Export encountered errors on following paths: …" for `/`
+and all static marketing pages.
+
+**Why local `pnpm build` missed it.** Locally, `.env.local` provides a
+reachable `DATABASE_URL`, so the build-time prerender connected to the DB and
+succeeded. Worse, even with an unreachable DB, the **local** build exits 0
+(the `unstable_cache` wrapper logs the `ENOTFOUND` as a revalidation warning
+and `/` falls back to no-bar) — but the **Coolify** builder treats the
+prerender error as fatal (exit 1). So a clean local `pnpm build` was NOT a
+sufficient signal; the failure only reproduces by simulating an unreachable DB
+host AND/OR observing the strict builder.
+
+**Fix.** `export const dynamic = 'force-dynamic'` in `src/app/layout.tsx`
+(commit `ad8b67b`). This opts the whole tree out of build-time static
+generation; the promo bar's DB read now happens at request time (where the DB
+is reachable). Verified locally:
+`DATABASE_URL=postgresql://…@unreachable-host… pnpm build` → **exit 0**, **0
+`ENOTFOUND`** lines, `/` and all pages render as `ƒ` (dynamic). Redeployed via
+`./scripts/deploy.sh` (push `6df3cc1..ad8b67b`, deployment
+`s480k40o8kgwg8swskcsw8wk`) → **status `finished`**.
+
+**Live verification after the fix:**
+- `/api/health` → **200** `{"ok":true,…}`
+- `/` → **200**
+- `/admin/settings` → **307** (Logto sign-in redirect — route deployed and
+  auth-gated; NOT a 404).
+
+**Lesson for future phases.** Any DB/network read reachable from the root
+layout (or any statically-prerendered page) forces that page dynamic — verify
+the production build with the build-time environment's network reality, not
+just a local DB-connected `pnpm build`. A quick proxy: run `pnpm build` with an
+intentionally unreachable `DATABASE_URL` and require **exit 0**. The constraint
+"don't add `force-dynamic` to the root layout unless the build fails on it" was
+satisfied — it did fail on it; `force-dynamic` is the correct, sanctioned fix.
