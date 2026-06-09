@@ -38,6 +38,11 @@ const SECTIONS: AdminSection[] = [
     href: '/admin/sms-recipients' as Route,
     title: 'SMS recipients',
     description: 'Phone numbers that receive transactional order SMS.'
+  },
+  {
+    href: '/admin/settings' as Route,
+    title: 'Settings',
+    description: 'Storefront promo bar and other site-wide settings.'
   }
 ]
 
