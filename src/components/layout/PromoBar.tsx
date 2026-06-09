@@ -18,8 +18,7 @@ export async function PromoBar(): Promise<JSX.Element | null> {
   const hasLink = typeof v.link === 'string' && v.link.length > 0
 
   return (
-    <div
-      role="region"
+    <section
       aria-label="Promotions"
       style={{
         background: v.bgColor,
@@ -36,6 +35,6 @@ export async function PromoBar(): Promise<JSX.Element | null> {
       ) : (
         <span>{v.text}</span>
       )}
-    </div>
+    </section>
   )
 }
