@@ -59,6 +59,7 @@ export default async function AdminLayout({
 
   return (
     <div
+      className="admin-shell"
       style={{
         colorScheme: 'light',
         color: '#111',
@@ -66,6 +67,39 @@ export default async function AdminLayout({
         minHeight: '100vh'
       }}
     >
+      {/*
+       * Admin form controls otherwise rely on near-invisible browser default
+       * borders. Scope a clear black border to every input/select/textarea/
+       * button under the admin shell so operators can actually see the fields.
+       * Plain CSS (not Tailwind), consistent with the inline-styled admin idiom;
+       * applies to all admin forms at once, current and future.
+       */}
+      <style>{`
+        .admin-shell input:not([type='checkbox']):not([type='radio']),
+        .admin-shell select,
+        .admin-shell textarea,
+        .admin-shell button {
+          border: 1px solid #111;
+          border-radius: 0.25rem;
+          background: #fff;
+          color: #111;
+        }
+        .admin-shell input:not([type='checkbox']):not([type='radio']),
+        .admin-shell select,
+        .admin-shell textarea {
+          padding: 0.4rem 0.5rem;
+        }
+        .admin-shell button {
+          cursor: pointer;
+        }
+        .admin-shell input:focus-visible,
+        .admin-shell select:focus-visible,
+        .admin-shell textarea:focus-visible,
+        .admin-shell button:focus-visible {
+          outline: 2px solid #111;
+          outline-offset: 1px;
+        }
+      `}</style>
       {children}
     </div>
   )

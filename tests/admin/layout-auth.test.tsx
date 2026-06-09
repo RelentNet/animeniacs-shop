@@ -96,7 +96,10 @@ describe('(admin) route group auth gate', () => {
     })
     const Layout = await loadLayout()
     const element = await Layout({ children: <div>admin-only content</div> })
-    const { container } = render(element)
-    expect(container.textContent).toBe('admin-only content')
+    const { container, getByText } = render(element)
+    // The shell renders the children verbatim (plus a scoped <style> for admin
+    // form-control borders, which is not visible text).
+    expect(getByText('admin-only content')).toBeTruthy()
+    expect(container.querySelector('.admin-shell')).toBeTruthy()
   })
 })
