@@ -57,5 +57,16 @@ export default async function AdminLayout({
     )
   }
 
-  return <div>{children}</div>
+  return (
+    <div
+      style={{
+        colorScheme: 'light',
+        color: '#111',
+        background: '#fff',
+        minHeight: '100vh'
+      }}
+    >
+      {children}
+    </div>
+  )
 }
