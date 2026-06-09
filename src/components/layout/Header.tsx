@@ -17,7 +17,7 @@ export function Header() {
               </Link>
             </li>
             <li>
-              <Link href={'/shop' as Route} className="hover:text-gray-900">
+              <Link href="/shop" className="hover:text-gray-900">
                 Shop
               </Link>
             </li>
