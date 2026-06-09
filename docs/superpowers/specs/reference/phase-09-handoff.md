@@ -250,6 +250,40 @@ forced Coolify deploy of `879d080`).
   cap, and refactoring the category/artist grids onto the shared `ProductCard`
   (Phase 8 deferrals).
 
+**BUG found 2026-06-09 (deferred to a future phase — NOT fixed here):**
+- **Creating an artist with an avatar crashes in production** with a
+  server-side exception (browser shows *"Application error: a server-side
+  exception has occurred"*, **digest `2137462940`**). Root-caused from the live
+  Coolify logs:
+  ```
+  Error: EACCES: permission denied, open '/app/public/images/artists/merc.webp'
+    errno: -13, code: 'EACCES', syscall: 'open',
+    path: '/app/public/images/artists/merc.webp', digest: '2137462940'
+    at .../(admin)/admin/artists/new/page.js
+  ```
+  - **Cause:** `saveAvatar()` in `src/lib/images/upload.ts:75` does
+    `writeFile(path.resolve('public/images/artists', '<slug>.webp'))` at
+    runtime. The production container's filesystem is **not writable** at
+    `/app/public/` → `EACCES`. The file's own header comment (lines 19–22)
+    asserts *"Coolify … preserves writes under public/ at runtime (per locked
+    Decision #3)"* — that assumption is **false** for this container.
+  - **Scope / repro:** only fires when an avatar file is attached (the
+    `if (avatarFile)` branch in `new/actions.ts:41`). Creating an artist with
+    **no avatar should succeed** — worth confirming. Edit-artist avatar upload
+    (`[id]/actions.ts`) has the same defect. The IP-nicknames and SMS-recipients
+    admin forms do **not** write files, so they're unaffected.
+  - **Proper fix (future phase, not a patch):** stop writing user uploads to the
+    app container's `public/` dir — it fails on a read-only FS and, even where
+    writable, uploads vanish on every redeploy/rebuild. Move avatar storage to
+    durable external storage (Square image hosting like product images already
+    use, S3/R2, or a Coolify persistent volume mounted at the upload dir) and
+    correct the false comment + "Decision #3". The `saveAvatar` call-site
+    signature can stay identical (returns a URL string), so the blast radius is
+    contained to `src/lib/images/upload.ts`.
+  - **Grounding:** code paths read read-only this session; no fix applied.
+    Reproduced via live runtime logs (Coolify app `h4400cg04wg8www84ggks4sg`),
+    digest matched exactly.
+
 **New deferrals / notes introduced by Phase 9:**
 - **Promo bar audit trail** — `savePromoBarAction` passes `updatedBy: null`
   (matching ip-nicknames; the column is nullable and no admin action captures
