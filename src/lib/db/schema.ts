@@ -84,6 +84,7 @@ export const reviews = pgTable(
     rating: integer('rating').notNull(),
     title: text('title'),
     body: text('body').notNull(),
+    authorName: text('author_name'), // denormalized reviewer display name captured at submit
     photoUrls: text('photo_urls').array().notNull().default(sql`'{}'::text[]`),
     isPublished: boolean('is_published').notNull().default(false),
     isVerifiedPurchase: boolean('is_verified_purchase').notNull().default(false),
