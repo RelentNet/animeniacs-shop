@@ -76,3 +76,37 @@ describe('getOrderById', () => {
     expect(result).toBeUndefined()
   })
 })
+
+describe('hasPurchasedProduct', () => {
+  it('returns true when a completed order contains the product', async () => {
+    mockDb.limit.mockResolvedValue([{ squareOrderId: 'sq-1' }])
+    const { hasPurchasedProduct } = await import('@/lib/db/queries/orders')
+    const result = await hasPurchasedProduct('u1', 'ITEM_A')
+    expect(result).toBe(true)
+    expect(mockDb.where).toHaveBeenCalled()
+    expect(mockDb.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns false when no matching order exists', async () => {
+    mockDb.limit.mockResolvedValue([])
+    const { hasPurchasedProduct } = await import('@/lib/db/queries/orders')
+    const result = await hasPurchasedProduct('u1', 'ITEM_B')
+    expect(result).toBe(false)
+  })
+})
+
+describe('findPurchaseOrderId', () => {
+  it('returns the matching squareOrderId', async () => {
+    mockDb.limit.mockResolvedValue([{ squareOrderId: 'sq-42' }])
+    const { findPurchaseOrderId } = await import('@/lib/db/queries/orders')
+    const result = await findPurchaseOrderId('u1', 'ITEM_A')
+    expect(result).toBe('sq-42')
+  })
+
+  it('returns null when no matching order exists', async () => {
+    mockDb.limit.mockResolvedValue([])
+    const { findPurchaseOrderId } = await import('@/lib/db/queries/orders')
+    const result = await findPurchaseOrderId('u1', 'ITEM_B')
+    expect(result).toBeNull()
+  })
+})
