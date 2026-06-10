@@ -82,6 +82,11 @@ services:
       SMSEDGE_BASE_URL: ${SMSEDGE_BASE_URL:-https://sms-edge.relentnet.dev}
       NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL: ${NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL:-}
       NEXT_PUBLIC_PLAUSIBLE_DOMAIN: ${NEXT_PUBLIC_PLAUSIBLE_DOMAIN:-animeniacs.shop}
+      # Phase 10 — abandoned-cart recovery emails + cron
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-}
+      CRON_SECRET: ${CRON_SECRET:-}
+      ABANDONED_CART_THRESHOLD_MINUTES: ${ABANDONED_CART_THRESHOLD_MINUTES:-60}
     # No host port binding: in Coolify (and any reverse-proxied deploy)
     # Traefik routes to the container via the shared Docker network using
     # `expose`. Local devs use `pnpm dev` for hot-reload work; the
