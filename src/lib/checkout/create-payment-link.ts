@@ -11,6 +11,8 @@ export interface CreatePaymentLinkArgs {
   locationId: string
   /** Where Square should redirect after payment — e.g. https://dev.animeniacs.shop/checkout/success */
   redirectUrl: string
+  /** Square customer id to attribute the order to (logged-in buyers). Optional. */
+  customerId?: string
 }
 
 export interface CreatePaymentLinkResult {
@@ -29,6 +31,7 @@ export async function createPaymentLink(
     order: {
       locationId: args.locationId,
       referenceId: args.cartId,
+      ...(args.customerId ? { customerId: args.customerId } : {}),
       lineItems: args.lines.map((line) => ({
         catalogObjectId: line.variationId,
         quantity: String(line.quantity)

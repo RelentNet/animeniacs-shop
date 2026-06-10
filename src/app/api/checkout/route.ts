@@ -3,6 +3,7 @@ import { createPaymentLink } from '@/lib/checkout/create-payment-link'
 import { validateCart } from '@/lib/checkout/validate-cart'
 import { createPendingCart } from '@/lib/db/queries/abandoned-carts'
 import { logtoConfig } from '@/lib/logto'
+import { findOrCreateSquareCustomer } from '@/lib/square/customers'
 import { getLogtoContext } from '@logto/next/server-actions'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -44,18 +45,44 @@ export async function POST(request: Request): Promise<NextResponse> {
     )
   }
 
-  // Capture buyer email for logged-in users (used for abandoned-cart recovery).
-  // Falls back to null for anonymous/guest checkout — those carts are silently
-  // skipped by the abandonment sweep.
+  // Capture buyer identity for logged-in users. Email feeds abandoned-cart
+  // recovery; the sub + name drive the Logto↔Square customer mapping. All fall
+  // back to null for anonymous/guest checkout (unchanged guest behavior).
   let buyerEmail: string | null = null
+  let buyerUserId: string | null = null
+  let buyerName: string | null = null
   try {
     const ctx = await getLogtoContext(logtoConfig)
     const email = ctx?.claims?.email
     if (typeof email === 'string' && email.length > 0) {
       buyerEmail = email
     }
+    const sub = ctx?.claims?.sub
+    if (typeof sub === 'string' && sub.length > 0) {
+      buyerUserId = sub
+    }
+    const name = ctx?.claims?.name
+    if (typeof name === 'string' && name.length > 0) {
+      buyerName = name
+    }
   } catch {
-    // Not signed in or Logto unavailable — continue with null email
+    // Not signed in or Logto unavailable — continue with null identity
+  }
+
+  // Map the signed-in buyer to a Square customer. BEST-EFFORT (spec §8): a
+  // Customers-API failure must never block payment — log + continue with no
+  // customerId so checkout still proceeds.
+  let customerId: string | undefined
+  if (buyerUserId) {
+    try {
+      customerId = await findOrCreateSquareCustomer({
+        userId: buyerUserId,
+        email: buyerEmail,
+        name: buyerName
+      })
+    } catch (err) {
+      console.error('[checkout] Square customer mapping failed (continuing):', err)
+    }
   }
 
   try {
@@ -72,14 +99,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       lines: validation.lines,
       cartId,
       locationId,
-      redirectUrl: `${siteUrl}/checkout/success?cartId=${cartId}`
+      redirectUrl: `${siteUrl}/checkout/success?cartId=${cartId}`,
+      customerId
     })
 
     await createPendingCart({
       cartId,
       squareOrderId: orderId,
       cartSnapshot: { items: parsed.data.items },
-      buyerEmail
+      buyerEmail,
+      buyerUserId,
+      squareCustomerId: customerId ?? null
     })
 
     return NextResponse.json({ checkoutUrl, cartId })

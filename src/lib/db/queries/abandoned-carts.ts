@@ -8,6 +8,10 @@ export interface CreatePendingCartInput {
   squareOrderId: string
   cartSnapshot: unknown
   buyerEmail: string | null
+  /** Logto sub of the buyer (Phase 11 attribution bridge). Null for guests. */
+  buyerUserId?: string | null
+  /** Square customer attributed at checkout (Phase 11). Null for guests. */
+  squareCustomerId?: string | null
 }
 
 export async function createPendingCart(input: CreatePendingCartInput): Promise<AbandonedCart> {
@@ -18,6 +22,8 @@ export async function createPendingCart(input: CreatePendingCartInput): Promise<
       squareOrderId: input.squareOrderId,
       cartSnapshot: input.cartSnapshot,
       buyerEmail: input.buyerEmail,
+      buyerUserId: input.buyerUserId ?? null,
+      squareCustomerId: input.squareCustomerId ?? null,
       status: 'pending'
     })
     .returning()
