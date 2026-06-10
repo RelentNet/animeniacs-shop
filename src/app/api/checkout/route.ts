@@ -56,7 +56,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       lines: validation.lines,
       cartId,
       locationId,
-      redirectUrl: `${siteUrl}/checkout/success`
+      redirectUrl: `${siteUrl}/checkout/success?cartId=${cartId}`
     })
 
     await createPendingCart({

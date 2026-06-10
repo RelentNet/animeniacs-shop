@@ -20,6 +20,13 @@ vi.mock('next/script', () => ({
   default: () => null
 }))
 
+// CartClearer needs a <CartProvider> (it calls useCart); it's covered by its
+// own unit test. These tests assert on the success-page markup, not cart
+// clearing, so stub it to render nothing.
+vi.mock('@/components/cart/CartClearer', () => ({
+  CartClearer: () => null
+}))
+
 import CheckoutSuccessPage from '@/app/checkout/success/page'
 
 beforeEach(() => {

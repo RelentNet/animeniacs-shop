@@ -1,9 +1,10 @@
+import { CartClearer } from '@/components/cart/CartClearer'
 import { markCartCompleted } from '@/lib/db/queries/abandoned-carts'
 import { getSquareClient } from '@/lib/square/client'
 import Script from 'next/script'
 
 interface PageProps {
-  searchParams: { orderId?: string }
+  searchParams: { orderId?: string; cartId?: string }
 }
 
 export const metadata = {
@@ -55,14 +56,25 @@ export default async function CheckoutSuccessPage({
   searchParams
 }: PageProps): Promise<JSX.Element> {
   const orderId = searchParams.orderId
+  const cartId = searchParams.cartId
   if (!orderId) {
-    return <GenericThanks />
+    return (
+      <>
+        <CartClearer cartId={cartId} />
+        <GenericThanks />
+      </>
+    )
   }
 
   const order = await fetchOrderSafely(orderId)
 
   if (!order) {
-    return <GenericThanks />
+    return (
+      <>
+        <CartClearer cartId={cartId} />
+        <GenericThanks />
+      </>
+    )
   }
 
   // Fire-and-forget DB write. If it fails, the webhook will eventually flip the status.
@@ -79,6 +91,7 @@ export default async function CheckoutSuccessPage({
 
   return (
     <>
+      <CartClearer cartId={cartId} />
       <Script id="plausible-checkout-completed" strategy="afterInteractive">
         {`if (typeof window !== 'undefined' && window.plausible) { window.plausible('checkout_completed', { props: { orderId: ${JSON.stringify(order.id)}, revenueCents: ${totalCents} } }); }`}
       </Script>
