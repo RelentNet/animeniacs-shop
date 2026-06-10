@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { createPaymentLink } from '@/lib/checkout/create-payment-link'
 import { validateCart } from '@/lib/checkout/validate-cart'
 import { createPendingCart } from '@/lib/db/queries/abandoned-carts'
+import { logtoConfig } from '@/lib/logto'
+import { getLogtoContext } from '@logto/next/server-actions'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -42,6 +44,20 @@ export async function POST(request: Request): Promise<NextResponse> {
     )
   }
 
+  // Capture buyer email for logged-in users (used for abandoned-cart recovery).
+  // Falls back to null for anonymous/guest checkout — those carts are silently
+  // skipped by the abandonment sweep.
+  let buyerEmail: string | null = null
+  try {
+    const ctx = await getLogtoContext(logtoConfig)
+    const email = ctx?.claims?.email
+    if (typeof email === 'string' && email.length > 0) {
+      buyerEmail = email
+    }
+  } catch {
+    // Not signed in or Logto unavailable — continue with null email
+  }
+
   try {
     const validation = await validateCart(parsed.data.items)
     if (!validation.ok) {
@@ -63,7 +79,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       cartId,
       squareOrderId: orderId,
       cartSnapshot: { items: parsed.data.items },
-      buyerEmail: null
+      buyerEmail
     })
 
     return NextResponse.json({ checkoutUrl, cartId })

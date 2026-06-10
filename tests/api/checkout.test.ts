@@ -9,6 +9,12 @@ const { mockValidate, mockCreateLink, mockCreatePending } = vi.hoisted(() => ({
 vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidate }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreateLink }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePending }))
+// The route imports @logto/next/server-actions (whose transitive next/navigation
+// import is unresolvable under vitest). Mock it as "no session" so buyerEmail
+// resolves to null here — signed-in capture is covered by checkout-buyer-email.test.ts.
+vi.mock('@logto/next/server-actions', () => ({
+  getLogtoContext: vi.fn().mockRejectedValue(new Error('no session'))
+}))
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/checkout', {
