@@ -38,6 +38,11 @@ export default async function AccountLayout({
               Order history
             </a>
           </li>
+          <li>
+            <a href="/account/wishlist" className="text-gray-700 hover:underline">
+              Wishlist
+            </a>
+          </li>
         </ul>
       </nav>
       {children}
