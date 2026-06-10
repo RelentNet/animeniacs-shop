@@ -32,6 +32,42 @@ function toDate(value: unknown): Date | null {
   return null
 }
 
+// Progression rank for Square fulfillment states. Higher = further along the
+// happy path. CANCELED/FAILED are terminal off-path states ranked below the
+// active progression so a real COMPLETED/PREPARED wins when both are present.
+const FULFILLMENT_RANK: Record<string, number> = {
+  FAILED: -2,
+  CANCELED: -1,
+  PROPOSED: 0,
+  RESERVED: 1,
+  PREPARED: 2,
+  COMPLETED: 3
+}
+
+/**
+ * The most-advanced fulfillment state across all fulfillments, or null when
+ * there are none. Multi-fulfillment orders surface the furthest-progressed
+ * state so the customer sees the best signal available.
+ */
+export function mostAdvancedFulfillmentState(
+  // biome-ignore lint/suspicious/noExplicitAny: Square fulfillment shape is loose
+  fulfillments: any
+): string | null {
+  if (!Array.isArray(fulfillments) || fulfillments.length === 0) return null
+  let best: string | null = null
+  let bestRank = Number.NEGATIVE_INFINITY
+  for (const f of fulfillments) {
+    const state = typeof f?.state === 'string' ? f.state : null
+    if (!state) continue
+    const rank = FULFILLMENT_RANK[state] ?? -3
+    if (rank > bestRank) {
+      bestRank = rank
+      best = state
+    }
+  }
+  return best
+}
+
 /**
  * Pure mapper (no I/O): the authoritative Square Order + the attribution
  * bridge → a `NewOrder` row for the `orders` read model. Money fields come
@@ -68,6 +104,7 @@ export function buildOrder(
     totalCents: toCents(squareOrder?.totalMoney?.amount),
     currency: squareOrder?.totalMoney?.currency ?? 'USD',
     lineItems,
+    fulfillmentState: mostAdvancedFulfillmentState(squareOrder?.fulfillments),
     placedAt,
     raw: squareOrder
   }

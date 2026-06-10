@@ -99,4 +99,37 @@ describe('buildOrder', () => {
     expect(order.lineItems).toEqual([])
     expect(order.totalCents).toBe(500)
   })
+
+  it('captures fulfillmentState from the first fulfillment', () => {
+    const order = buildOrder(
+      { ...squareOrder, fulfillments: [{ uid: 'f1', state: 'PREPARED' }] },
+      bridge
+    )
+    expect(order.fulfillmentState).toBe('PREPARED')
+  })
+
+  it('picks the most-advanced state when multiple fulfillments exist', () => {
+    const order = buildOrder(
+      {
+        ...squareOrder,
+        fulfillments: [
+          { uid: 'f1', state: 'PROPOSED' },
+          { uid: 'f2', state: 'COMPLETED' },
+          { uid: 'f3', state: 'RESERVED' }
+        ]
+      },
+      bridge
+    )
+    expect(order.fulfillmentState).toBe('COMPLETED')
+  })
+
+  it('sets fulfillmentState to null when fulfillments are absent or empty', () => {
+    expect(buildOrder(squareOrder, bridge).fulfillmentState).toBeNull()
+    expect(buildOrder({ ...squareOrder, fulfillments: [] }, bridge).fulfillmentState).toBeNull()
+  })
+
+  it('does not set refundedCents at creation (left to the DB default)', () => {
+    const order = buildOrder(squareOrder, bridge)
+    expect(order.refundedCents).toBeUndefined()
+  })
 })
