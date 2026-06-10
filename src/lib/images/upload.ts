@@ -31,8 +31,11 @@ import sharp from 'sharp'
 
 const MAX_BYTES = 2 * 1024 * 1024 // 2 MB
 const ALLOWED_MIME = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
-const AVATAR_DIR_REL = 'public/images/uploads/artists'
+const UPLOADS_DIR_REL = 'public/images/uploads'
+const ARTISTS_SUBDIR = 'artists'
+const REVIEW_PHOTOS_SUBDIR = 'review-photos'
 const AVATAR_OUTPUT_SIZE = 500
+const REVIEW_PHOTO_MAX_DIMENSION = 1200
 
 export interface AvatarUploadError {
   field: 'avatarFile'
@@ -48,22 +51,17 @@ export class AvatarValidationError extends Error {
 }
 
 /**
- * Validate the file, resize to 500x500 webp, write to the uploads
- * volume, return the public URL.
- *
- * Throws `AvatarValidationError` for any user-input problem (size,
- * MIME, empty file) AND for EACCES/EROFS/ENOENT (volume not mounted /
- * misconfigured) so a deployment issue degrades to a form error rather
- * than a 500. Lets other unexpected errors (sharp crashes, etc.)
- * propagate — those are server bugs, not user errors.
+ * Validate an uploaded image file: non-empty, within the 2 MB cap, and an
+ * allowed MIME type (clients lie, so this is defense in depth on top of the
+ * HTML `accept` attribute). Throws `AvatarValidationError` on any problem.
  */
-export async function saveAvatar(file: File, slug: string): Promise<string> {
+function validateImageFile(file: File): void {
   if (file.size === 0) {
-    throw new AvatarValidationError('Avatar file is empty.')
+    throw new AvatarValidationError('Image file is empty.')
   }
   if (file.size > MAX_BYTES) {
     throw new AvatarValidationError(
-      `Avatar file is ${(file.size / 1024 / 1024).toFixed(1)} MB; limit is 2 MB.`
+      `Image file is ${(file.size / 1024 / 1024).toFixed(1)} MB; limit is 2 MB.`
     )
   }
   if (!ALLOWED_MIME.has(file.type)) {
@@ -71,18 +69,21 @@ export async function saveAvatar(file: File, slug: string): Promise<string> {
       `Unsupported file type "${file.type}". Allowed: PNG, JPEG, WebP.`
     )
   }
+}
 
-  const inputBuffer = Buffer.from(await file.arrayBuffer())
-
-  const outputBuffer = await sharp(inputBuffer)
-    .resize(AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE, { fit: 'cover', position: 'centre' })
-    .webp({ quality: 88 })
-    .toBuffer()
-
-  const filename = `${slug}.webp`
-  const absolutePath = path.resolve(AVATAR_DIR_REL, filename)
+/**
+ * Write a re-encoded webp buffer to `public/images/uploads/<subdir>/<filename>`,
+ * backed by the `uploads-data` named Docker volume.
+ *
+ * Surfaces EACCES/EROFS/ENOENT (volume not mounted / misconfigured) as
+ * `AvatarValidationError` so a deployment issue degrades to a friendly form
+ * error rather than a 500. Returns the public URL (Next.js serves `public/`
+ * at the root path). Lets other unexpected errors propagate (server bugs).
+ */
+async function writeWebp(buffer: Buffer, subdir: string, filename: string): Promise<string> {
+  const absolutePath = path.resolve(UPLOADS_DIR_REL, subdir, filename)
   try {
-    await writeFile(absolutePath, outputBuffer)
+    await writeFile(absolutePath, buffer)
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code
     if (code === 'EACCES' || code === 'EROFS' || code === 'ENOENT') {
@@ -92,8 +93,44 @@ export async function saveAvatar(file: File, slug: string): Promise<string> {
     }
     throw err
   }
+  return `/images/uploads/${subdir}/${filename}`
+}
 
-  // Public URL relative to the app root — Next.js serves `public/`
-  // contents at the root path.
-  return `/images/uploads/artists/${filename}`
+/**
+ * Validate the file, resize to a 500x500 cover-cropped webp, write to the
+ * uploads volume, return the public URL for `artists.avatar_url`.
+ */
+export async function saveAvatar(file: File, slug: string): Promise<string> {
+  validateImageFile(file)
+
+  const inputBuffer = Buffer.from(await file.arrayBuffer())
+  const outputBuffer = await sharp(inputBuffer)
+    .resize(AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE, { fit: 'cover', position: 'centre' })
+    .webp({ quality: 88 })
+    .toBuffer()
+
+  return writeWebp(outputBuffer, ARTISTS_SUBDIR, `${slug}.webp`)
+}
+
+/**
+ * Validate the file, resize to fit within 1200x1200 (preserve aspect ratio,
+ * never enlarge), re-encode to webp (strips metadata + neutralizes malicious
+ * payloads), write to the uploads volume, return the public URL.
+ *
+ * `key` is the caller-supplied filename stem, conventionally
+ * `<reviewId>-<index>`. Throws `AvatarValidationError` on bad input.
+ */
+export async function saveReviewPhoto(file: File, key: string): Promise<string> {
+  validateImageFile(file)
+
+  const inputBuffer = Buffer.from(await file.arrayBuffer())
+  const outputBuffer = await sharp(inputBuffer)
+    .resize(REVIEW_PHOTO_MAX_DIMENSION, REVIEW_PHOTO_MAX_DIMENSION, {
+      fit: 'inside',
+      withoutEnlargement: true
+    })
+    .webp({ quality: 82 })
+    .toBuffer()
+
+  return writeWebp(outputBuffer, REVIEW_PHOTOS_SUBDIR, `${key}.webp`)
 }
