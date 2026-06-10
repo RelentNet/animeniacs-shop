@@ -25,6 +25,25 @@ vi.mock('@/components/product/MockupGallery', () => ({
 vi.mock('@/components/product/PdpPurchasePanel', () => ({
   PdpPurchasePanel: () => <div data-testid="pdp-panel" />
 }))
+// Phase 12: the PDP gained a reviews section + wishlist button. Stub the
+// reviews server component and the wishlist button, and the request-time
+// reads they trigger, so this rendering test stays focused on layout.
+vi.mock('@/components/product/ProductReviews', () => ({
+  ProductReviews: () => <div data-testid="product-reviews" />
+}))
+vi.mock('@/components/product/WishlistButton', () => ({
+  WishlistButton: () => <div data-testid="wishlist-button" />
+}))
+vi.mock('@/lib/auth/get-current-user', () => ({
+  getCurrentUser: vi.fn(async () => ({
+    isAuthenticated: false,
+    userId: null,
+    email: null,
+    name: null,
+    roles: []
+  }))
+}))
+vi.mock('@/lib/db/queries/wishlists', () => ({ isInWishlist: vi.fn(async () => false) }))
 vi.mock('next/image', () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />
 }))
