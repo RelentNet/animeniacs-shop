@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { getOrdersForUser } from '@/lib/db/queries/orders'
+import { fulfillmentLabel, statusLabel } from '@/lib/orders/labels'
 import type { Route } from 'next'
 import Link from 'next/link'
 
@@ -45,7 +46,10 @@ export default async function OrdersPage(): Promise<JSX.Element> {
               >
                 <span className="text-sm text-gray-700">{formatDate(order.placedAt)}</span>
                 <span className="font-semibold text-gray-900">{formatCents(order.totalCents)}</span>
-                <span className="text-sm capitalize text-gray-500">{order.status}</span>
+                <span className="text-sm text-gray-500">{statusLabel(order.status)}</span>
+                <span className="text-sm text-gray-500">
+                  {fulfillmentLabel(order.fulfillmentState)}
+                </span>
                 <span aria-hidden className="text-gray-400">
                   View &rarr;
                 </span>
