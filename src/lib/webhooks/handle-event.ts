@@ -1,10 +1,16 @@
 import 'server-only'
 import { getCartBySquareOrderId, markCartCompleted } from '@/lib/db/queries/abandoned-carts'
 import { appendOrderLog, hasEventId } from '@/lib/db/queries/order-log'
-import { upsertOrder } from '@/lib/db/queries/orders'
+import {
+  getOrderBySquareOrderId,
+  setOrderFulfillmentState,
+  updateOrderStatus,
+  upsertOrder
+} from '@/lib/db/queries/orders'
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
+import { sendOrderConfirmationEmail, sendRefundEmail } from '@/lib/notifications/email'
 import { notifyEnabledRecipients } from '@/lib/notifications/sms'
-import { buildOrder } from '@/lib/orders/build-order'
+import { type OrderLineItem, buildOrder, mostAdvancedFulfillmentState } from '@/lib/orders/build-order'
 import { getSquareClient } from '@/lib/square/client'
 
 export interface HandleEventArgs {
@@ -18,6 +24,9 @@ function extractOrderId(event: { type: string; data?: { object?: unknown } }): s
   // biome-ignore lint/suspicious/noExplicitAny: walking payload
   const obj: any = event.data?.object ?? {}
   if (event.type.startsWith('payment.')) return obj.payment?.order_id ?? '(unknown)'
+  if (event.type === 'order.fulfillment.updated') {
+    return obj.order_fulfillment_updated?.order_id ?? '(unknown)'
+  }
   if (event.type.startsWith('order.')) return obj.order?.id ?? '(unknown)'
   if (event.type.startsWith('refund.')) return obj.refund?.order_id ?? '(unknown)'
   return '(unknown)'
@@ -50,26 +59,33 @@ function countItemsInSnapshot(snapshot: unknown): number {
   return items.reduce((sum, e) => sum + (typeof e?.quantity === 'number' ? e.quantity : 0), 0)
 }
 
-export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {
-  const { event } = args
-  const squareOrderId = extractOrderId(event)
-  const eventId: string | null = event.event_id ?? null
+function toCents(amount: unknown): number {
+  if (typeof amount === 'bigint') return Number(amount)
+  if (typeof amount === 'number') return amount
+  return 0
+}
 
-  // Idempotency check BEFORE log + fanout. If this event_id was already
-  // recorded, just log the duplicate delivery and skip fanout.
-  const alreadySeen = eventId ? await hasEventId(eventId) : false
+function shopUrl(): string {
+  return process.env.NEXT_PUBLIC_SITE_URL ?? ''
+}
 
-  await appendOrderLog({
-    squareOrderId,
-    eventType: event.type,
-    eventId,
-    payload: event
-  })
+/** Fetch the authoritative Square order, or null on any failure. */
+async function fetchSquareOrder(squareOrderId: string): Promise<unknown | null> {
+  const resp = await getSquareClient().orders.get({ orderId: squareOrderId })
+  // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
+  return (resp as any).order ?? null
+}
 
-  if (alreadySeen) return
-
-  if (event.type !== 'payment.created') return
-
+/**
+ * `payment.created`: mark the cart completed, fan out Discord + SMS, record the
+ * order into our durable read model, and (NEW) email the buyer a receipt. Every
+ * side effect is best-effort — failures log and continue, never throw.
+ */
+async function handlePaymentCreated(
+  // biome-ignore lint/suspicious/noExplicitAny: Square event payload
+  event: any,
+  squareOrderId: string
+): Promise<void> {
   await markCartCompleted(squareOrderId)
   const cart = await getCartBySquareOrderId(squareOrderId)
   const itemCount = cart ? countItemsInSnapshot(cart.cartSnapshot) : 0
@@ -102,20 +118,129 @@ export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {
   // continue, never throw out of the webhook. Idempotent via upsert on
   // squareOrderId; duplicate deliveries are already filtered by alreadySeen.
   try {
-    const resp = await getSquareClient().orders.get({ orderId: squareOrderId })
-    // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
-    const squareOrder = (resp as any).order
+    const squareOrder = await fetchSquareOrder(squareOrderId)
     if (squareOrder) {
-      await upsertOrder(
-        buildOrder(squareOrder, {
-          userId: cart?.buyerUserId ?? null,
-          buyerEmail: cart?.buyerEmail ?? buyerEmail,
-          squareCustomerId: cart?.squareCustomerId ?? null,
-          squarePaymentId: extractPaymentId(event)
-        })
-      )
+      const effectiveEmail = cart?.buyerEmail ?? buyerEmail
+      const order = buildOrder(squareOrder, {
+        userId: cart?.buyerUserId ?? null,
+        buyerEmail: effectiveEmail,
+        squareCustomerId: cart?.squareCustomerId ?? null,
+        squarePaymentId: extractPaymentId(event)
+      })
+      await upsertOrder(order)
+
+      // NEW (Phase 13): receipt email, best-effort + env-gated (no-ops without
+      // Resend). Skipped entirely when no buyer email is known.
+      if (effectiveEmail) {
+        try {
+          const items = (order.lineItems as OrderLineItem[]).map((li) => ({
+            name: li.name,
+            quantity: li.quantity,
+            totalCents: li.totalCents
+          }))
+          await sendOrderConfirmationEmail({
+            to: effectiveEmail,
+            orderId: squareOrderId,
+            items,
+            totalCents: order.totalCents,
+            shopUrl: shopUrl()
+          })
+        } catch (err) {
+          console.error('[webhook] confirmation email failed:', err)
+        }
+      }
     }
   } catch (err) {
     console.error('[webhook] order recording failed:', err)
+  }
+}
+
+/**
+ * `refund.created` / `refund.updated`: refund status, refundedCents, and the
+ * full-vs-partial decision are SERVER-COMPUTED from the authoritative Square
+ * order (`orders.get`) — never from the raw webhook payload. Best-effort
+ * throughout; failures log and continue.
+ */
+async function handleRefund(squareOrderId: string): Promise<void> {
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
+    const squareOrder = (await fetchSquareOrder(squareOrderId)) as any
+    if (!squareOrder) return
+
+    const totalCents = toCents(squareOrder.totalMoney?.amount)
+    const refunds: unknown[] = Array.isArray(squareOrder.refunds) ? squareOrder.refunds : []
+    const refundedCents = refunds.reduce<number>(
+      // biome-ignore lint/suspicious/noExplicitAny: Square refund shape is loose
+      (sum, r) => sum + toCents((r as any)?.amountMoney?.amount),
+      0
+    )
+    const status: 'refunded' | 'partially_refunded' =
+      refundedCents >= totalCents && totalCents > 0 ? 'refunded' : 'partially_refunded'
+
+    await updateOrderStatus(squareOrderId, status, refundedCents)
+
+    // Best-effort refund email to the buyer. The buyer email is identity, read
+    // from our stored order row; amounts are the server-computed Square values.
+    try {
+      const stored = await getOrderBySquareOrderId(squareOrderId)
+      if (stored?.buyerEmail) {
+        await sendRefundEmail({
+          to: stored.buyerEmail,
+          orderId: squareOrderId,
+          refundedCents,
+          totalCents,
+          shopUrl: shopUrl()
+        })
+      }
+    } catch (err) {
+      console.error('[webhook] refund email failed:', err)
+    }
+  } catch (err) {
+    console.error('[webhook] refund handling failed:', err)
+  }
+}
+
+/**
+ * `order.fulfillment.updated`: capture the most-advanced fulfillment state from
+ * the authoritative Square order. Best-effort; failures log and continue.
+ */
+async function handleFulfillmentUpdated(squareOrderId: string): Promise<void> {
+  try {
+    // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
+    const squareOrder = (await fetchSquareOrder(squareOrderId)) as any
+    if (!squareOrder) return
+    const state = mostAdvancedFulfillmentState(squareOrder.fulfillments)
+    await setOrderFulfillmentState(squareOrderId, state)
+  } catch (err) {
+    console.error('[webhook] fulfillment update failed:', err)
+  }
+}
+
+export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {
+  const { event } = args
+  const squareOrderId = extractOrderId(event)
+  const eventId: string | null = event.event_id ?? null
+
+  // Idempotency check BEFORE log + fanout. If this event_id was already
+  // recorded, just log the duplicate delivery and skip all handlers.
+  const alreadySeen = eventId ? await hasEventId(eventId) : false
+
+  await appendOrderLog({
+    squareOrderId,
+    eventType: event.type,
+    eventId,
+    payload: event
+  })
+
+  if (alreadySeen) return
+
+  // Route by event type. Each handler owns its own best-effort try/catch so a
+  // failure in one side effect never throws out of the webhook.
+  if (event.type === 'payment.created') {
+    await handlePaymentCreated(event, squareOrderId)
+  } else if (event.type.startsWith('refund.')) {
+    await handleRefund(squareOrderId)
+  } else if (event.type === 'order.fulfillment.updated') {
+    await handleFulfillmentUpdated(squareOrderId)
   }
 }

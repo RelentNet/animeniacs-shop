@@ -8,7 +8,12 @@ const {
   mockDiscord,
   mockSmsNotify,
   mockOrdersGet,
-  mockUpsertOrder
+  mockUpsertOrder,
+  mockUpdateOrderStatus,
+  mockSetFulfillmentState,
+  mockGetOrderBySquareOrderId,
+  mockSendConfirmation,
+  mockSendRefund
 } = vi.hoisted(() => ({
   mockAppendLog: vi.fn(),
   mockHasEventId: vi.fn(),
@@ -17,7 +22,12 @@ const {
   mockDiscord: vi.fn(),
   mockSmsNotify: vi.fn(),
   mockOrdersGet: vi.fn(),
-  mockUpsertOrder: vi.fn()
+  mockUpsertOrder: vi.fn(),
+  mockUpdateOrderStatus: vi.fn(),
+  mockSetFulfillmentState: vi.fn(),
+  mockGetOrderBySquareOrderId: vi.fn(),
+  mockSendConfirmation: vi.fn(),
+  mockSendRefund: vi.fn()
 }))
 
 vi.mock('@/lib/db/queries/order-log', () => ({
@@ -37,7 +47,16 @@ vi.mock('@/lib/notifications/sms', () => ({
 vi.mock('@/lib/square/client', () => ({
   getSquareClient: () => ({ orders: { get: mockOrdersGet } })
 }))
-vi.mock('@/lib/db/queries/orders', () => ({ upsertOrder: mockUpsertOrder }))
+vi.mock('@/lib/db/queries/orders', () => ({
+  upsertOrder: mockUpsertOrder,
+  updateOrderStatus: mockUpdateOrderStatus,
+  setOrderFulfillmentState: mockSetFulfillmentState,
+  getOrderBySquareOrderId: mockGetOrderBySquareOrderId
+}))
+vi.mock('@/lib/notifications/email', () => ({
+  sendOrderConfirmationEmail: mockSendConfirmation,
+  sendRefundEmail: mockSendRefund
+}))
 
 import { handleSquareEvent } from '@/lib/webhooks/handle-event'
 
@@ -57,7 +76,34 @@ beforeEach(() => {
     }
   })
   mockUpsertOrder.mockReset().mockResolvedValue(undefined)
+  mockUpdateOrderStatus.mockReset().mockResolvedValue(undefined)
+  mockSetFulfillmentState.mockReset().mockResolvedValue(undefined)
+  mockGetOrderBySquareOrderId.mockReset().mockResolvedValue({
+    squareOrderId: 'ORDER_X',
+    buyerEmail: 'buyer@example.com',
+    totalCents: 4500
+  })
+  mockSendConfirmation.mockReset().mockResolvedValue(undefined)
+  mockSendRefund.mockReset().mockResolvedValue(undefined)
 })
+
+function refundEvent(over: Record<string, unknown> = {}) {
+  return {
+    event_id: 'EVT_REFUND_1',
+    type: 'refund.created',
+    data: { object: { refund: { order_id: 'ORDER_X' } } },
+    ...over
+  }
+}
+
+function fulfillmentEvent(over: Record<string, unknown> = {}) {
+  return {
+    event_id: 'EVT_FULFILL_1',
+    type: 'order.fulfillment.updated',
+    data: { object: { order_fulfillment_updated: { order_id: 'ORDER_X' } } },
+    ...over
+  }
+}
 
 function paymentEvent(over: Record<string, unknown> = {}) {
   return {
@@ -128,19 +174,11 @@ describe('handleSquareEvent', () => {
     expect(mockDiscord).toHaveBeenCalledWith(expect.objectContaining({ itemCount: 0 }))
   })
 
-  it('order.fulfillment.updated and refund.created are logged but do not fan out', async () => {
-    await handleSquareEvent({
-      event: { event_id: 'E', type: 'order.fulfillment.updated', data: { object: {} } },
-      webhookUrl: 'x',
-      signatureKey: 'k'
-    })
-    await handleSquareEvent({
-      event: { event_id: 'E2', type: 'refund.created', data: { object: {} } },
-      webhookUrl: 'x',
-      signatureKey: 'k'
-    })
+  it('refund.created and order.fulfillment.updated do not trigger the order SMS fanout', async () => {
+    delete process.env.DISCORD_ORDER_WEBHOOK_URL
+    await handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
     expect(mockAppendLog).toHaveBeenCalledTimes(2)
-    expect(mockDiscord).not.toHaveBeenCalled()
     expect(mockSmsNotify).not.toHaveBeenCalled()
   })
 
@@ -205,5 +243,147 @@ describe('handleSquareEvent', () => {
       handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })
     ).resolves.not.toThrow()
     expect(mockUpsertOrder).not.toHaveBeenCalled()
+  })
+
+  // --- Phase 13: order confirmation email on payment.created ---
+
+  it('on payment.created with a buyer email: sends a confirmation email after recording', async () => {
+    mockGetCart.mockResolvedValue(undefined)
+    await handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpsertOrder).toHaveBeenCalledTimes(1)
+    expect(mockSendConfirmation).toHaveBeenCalledTimes(1)
+    expect(mockSendConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'buyer@example.com', orderId: 'ORDER_X', totalCents: 4500 })
+    )
+  })
+
+  it('on payment.created without any buyer email: does not send a confirmation email', async () => {
+    mockGetCart.mockResolvedValue(undefined)
+    const noEmail = paymentEvent()
+    noEmail.data.object.payment.buyer_email_address = undefined as unknown as string
+    await handleSquareEvent({ event: noEmail, webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockSendConfirmation).not.toHaveBeenCalled()
+  })
+
+  it('a throwing confirmation email does not throw out of the webhook', async () => {
+    mockGetCart.mockResolvedValue(undefined)
+    mockSendConfirmation.mockRejectedValue(new Error('resend down'))
+    await expect(
+      handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    ).resolves.not.toThrow()
+  })
+
+  // --- Phase 13: refund handling ---
+
+  it('refund.created with refunds summing below the total → partially_refunded + refund email', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        refunds: [{ amountMoney: { amount: BigInt(500) } }]
+      }
+    })
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'partially_refunded', 500)
+    expect(mockSendRefund).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'buyer@example.com', orderId: 'ORDER_X', refundedCents: 500 })
+    )
+  })
+
+  it('refund.created with refunds summing to/over the total → refunded', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        refunds: [
+          { amountMoney: { amount: BigInt(4000) } },
+          { amountMoney: { amount: BigInt(500) } }
+        ]
+      }
+    })
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'refunded', 4500)
+  })
+
+  it('refund.created with no known buyer email → status updates but no email', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        refunds: [{ amountMoney: { amount: BigInt(500) } }]
+      }
+    })
+    mockGetOrderBySquareOrderId.mockResolvedValue({
+      squareOrderId: 'ORDER_X',
+      buyerEmail: null,
+      totalCents: 4500
+    })
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'partially_refunded', 500)
+    expect(mockSendRefund).not.toHaveBeenCalled()
+  })
+
+  it('refund status/amount come from the Square order, not the webhook payload', async () => {
+    // Payload claims a huge refund; the authoritative Square order says 500.
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        refunds: [{ amountMoney: { amount: BigInt(500) } }]
+      }
+    })
+    const evt = refundEvent({
+      data: { object: { refund: { order_id: 'ORDER_X', amount_money: { amount: 999999 } } } }
+    })
+    await handleSquareEvent({ event: evt, webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'partially_refunded', 500)
+  })
+
+  it('a throwing refund email does not throw out of the webhook', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        refunds: [{ amountMoney: { amount: BigInt(500) } }]
+      }
+    })
+    mockSendRefund.mockRejectedValue(new Error('resend down'))
+    await expect(
+      handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    ).resolves.not.toThrow()
+    expect(mockUpdateOrderStatus).toHaveBeenCalled()
+  })
+
+  it('does not process a refund for a duplicate (already-seen) event', async () => {
+    mockHasEventId.mockResolvedValue(true)
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderStatus).not.toHaveBeenCalled()
+    expect(mockSendRefund).not.toHaveBeenCalled()
+  })
+
+  // --- Phase 13: fulfillment handling ---
+
+  it('order.fulfillment.updated → sets the most-advanced fulfillment state from the Square order', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        fulfillments: [
+          { uid: 'f1', state: 'PROPOSED' },
+          { uid: 'f2', state: 'PREPARED' }
+        ]
+      }
+    })
+    await handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockOrdersGet).toHaveBeenCalledWith({ orderId: 'ORDER_X' })
+    expect(mockSetFulfillmentState).toHaveBeenCalledWith('ORDER_X', 'PREPARED')
+  })
+
+  it('a throwing fulfillment update does not throw out of the webhook', async () => {
+    mockOrdersGet.mockRejectedValue(new Error('square down'))
+    await expect(
+      handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    ).resolves.not.toThrow()
+    expect(mockSetFulfillmentState).not.toHaveBeenCalled()
   })
 })
