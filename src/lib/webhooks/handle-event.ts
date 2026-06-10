@@ -1,8 +1,11 @@
 import 'server-only'
 import { getCartBySquareOrderId, markCartCompleted } from '@/lib/db/queries/abandoned-carts'
 import { appendOrderLog, hasEventId } from '@/lib/db/queries/order-log'
+import { upsertOrder } from '@/lib/db/queries/orders'
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
 import { notifyEnabledRecipients } from '@/lib/notifications/sms'
+import { buildOrder } from '@/lib/orders/build-order'
+import { getSquareClient } from '@/lib/square/client'
 
 export interface HandleEventArgs {
   // biome-ignore lint/suspicious/noExplicitAny: Square event payload
@@ -32,6 +35,12 @@ function extractBuyerEmail(event: { data?: { object?: unknown } }): string | nul
   // biome-ignore lint/suspicious/noExplicitAny: walking payload
   const email = (event.data?.object as any)?.payment?.buyer_email_address
   return typeof email === 'string' && email.length > 0 ? email : null
+}
+
+function extractPaymentId(event: { data?: { object?: unknown } }): string | null {
+  // biome-ignore lint/suspicious/noExplicitAny: walking payload
+  const id = (event.data?.object as any)?.payment?.id
+  return typeof id === 'string' && id.length > 0 ? id : null
 }
 
 function countItemsInSnapshot(snapshot: unknown): number {
@@ -86,5 +95,27 @@ export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {
     await notifyEnabledRecipients({ orderId: squareOrderId, totalCents, itemCount })
   } catch (err) {
     console.error('[webhook] sms fanout failed:', err)
+  }
+
+  // Record the completed order into our durable read model. Best-effort:
+  // notifications already succeeded, so an order-recording failure must log +
+  // continue, never throw out of the webhook. Idempotent via upsert on
+  // squareOrderId; duplicate deliveries are already filtered by alreadySeen.
+  try {
+    const resp = await getSquareClient().orders.get({ orderId: squareOrderId })
+    // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
+    const squareOrder = (resp as any).order
+    if (squareOrder) {
+      await upsertOrder(
+        buildOrder(squareOrder, {
+          userId: cart?.buyerUserId ?? null,
+          buyerEmail: cart?.buyerEmail ?? buyerEmail,
+          squareCustomerId: cart?.squareCustomerId ?? null,
+          squarePaymentId: extractPaymentId(event)
+        })
+      )
+    }
+  } catch (err) {
+    console.error('[webhook] order recording failed:', err)
   }
 }
