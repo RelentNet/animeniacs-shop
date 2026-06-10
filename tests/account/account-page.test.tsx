@@ -14,6 +14,13 @@ vi.mock('@/lib/square/customers', () => ({
   findOrCreateSquareCustomer: vi.fn()
 }))
 
+// useFormState from react-dom is undefined under the jsdom/SSR transform these
+// unit tests run in (same harness adaptation as the Phase 9 settings-page test).
+vi.mock('react-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-dom')>()
+  return { ...actual, useFormState: () => [{}, () => {}] }
+})
+
 beforeEach(() => {
   mockGetCurrentUser.mockReset()
   mockGetCustomerLink.mockReset().mockResolvedValue(undefined)
