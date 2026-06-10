@@ -1,6 +1,7 @@
 import { ArtistMetaLine } from '@/components/product/ArtistMetaLine'
 import { MockupGallery } from '@/components/product/MockupGallery'
 import { PdpPurchasePanel } from '@/components/product/PdpPurchasePanel'
+import { ProductReviews } from '@/components/product/ProductReviews'
 import { getRelatedProducts } from '@/lib/categories/related'
 import { MOCKUP_SCENES } from '@/lib/mockup-scenes'
 import { getProductById } from '@/lib/products/cache'
@@ -69,6 +70,10 @@ export default async function ProductDetailPage({ params }: PageProps): Promise<
           <div className="prose prose-sm" dangerouslySetInnerHTML={{ __html: sanitized }} />
         </section>
       )}
+
+      <section className="mt-12 max-w-3xl">
+        <ProductReviews productId={product.id} />
+      </section>
 
       {related.source && related.items.length > 0 && (
         <section className="mt-12">
