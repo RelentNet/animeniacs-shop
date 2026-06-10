@@ -163,6 +163,12 @@ export const orders = pgTable(
     totalCents: integer('total_cents').notNull(),
     currency: text('currency').notNull().default('USD'),
     lineItems: jsonb('line_items').notNull(), // [{ name, quantity, unitPriceCents, totalCents, catalogObjectId?, variationName? }]
+    // Phase 13: raw Square fulfillment state (PROPOSED|RESERVED|PREPARED|COMPLETED|
+    // CANCELED|FAILED); null when the order has no fulfillment.
+    fulfillmentState: text('fulfillment_state'),
+    // Phase 13: cumulative refunded amount in cents (server-computed from the
+    // authoritative Square order on refund webhooks). Powers "Refunded $X of $Y".
+    refundedCents: integer('refunded_cents').notNull().default(0),
     placedAt: timestamp('placed_at', { withTimezone: true }),
     raw: jsonb('raw'), // full Square order snapshot (audit/debug)
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

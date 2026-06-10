@@ -99,6 +99,13 @@
       "when": 1781114331743,
       "tag": "0013_bouncy_wallow",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781126527050,
+      "tag": "0014_mighty_goblin_queen",
+      "breakpoints": true
     }
   ]
 }
