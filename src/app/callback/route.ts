@@ -1,5 +1,6 @@
+import { postLoginDestination } from '@/lib/auth/post-login-destination'
 import { logtoConfig } from '@/lib/logto'
-import { handleSignIn } from '@logto/next/server-actions'
+import { getLogtoContext, handleSignIn } from '@logto/next/server-actions'
 import { type NextRequest, NextResponse } from 'next/server'
 
 /**
@@ -10,9 +11,9 @@ import { type NextRequest, NextResponse } from 'next/server'
  * The redirect URI registered with Logto is /callback,
  * so this file lives at the matching path.
  *
- * Post-login destination: /admin/artists for admin users (since they
- * came here through the admin gate). Public users hitting the
- * sign-in route directly would land on /account when that exists.
+ * Post-login destination: admins land on /admin (they came through the
+ * admin gate); every other authenticated user lands on /account, the
+ * customer-facing account area (added in Phase 11).
  *
  * Reverse-proxy note (Phase 7.5/B.8 fix):
  * Behind Traefik/Coolify the inbound request's URL is reconstructed
@@ -36,7 +37,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // handleSignIn finishes the OIDC dance and stores the session cookie.
   await handleSignIn(logtoConfig, publicCallbackUrl)
-  // Successful sign-in → land on the /admin hub. A future phase will
-  // route non-admin users to /account.
-  return NextResponse.redirect(new URL('/admin', logtoConfig.baseUrl))
+
+  // Read the freshly-established session to route by role: admins → /admin,
+  // everyone else → /account.
+  const { claims } = await getLogtoContext(logtoConfig)
+  const destination = postLoginDestination(claims?.roles ?? [])
+  return NextResponse.redirect(new URL(destination, logtoConfig.baseUrl))
 }
