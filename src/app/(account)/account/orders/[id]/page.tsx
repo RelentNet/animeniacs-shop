@@ -56,7 +56,10 @@ export default async function OrderDetailPage({
       <h2 className="mt-8 text-xl font-semibold">Items</h2>
       <ul className="mt-3 divide-y divide-gray-200 border-y border-gray-200">
         {lineItems.map((item, i) => (
-          <li key={`${item.catalogObjectId ?? item.name}-${i}`} className="flex justify-between py-3">
+          <li
+            key={`${item.catalogObjectId ?? item.name}-${i}`}
+            className="flex justify-between py-3"
+          >
             <div>
               <p className="font-medium text-gray-900">{item.name}</p>
               <p className="text-sm text-gray-500">

@@ -72,7 +72,10 @@ export function AddressForm({ initial }: { initial: AddressFormInitial }): JSX.E
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label htmlFor="administrativeDistrictLevel1" className="text-sm font-medium text-gray-900">
+          <label
+            htmlFor="administrativeDistrictLevel1"
+            className="text-sm font-medium text-gray-900"
+          >
             State
           </label>
           <input

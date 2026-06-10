@@ -4,11 +4,7 @@ import { type CustomerLink, customerLink } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 
 export async function getCustomerLinkByUserId(userId: string): Promise<CustomerLink | undefined> {
-  const rows = await db
-    .select()
-    .from(customerLink)
-    .where(eq(customerLink.userId, userId))
-    .limit(1)
+  const rows = await db.select().from(customerLink).where(eq(customerLink.userId, userId)).limit(1)
   return rows[0]
 }
 

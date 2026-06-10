@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import { postLoginDestination } from '@/lib/auth/post-login-destination'
+import { describe, expect, it } from 'vitest'
 
 describe('postLoginDestination', () => {
   it('routes admins to /admin', () => {

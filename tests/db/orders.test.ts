@@ -41,7 +41,9 @@ describe('upsertOrder', () => {
     expect(mockDb.insert).toHaveBeenCalled()
     expect(mockDb.values).toHaveBeenCalledWith(expect.objectContaining({ squareOrderId: 'sq-1' }))
     const arg = mockDb.onConflictDoUpdate.mock.calls[0][0]
-    expect(arg.set).toEqual(expect.objectContaining({ totalCents: 1000, updatedAt: expect.any(Date) }))
+    expect(arg.set).toEqual(
+      expect.objectContaining({ totalCents: 1000, updatedAt: expect.any(Date) })
+    )
   })
 })
 

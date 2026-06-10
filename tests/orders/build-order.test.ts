@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
 import { buildOrder } from '@/lib/orders/build-order'
+import { describe, expect, it } from 'vitest'
 
 const squareOrder = {
   id: 'sq-order-1',
