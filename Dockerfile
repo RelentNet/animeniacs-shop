@@ -31,6 +31,11 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Ensure the uploads mount point exists and is owned by the app user so the
+# named Docker volume (uploads-data) is writable on first container start.
+RUN mkdir -p /app/public/images/uploads && \
+    chown -R nextjs:nodejs /app/public/images/uploads
+
 USER nextjs
 
 EXPOSE 3000

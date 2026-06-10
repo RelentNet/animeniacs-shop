@@ -92,6 +92,11 @@ services:
     # Coolify host port 3000 is already allocated by another container.
     expose:
       - "3000"
+    volumes:
+      # Durable upload storage. User-uploaded images (artist avatars today;
+      # ip-covers/, review-photos/, event-logos/ in future phases) are written
+      # here and persist across container rebuilds. See src/lib/images/upload.ts.
+      - uploads-data:/app/public/images/uploads
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/health || exit 1"]
       interval: 10s
@@ -109,3 +114,4 @@ services:
 
 volumes:
   postgres-data:
+  uploads-data:
