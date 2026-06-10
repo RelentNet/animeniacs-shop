@@ -8,7 +8,9 @@ const mockDb = {
   limit: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
-  onConflictDoUpdate: vi.fn()
+  onConflictDoUpdate: vi.fn(),
+  update: vi.fn(),
+  set: vi.fn()
 }
 
 vi.mock('@/lib/db/client', () => ({ db: mockDb }))
@@ -22,6 +24,8 @@ beforeEach(() => {
   mockDb.insert.mockReset().mockReturnThis()
   mockDb.values.mockReset().mockReturnThis()
   mockDb.onConflictDoUpdate.mockReset().mockResolvedValue(undefined)
+  mockDb.update.mockReset().mockReturnThis()
+  mockDb.set.mockReset().mockReturnThis()
 })
 
 const newOrder = {
@@ -44,6 +48,77 @@ describe('upsertOrder', () => {
     expect(arg.set).toEqual(
       expect.objectContaining({ totalCents: 1000, updatedAt: expect.any(Date) })
     )
+  })
+
+  it('includes fulfillmentState in the onConflictDoUpdate set', async () => {
+    const { upsertOrder } = await import('@/lib/db/queries/orders')
+    await upsertOrder({ ...newOrder, fulfillmentState: 'PREPARED' })
+    const arg = mockDb.onConflictDoUpdate.mock.calls[0][0]
+    expect(arg.set).toHaveProperty('fulfillmentState', 'PREPARED')
+  })
+})
+
+describe('getOrderBySquareOrderId', () => {
+  it('returns the matching row', async () => {
+    mockDb.limit.mockResolvedValue([{ id: 'o1', squareOrderId: 'sq1' }])
+    const { getOrderBySquareOrderId } = await import('@/lib/db/queries/orders')
+    const result = await getOrderBySquareOrderId('sq1')
+    expect(result).toEqual({ id: 'o1', squareOrderId: 'sq1' })
+    expect(mockDb.where).toHaveBeenCalled()
+    expect(mockDb.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns undefined when not found', async () => {
+    mockDb.limit.mockResolvedValue([])
+    const { getOrderBySquareOrderId } = await import('@/lib/db/queries/orders')
+    expect(await getOrderBySquareOrderId('missing')).toBeUndefined()
+  })
+})
+
+describe('getOrderBySquareOrderIdAndEmail', () => {
+  it('returns the matching row (case-insensitive email)', async () => {
+    mockDb.limit.mockResolvedValue([{ id: 'o1', squareOrderId: 'sq1', buyerEmail: 'a@b.com' }])
+    const { getOrderBySquareOrderIdAndEmail } = await import('@/lib/db/queries/orders')
+    const result = await getOrderBySquareOrderIdAndEmail('sq1', 'A@B.com')
+    expect(result).toEqual({ id: 'o1', squareOrderId: 'sq1', buyerEmail: 'a@b.com' })
+    expect(mockDb.where).toHaveBeenCalled()
+    expect(mockDb.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns undefined when there is no match', async () => {
+    mockDb.limit.mockResolvedValue([])
+    const { getOrderBySquareOrderIdAndEmail } = await import('@/lib/db/queries/orders')
+    expect(await getOrderBySquareOrderIdAndEmail('sq1', 'wrong@b.com')).toBeUndefined()
+  })
+})
+
+describe('updateOrderStatus', () => {
+  it('sets status + refundedCents + updatedAt keyed on squareOrderId', async () => {
+    const { updateOrderStatus } = await import('@/lib/db/queries/orders')
+    await updateOrderStatus('sq1', 'refunded', 500)
+    expect(mockDb.update).toHaveBeenCalled()
+    const setArg = mockDb.set.mock.calls[0][0]
+    expect(setArg).toEqual(
+      expect.objectContaining({
+        status: 'refunded',
+        refundedCents: 500,
+        updatedAt: expect.any(Date)
+      })
+    )
+    expect(mockDb.where).toHaveBeenCalled()
+  })
+})
+
+describe('setOrderFulfillmentState', () => {
+  it('sets fulfillmentState + updatedAt keyed on squareOrderId', async () => {
+    const { setOrderFulfillmentState } = await import('@/lib/db/queries/orders')
+    await setOrderFulfillmentState('sq1', 'PREPARED')
+    expect(mockDb.update).toHaveBeenCalled()
+    const setArg = mockDb.set.mock.calls[0][0]
+    expect(setArg).toEqual(
+      expect.objectContaining({ fulfillmentState: 'PREPARED', updatedAt: expect.any(Date) })
+    )
+    expect(mockDb.where).toHaveBeenCalled()
   })
 })
 

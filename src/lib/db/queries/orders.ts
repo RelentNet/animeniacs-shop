@@ -3,6 +3,9 @@ import { db } from '@/lib/db/client'
 import { type NewOrder, type Order, orders } from '@/lib/db/schema'
 import { and, desc, eq, sql } from 'drizzle-orm'
 
+/** Refund-aware order status (matches the `orders_status_valid` CHECK). */
+export type OrderStatus = 'completed' | 'refunded' | 'partially_refunded'
+
 /**
  * Idempotent write of a completed order, keyed on `squareOrderId`. Replayed
  * webhook deliveries DO UPDATE the same row (never duplicate).
@@ -22,6 +25,7 @@ export async function upsertOrder(order: NewOrder): Promise<void> {
         totalCents: order.totalCents,
         currency: order.currency,
         lineItems: order.lineItems,
+        fulfillmentState: order.fulfillmentState,
         placedAt: order.placedAt,
         raw: order.raw,
         updatedAt: new Date()
@@ -36,6 +40,68 @@ export async function getOrdersForUser(userId: string): Promise<Order[]> {
 export async function getOrderById(id: string): Promise<Order | undefined> {
   const rows = await db.select().from(orders).where(eq(orders.id, id)).limit(1)
   return rows[0]
+}
+
+/** Look up an order by its Square order ID (the idempotency key). */
+export async function getOrderBySquareOrderId(
+  squareOrderId: string
+): Promise<Order | undefined> {
+  const rows = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.squareOrderId, squareOrderId))
+    .limit(1)
+  return rows[0]
+}
+
+/**
+ * Guest-lookup read path: matches BOTH the exact `squareOrderId` AND the
+ * `buyerEmail` (case-insensitive via `lower()`). The order number is the shared
+ * secret; the email gates disclosure. Returns undefined on any mismatch — the
+ * caller must surface a generic error without revealing which field was wrong.
+ */
+export async function getOrderBySquareOrderIdAndEmail(
+  squareOrderId: string,
+  email: string
+): Promise<Order | undefined> {
+  const rows = await db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.squareOrderId, squareOrderId),
+        sql`lower(${orders.buyerEmail}) = ${email.toLowerCase()}`
+      )
+    )
+    .limit(1)
+  return rows[0]
+}
+
+/**
+ * Reflect a refund: set the refund-aware `status` + cumulative `refundedCents`,
+ * keyed on `squareOrderId`. Both values are server-computed from the
+ * authoritative Square order, never from raw webhook payload amounts.
+ */
+export async function updateOrderStatus(
+  squareOrderId: string,
+  status: OrderStatus,
+  refundedCents: number
+): Promise<void> {
+  await db
+    .update(orders)
+    .set({ status, refundedCents, updatedAt: new Date() })
+    .where(eq(orders.squareOrderId, squareOrderId))
+}
+
+/** Record the latest fulfillment state, keyed on `squareOrderId`. */
+export async function setOrderFulfillmentState(
+  squareOrderId: string,
+  fulfillmentState: string | null
+): Promise<void> {
+  await db
+    .update(orders)
+    .set({ fulfillmentState, updatedAt: new Date() })
+    .where(eq(orders.squareOrderId, squareOrderId))
 }
 
 /**
