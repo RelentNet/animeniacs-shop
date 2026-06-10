@@ -105,6 +105,10 @@ export const abandonedCarts = pgTable(
     cartId: text('cart_id').primaryKey(), // UUID we generate at /api/checkout
     squareOrderId: text('square_order_id'), // populated once Square assigns an order ID
     buyerEmail: text('buyer_email'), // nullable; only known if buyer typed it
+    // Phase 11 attribution bridge: the webhook is server-to-server (no Logto
+    // session), so it reads the buyer's identity from this row to attribute orders.
+    buyerUserId: text('buyer_user_id'), // Logto sub of the buyer; null for guests
+    squareCustomerId: text('square_customer_id'), // Square customer attributed at checkout
     cartSnapshot: jsonb('cart_snapshot').notNull(), // line items for the reminder email
     // TS enum is a type hint only; Drizzle does not emit CHECK from it.
     status: text('status', {
@@ -127,14 +131,53 @@ export const abandonedCarts = pgTable(
 export type AbandonedCart = typeof abandonedCarts.$inferSelect
 export type NewAbandonedCart = typeof abandonedCarts.$inferInsert
 
+// Phase 11: re-keyed from `email` PK to the Logto `sub`. The previous shape was
+// empty + unreferenced, so the migration drops/recreates the PK safely.
 export const customerLink = pgTable('customer_link', {
-  email: text('email').primaryKey(), // normalized lowercase
+  userId: text('user_id').primaryKey(), // Logto sub
+  email: text('email'), // normalized lowercase
   squareCustomerId: text('square_customer_id').notNull(),
+  name: text('name'),
   cachedAt: timestamp('cached_at', { withTimezone: true }).notNull().defaultNow()
 })
 
 export type CustomerLink = typeof customerLink.$inferSelect
 export type NewCustomerLink = typeof customerLink.$inferInsert
+
+// Phase 11: durable read model of completed orders. Square stays the system of
+// record for money; this table powers the customer-facing /account order history.
+export const orders = pgTable(
+  'orders',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    squareOrderId: text('square_order_id').notNull().unique(), // idempotency key for upsert
+    squarePaymentId: text('square_payment_id'),
+    userId: text('user_id'), // Logto sub; null for guest orders
+    buyerEmail: text('buyer_email'), // display/fallback
+    squareCustomerId: text('square_customer_id'), // mirror of the Square order customer
+    // TS enum is a type hint only; explicit CHECK below enforces at DB level.
+    status: text('status', { enum: ['completed', 'refunded', 'partially_refunded'] })
+      .notNull()
+      .default('completed'),
+    totalCents: integer('total_cents').notNull(),
+    currency: text('currency').notNull().default('USD'),
+    lineItems: jsonb('line_items').notNull(), // [{ name, quantity, unitPriceCents, totalCents, catalogObjectId?, variationName? }]
+    placedAt: timestamp('placed_at', { withTimezone: true }),
+    raw: jsonb('raw'), // full Square order snapshot (audit/debug)
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    statusValid: check(
+      'orders_status_valid',
+      sql`${table.status} IN ('completed', 'refunded', 'partially_refunded')`
+    ),
+    userIdIdx: index('orders_user_id_idx').on(table.userId)
+  })
+)
+
+export type Order = typeof orders.$inferSelect
+export type NewOrder = typeof orders.$inferInsert
 
 export const productCache = pgTable('product_cache', {
   catalogItemId: text('catalog_item_id').primaryKey(), // Square catalog item ID
