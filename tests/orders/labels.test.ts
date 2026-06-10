@@ -9,8 +9,7 @@ describe('statusLabel', () => {
   })
 
   it('falls back to a safe default for unknown statuses', () => {
-    // biome-ignore lint/suspicious/noExplicitAny: exercising the fallback path
-    expect(statusLabel('something_new' as any)).toBe('Completed')
+    expect(statusLabel('something_new' as never)).toBe('Completed')
   })
 })
 

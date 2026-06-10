@@ -10,7 +10,11 @@ import {
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
 import { sendOrderConfirmationEmail, sendRefundEmail } from '@/lib/notifications/email'
 import { notifyEnabledRecipients } from '@/lib/notifications/sms'
-import { type OrderLineItem, buildOrder, mostAdvancedFulfillmentState } from '@/lib/orders/build-order'
+import {
+  type OrderLineItem,
+  buildOrder,
+  mostAdvancedFulfillmentState
+} from '@/lib/orders/build-order'
 import { getSquareClient } from '@/lib/square/client'
 
 export interface HandleEventArgs {

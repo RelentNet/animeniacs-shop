@@ -137,9 +137,7 @@ export async function sendRefundEmail(opts: {
   const from = process.env.RESEND_FROM_EMAIL
 
   if (!apiKey || !from) {
-    console.warn(
-      '[email] sendRefundEmail: RESEND_API_KEY or RESEND_FROM_EMAIL not set — skipping'
-    )
+    console.warn('[email] sendRefundEmail: RESEND_API_KEY or RESEND_FROM_EMAIL not set — skipping')
     return
   }
 

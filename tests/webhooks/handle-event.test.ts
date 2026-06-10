@@ -175,7 +175,6 @@ describe('handleSquareEvent', () => {
   })
 
   it('refund.created and order.fulfillment.updated do not trigger the order SMS fanout', async () => {
-    delete process.env.DISCORD_ORDER_WEBHOOK_URL
     await handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
     await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
     expect(mockAppendLog).toHaveBeenCalledTimes(2)

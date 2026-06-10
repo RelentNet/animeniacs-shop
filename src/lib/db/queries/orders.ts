@@ -43,9 +43,7 @@ export async function getOrderById(id: string): Promise<Order | undefined> {
 }
 
 /** Look up an order by its Square order ID (the idempotency key). */
-export async function getOrderBySquareOrderId(
-  squareOrderId: string
-): Promise<Order | undefined> {
+export async function getOrderBySquareOrderId(squareOrderId: string): Promise<Order | undefined> {
   const rows = await db
     .select()
     .from(orders)

@@ -21,7 +21,6 @@ const baseOrder = {
 
 describe('OrderDetailView', () => {
   it('renders the status label, fulfillment label, total, and line items', () => {
-    // biome-ignore lint/suspicious/noExplicitAny: structural Order stand-in
     render(<OrderDetailView order={baseOrder as any} />)
     expect(screen.getByText('Completed')).toBeInTheDocument()
     expect(screen.getByText('Being prepared')).toBeInTheDocument()
@@ -36,7 +35,6 @@ describe('OrderDetailView', () => {
       status: 'partially_refunded' as const,
       refundedCents: 500
     }
-    // biome-ignore lint/suspicious/noExplicitAny: structural Order stand-in
     render(<OrderDetailView order={refunded as any} />)
     expect(screen.getByText('Partially refunded')).toBeInTheDocument()
     expect(screen.getByText(/Refunded/)).toBeInTheDocument()
@@ -44,14 +42,12 @@ describe('OrderDetailView', () => {
   })
 
   it('does not show a refunded line when refundedCents is 0', () => {
-    // biome-ignore lint/suspicious/noExplicitAny: structural Order stand-in
     render(<OrderDetailView order={baseOrder as any} />)
     expect(screen.queryByText(/Refunded/)).not.toBeInTheDocument()
   })
 
   it('shows "Processing" when fulfillmentState is null', () => {
     const noFulfillment = { ...baseOrder, fulfillmentState: null }
-    // biome-ignore lint/suspicious/noExplicitAny: structural Order stand-in
     render(<OrderDetailView order={noFulfillment as any} />)
     expect(screen.getByText('Processing')).toBeInTheDocument()
   })
