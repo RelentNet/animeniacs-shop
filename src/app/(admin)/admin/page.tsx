@@ -40,6 +40,11 @@ const SECTIONS: AdminSection[] = [
     description: 'Phone numbers that receive transactional order SMS.'
   },
   {
+    href: '/admin/reviews' as Route,
+    title: 'Reviews',
+    description: 'Moderate held product reviews — publish or delete.'
+  },
+  {
     href: '/admin/settings' as Route,
     title: 'Settings',
     description: 'Storefront promo bar and other site-wide settings.'
