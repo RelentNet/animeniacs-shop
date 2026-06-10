@@ -1,7 +1,4 @@
-import {
-  getCartsForReminder,
-  markReminderSent
-} from '@/lib/db/queries/abandoned-carts'
+import { getCartsForReminder, markReminderSent } from '@/lib/db/queries/abandoned-carts'
 import type { CartSnapshot } from '@/lib/notifications/email'
 import { sendAbandonedCartEmail } from '@/lib/notifications/email'
 import { NextResponse } from 'next/server'

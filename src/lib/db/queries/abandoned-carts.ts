@@ -62,9 +62,7 @@ export interface CartForReminder {
  *   - created_at < NOW() - thresholdMinutes
  *   - reminder_sent_at IS NULL (not already sent)
  */
-export async function getCartsForReminder(
-  thresholdMinutes: number
-): Promise<CartForReminder[]> {
+export async function getCartsForReminder(thresholdMinutes: number): Promise<CartForReminder[]> {
   const rows = await db
     .select({
       cartId: abandonedCarts.cartId,
@@ -78,10 +76,7 @@ export async function getCartsForReminder(
         ne(abandonedCarts.status, 'abandoned'),
         isNotNull(abandonedCarts.buyerEmail),
         isNull(abandonedCarts.reminderSentAt),
-        lt(
-          abandonedCarts.createdAt,
-          sql`NOW() - (${thresholdMinutes} * INTERVAL '1 minute')`
-        )
+        lt(abandonedCarts.createdAt, sql`NOW() - (${thresholdMinutes} * INTERVAL '1 minute')`)
       )
     )
   // buyerEmail is guaranteed non-null by the isNotNull filter above

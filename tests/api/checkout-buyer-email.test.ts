@@ -16,7 +16,9 @@ vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart 
 vi.mock('@/lib/logto', () => ({ logtoConfig: {} }))
 
 const validBody = {
-  items: [{ catalogItemId: 'CAT_1', variationId: 'VAR_1', quantity: 1, expectedUnitPriceCents: 1000 }]
+  items: [
+    { catalogItemId: 'CAT_1', variationId: 'VAR_1', quantity: 1, expectedUnitPriceCents: 1000 }
+  ]
 }
 
 describe('POST /api/checkout — buyer email capture', () => {

@@ -51,9 +51,7 @@
     "zod": "^3.25.76"
   },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "sharp"
-    ]
+    "onlyBuiltDependencies": ["sharp"]
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

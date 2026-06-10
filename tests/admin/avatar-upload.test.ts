@@ -51,7 +51,9 @@ describe('saveAvatar', () => {
     const file = makeFile('test.png', 'image/png', 100)
     await saveAvatar(file, 'slug-x')
     expect(mockWriteFile).toHaveBeenCalledWith(
-      expect.stringContaining(`public${path.sep}images${path.sep}uploads${path.sep}artists${path.sep}slug-x.webp`),
+      expect.stringContaining(
+        `public${path.sep}images${path.sep}uploads${path.sep}artists${path.sep}slug-x.webp`
+      ),
       expect.any(Buffer)
     )
   })
