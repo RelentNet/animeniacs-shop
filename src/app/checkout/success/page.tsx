@@ -98,8 +98,15 @@ export default async function CheckoutSuccessPage({
       <main className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="text-3xl font-bold">Thanks for your order!</h1>
         <p className="mt-4 text-gray-700">
-          Order <code>{order.id}</code> received. You&apos;ll get a confirmation email from Square
-          shortly.
+          Order <code className="font-semibold">{order.id}</code> received. You&apos;ll get a
+          confirmation email shortly.
+        </p>
+        <p className="mt-2 text-sm text-gray-600">
+          Look up your order anytime at{' '}
+          <a href="/orders/lookup" className="font-medium text-gray-900 underline">
+            /orders/lookup
+          </a>{' '}
+          using your email and this order number.
         </p>
 
         {Array.isArray(order.lineItems) && order.lineItems.length > 0 && (
