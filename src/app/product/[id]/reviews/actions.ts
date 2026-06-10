@@ -24,10 +24,12 @@ function readField(form: FormData, key: string): string {
 }
 
 function readPhotos(form: FormData): File[] {
-  return form.getAll('photos').filter(
-    (entry): entry is File =>
-      typeof entry === 'object' && entry !== null && 'size' in entry && (entry as File).size > 0
-  )
+  return form
+    .getAll('photos')
+    .filter(
+      (entry): entry is File =>
+        typeof entry === 'object' && entry !== null && 'size' in entry && (entry as File).size > 0
+    )
 }
 
 /**
@@ -80,7 +82,9 @@ export async function submitReviewAction(
       photos.map((file, i) => saveReviewPhoto(file, `${reviewId}-${i}`))
     )
   } catch {
-    return { fieldErrors: { photos: 'One of your photos could not be uploaded. Please try again.' } }
+    return {
+      fieldErrors: { photos: 'One of your photos could not be uploaded. Please try again.' }
+    }
   }
 
   try {

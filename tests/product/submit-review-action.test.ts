@@ -32,7 +32,9 @@ beforeEach(() => {
   })
   mockFindPurchaseOrderId.mockReset().mockResolvedValue(null)
   mockCreateReview.mockReset().mockResolvedValue({ id: 'r-1' })
-  mockSaveReviewPhoto.mockReset().mockImplementation(async (_file, key) => `/images/uploads/review-photos/${key}.webp`)
+  mockSaveReviewPhoto
+    .mockReset()
+    .mockImplementation(async (_file, key) => `/images/uploads/review-photos/${key}.webp`)
   mockRevalidatePath.mockReset()
 })
 

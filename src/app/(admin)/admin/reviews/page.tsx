@@ -62,12 +62,18 @@ export default async function AdminReviewsModerationPage(): Promise<JSX.Element>
                 </td>
                 <td style={cellStyle}>{r.createdAt.toISOString().slice(0, 10)}</td>
                 <td style={{ ...cellStyle, display: 'flex', gap: '0.75rem' }}>
-                  <form action={publishReviewAction.bind(null, r.id, r.productId)} style={{ margin: 0 }}>
+                  <form
+                    action={publishReviewAction.bind(null, r.id, r.productId)}
+                    style={{ margin: 0 }}
+                  >
                     <button type="submit" style={{ ...buttonStyle, color: '#181' }}>
                       publish
                     </button>
                   </form>
-                  <form action={deleteReviewAction.bind(null, r.id, r.productId)} style={{ margin: 0 }}>
+                  <form
+                    action={deleteReviewAction.bind(null, r.id, r.productId)}
+                    style={{ margin: 0 }}
+                  >
                     <button type="submit" style={{ ...buttonStyle, color: '#a33' }}>
                       delete
                     </button>

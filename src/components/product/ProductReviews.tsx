@@ -22,9 +22,7 @@ function ReviewCard({ review }: { review: Review }): JSX.Element {
     <li className="border-t border-gray-200 py-5">
       <div className="flex flex-wrap items-center gap-2">
         <StarRating value={review.rating} />
-        {review.title ? (
-          <span className="font-semibold text-gray-900">{review.title}</span>
-        ) : null}
+        {review.title ? <span className="font-semibold text-gray-900">{review.title}</span> : null}
         {review.isVerifiedPurchase ? (
           <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
             Verified Purchase
@@ -116,7 +114,9 @@ export async function ProductReviews({ productId }: { productId: string }): Prom
           ))}
         </ul>
       ) : (
-        <p className="mt-6 text-sm text-gray-500">No reviews yet. Be the first to review this product.</p>
+        <p className="mt-6 text-sm text-gray-500">
+          No reviews yet. Be the first to review this product.
+        </p>
       )}
     </div>
   )
