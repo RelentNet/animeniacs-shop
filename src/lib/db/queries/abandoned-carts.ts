@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { type AbandonedCart, abandonedCarts } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
+import { and, eq, isNotNull, isNull, lt, ne, sql } from 'drizzle-orm'
 
 export interface CreatePendingCartInput {
   cartId: string
@@ -47,4 +47,58 @@ export async function markCartAbandoned(squareOrderId: string): Promise<void> {
     .update(abandonedCarts)
     .set({ status: 'abandoned', updatedAt: new Date() })
     .where(eq(abandonedCarts.squareOrderId, squareOrderId))
+}
+
+export interface CartForReminder {
+  cartId: string
+  buyerEmail: string
+  cartSnapshot: unknown
+}
+
+/**
+ * Returns pending carts eligible for an abandonment reminder:
+ *   - status not 'completed' and not 'abandoned' (still pending/in_checkout)
+ *   - buyer_email IS NOT NULL (logged-in checkout only)
+ *   - created_at < NOW() - thresholdMinutes
+ *   - reminder_sent_at IS NULL (not already sent)
+ */
+export async function getCartsForReminder(
+  thresholdMinutes: number
+): Promise<CartForReminder[]> {
+  const rows = await db
+    .select({
+      cartId: abandonedCarts.cartId,
+      buyerEmail: abandonedCarts.buyerEmail,
+      cartSnapshot: abandonedCarts.cartSnapshot
+    })
+    .from(abandonedCarts)
+    .where(
+      and(
+        ne(abandonedCarts.status, 'completed'),
+        ne(abandonedCarts.status, 'abandoned'),
+        isNotNull(abandonedCarts.buyerEmail),
+        isNull(abandonedCarts.reminderSentAt),
+        lt(
+          abandonedCarts.createdAt,
+          sql`NOW() - (${thresholdMinutes} * INTERVAL '1 minute')`
+        )
+      )
+    )
+  // buyerEmail is guaranteed non-null by the isNotNull filter above
+  return rows.map((r) => ({
+    cartId: r.cartId,
+    buyerEmail: r.buyerEmail as string,
+    cartSnapshot: r.cartSnapshot
+  }))
+}
+
+/**
+ * Stamps reminder_sent_at = NOW() and sets status = 'abandoned'
+ * for a cart that has been sent a recovery email.
+ */
+export async function markReminderSent(cartId: string): Promise<void> {
+  await db
+    .update(abandonedCarts)
+    .set({ status: 'abandoned', reminderSentAt: new Date(), updatedAt: new Date() })
+    .where(eq(abandonedCarts.cartId, cartId))
 }
