@@ -2,6 +2,9 @@ import { ArtistMetaLine } from '@/components/product/ArtistMetaLine'
 import { MockupGallery } from '@/components/product/MockupGallery'
 import { PdpPurchasePanel } from '@/components/product/PdpPurchasePanel'
 import { ProductReviews } from '@/components/product/ProductReviews'
+import { WishlistButton } from '@/components/product/WishlistButton'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { isInWishlist } from '@/lib/db/queries/wishlists'
 import { getRelatedProducts } from '@/lib/categories/related'
 import { MOCKUP_SCENES } from '@/lib/mockup-scenes'
 import { getProductById } from '@/lib/products/cache'
@@ -34,6 +37,10 @@ export default async function ProductDetailPage({ params }: PageProps): Promise<
     ? sanitizeProductDescription(product.descriptionHtml)
     : null
 
+  const user = await getCurrentUser()
+  const wishlisted =
+    user.isAuthenticated && user.userId ? await isInWishlist(user.userId, product.id) : false
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
       <nav aria-label="Breadcrumb" className="mb-4 text-sm text-gray-600">
@@ -60,6 +67,7 @@ export default async function ProductDetailPage({ params }: PageProps): Promise<
             itemOptions={product.itemOptions}
             productionTimeText={PRODUCTION_TIME_TEXT}
           />
+          <WishlistButton productId={product.id} inWishlist={wishlisted} />
         </div>
       </div>
 
