@@ -1,3 +1,4 @@
+import { SignOutButton } from '@/components/auth/SignOutButton'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { redirect } from 'next/navigation'
 
@@ -42,6 +43,9 @@ export default async function AccountLayout({
             <a href="/account/wishlist" className="text-gray-700 hover:underline">
               Wishlist
             </a>
+          </li>
+          <li className="ml-auto">
+            <SignOutButton />
           </li>
         </ul>
       </nav>
