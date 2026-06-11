@@ -46,9 +46,9 @@ export default async function ShopPage({
   // Resolve the slug filters to their Square category ids using the same
   // curated lists the dropdowns are built from. Unknown slugs resolve to null
   // (the filter is then a no-op), so junk values can never error.
-  query.categoryId =
-    nicknames.find((n) => n.slug === query.categorySlug)?.squareCategoryId ?? null
-  query.artistCategoryId = artists.find((a) => a.slug === query.artistSlug)?.squareCategoryId ?? null
+  query.categoryId = nicknames.find((n) => n.slug === query.categorySlug)?.squareCategoryId ?? null
+  query.artistCategoryId =
+    artists.find((a) => a.slug === query.artistSlug)?.squareCategoryId ?? null
 
   const summaries = await getReviewSummariesForProducts(products.map((p) => p.id))
 

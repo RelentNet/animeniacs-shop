@@ -1,7 +1,7 @@
-import type { ArtistProduct } from '@/lib/square/items'
+import type { ReviewSummary } from '@/lib/db/queries/reviews'
 import { filterAndSortProducts, paginate } from '@/lib/shop/filter'
 import type { ShopQuery } from '@/lib/shop/parse-params'
-import type { ReviewSummary } from '@/lib/db/queries/reviews'
+import type { ArtistProduct } from '@/lib/square/items'
 import { describe, expect, it } from 'vitest'
 
 function p(over: Partial<ArtistProduct> & { id: string }): ArtistProduct {
@@ -69,10 +69,15 @@ describe('filterAndSortProducts', () => {
   })
 
   it('excludes null-price products ONLY when a bound is set', () => {
-    const products = [p({ id: 'priced', priceCents: 2500 }), p({ id: 'variable', priceCents: null })]
+    const products = [
+      p({ id: 'priced', priceCents: 2500 }),
+      p({ id: 'variable', priceCents: null })
+    ]
     // no bound → null-price kept
     expect(
-      filterAndSortProducts(products, noSummaries, q({})).map((x) => x.id).sort()
+      filterAndSortProducts(products, noSummaries, q({}))
+        .map((x) => x.id)
+        .sort()
     ).toEqual(['priced', 'variable'])
     // bound set → null-price dropped
     expect(

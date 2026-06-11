@@ -19,8 +19,7 @@ import { getShopProducts, resolveImageUrls } from '@/lib/square/items'
 
 const fakeClient = {
   catalog: { searchItems: mockSearchItems, batchGet: mockBatchGet }
-  // biome-ignore lint/suspicious/noExplicitAny: minimal stub for the helper
-} as any
+} as unknown as Parameters<typeof resolveImageUrls>[0]
 
 describe('resolveImageUrls', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import type { ReviewSummary } from '@/lib/db/queries/reviews'
-import type { ArtistProduct } from '@/lib/square/items'
 import type { ShopQuery } from '@/lib/shop/parse-params'
+import type { ArtistProduct } from '@/lib/square/items'
 
 /**
  * Pure, I/O-free filter + sort over the cached `getShopProducts()` result.
