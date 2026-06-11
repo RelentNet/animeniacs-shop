@@ -12,7 +12,14 @@ vi.mock('next/link', () => ({
   )
 }))
 
-const base = { id: 'P1', name: 'Print A', imageUrl: 'https://x/a.jpg', priceCents: 2500, categoryIds: [] }
+const base = {
+  id: 'P1',
+  name: 'Print A',
+  imageUrl: 'https://x/a.jpg',
+  priceCents: 2500,
+  categoryIds: [],
+  updatedAt: null
+}
 
 describe('ProductCard', () => {
   it('links to the PDP and renders name + formatted price', () => {

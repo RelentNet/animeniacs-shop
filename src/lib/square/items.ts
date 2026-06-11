@@ -18,6 +18,42 @@ export interface ArtistProduct {
   priceCents: number | null
   /** Square category IDs the item belongs to. Useful for downstream filters. */
   categoryIds: string[]
+  /** ISO timestamp of the item's last Square update, or null. Drives `newest` sort. */
+  updatedAt: string | null
+}
+
+/**
+ * Square's `batchGet` caps at ~1000 object ids per call; ids beyond the cap are
+ * silently dropped. This resolves IMAGE urls for any number of image ids by
+ * chunking into batches of <= 900 (safely under the cap), awaiting each, and
+ * merging the results into one `Map<imageId, url>`. Empty input does no I/O.
+ *
+ * Behavior-preserving at current scale (a single batch) and correct beyond the
+ * cap. Shared by `getItemsByCategoryId` and `getShopProducts`.
+ */
+export async function resolveImageUrls(
+  client: ReturnType<typeof getSquareClient>,
+  imageIds: string[]
+): Promise<Map<string, string>> {
+  const imageUrlById = new Map<string, string>()
+  if (imageIds.length === 0) return imageUrlById
+
+  const CHUNK_SIZE = 900
+  for (let i = 0; i < imageIds.length; i += CHUNK_SIZE) {
+    const slice = imageIds.slice(i, i + CHUNK_SIZE)
+    const imageBatch = await client.catalog.batchGet({
+      objectIds: slice,
+      includeRelatedObjects: false
+    })
+    // biome-ignore lint/suspicious/noExplicitAny: SDK union is awkward
+    const imgObjects: any[] = (imageBatch as any).objects ?? []
+    for (const img of imgObjects) {
+      if (img.type === 'IMAGE' && typeof img.imageData?.url === 'string') {
+        imageUrlById.set(img.id, img.imageData.url)
+      }
+    }
+  }
+  return imageUrlById
 }
 
 /**
@@ -62,22 +98,8 @@ export const getItemsByCategoryId = cache(
       for (const id of ids) allImageIds.add(id)
     }
 
-    // Batch-fetch images so we get one network round-trip for all
-    // referenced IMAGE objects.
-    const imageUrlById = new Map<string, string>()
-    if (allImageIds.size > 0) {
-      const imageBatch = await client.catalog.batchGet({
-        objectIds: Array.from(allImageIds),
-        includeRelatedObjects: false
-      })
-      // biome-ignore lint/suspicious/noExplicitAny: same as above
-      const imgObjects: any[] = (imageBatch as any).objects ?? []
-      for (const img of imgObjects) {
-        if (img.type === 'IMAGE' && typeof img.imageData?.url === 'string') {
-          imageUrlById.set(img.id, img.imageData.url)
-        }
-      }
-    }
+    // Batch-fetch images (chunked under Square's batchGet object cap).
+    const imageUrlById = await resolveImageUrls(client, Array.from(allImageIds))
 
     // Project to our public shape.
     const out: ArtistProduct[] = []
@@ -109,7 +131,8 @@ export const getItemsByCategoryId = cache(
         name: itemData.name ?? '(unnamed)',
         imageUrl: firstImageId ? (imageUrlById.get(firstImageId) ?? null) : null,
         priceCents,
-        categoryIds
+        categoryIds,
+        updatedAt: typeof it.updatedAt === 'string' ? it.updatedAt : null
       })
     }
 
@@ -163,20 +186,8 @@ export const getShopProducts = cache(
       for (const id of ids) allImageIds.add(id)
     }
 
-    const imageUrlById = new Map<string, string>()
-    if (allImageIds.size > 0) {
-      const imageBatch = await client.catalog.batchGet({
-        objectIds: Array.from(allImageIds),
-        includeRelatedObjects: false
-      })
-      // biome-ignore lint/suspicious/noExplicitAny: same as above
-      const imgObjects: any[] = (imageBatch as any).objects ?? []
-      for (const img of imgObjects) {
-        if (img.type === 'IMAGE' && typeof img.imageData?.url === 'string') {
-          imageUrlById.set(img.id, img.imageData.url)
-        }
-      }
-    }
+    // Batch-fetch images (chunked under Square's batchGet object cap).
+    const imageUrlById = await resolveImageUrls(client, Array.from(allImageIds))
 
     const byId = new Map<string, ArtistProduct>()
     for (const it of active) {
@@ -207,7 +218,8 @@ export const getShopProducts = cache(
         name: itemData.name ?? '(unnamed)',
         imageUrl: firstImageId ? (imageUrlById.get(firstImageId) ?? null) : null,
         priceCents,
-        categoryIds
+        categoryIds,
+        updatedAt: typeof it.updatedAt === 'string' ? it.updatedAt : null
       })
     }
 
