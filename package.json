@@ -31,6 +31,7 @@
     "sq:cleanup": "tsx scripts/square-cleanup/cleanup.ts",
     "sq:archive-graveyard": "tsx scripts/square-cleanup/archive-graveyard-skus.ts",
     "sq:unarchive-graveyard": "tsx --env-file=.env.local scripts/square-cleanup/unarchive-graveyard-skus.ts",
+    "sq:sync-images": "tsx --env-file=.env.local scripts/square-cleanup/sync-images.ts",
     "goaffpro:probe": "tsx scripts/goaffpro/probe.ts",
     "sq:account-probe": "tsx scripts/square-account-probe/probe.ts"
   },
