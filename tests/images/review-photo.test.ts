@@ -4,12 +4,14 @@ import { describe, expect, it, vi } from 'vitest'
 // Mock writeFile before importing the module under test. Keep the rest of
 // the real module (other consumers import its default + named exports).
 const mockWriteFile = vi.fn().mockResolvedValue(undefined)
+const mockMkdir = vi.fn().mockResolvedValue(undefined)
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>()
   return {
     ...actual,
-    default: { ...actual, writeFile: mockWriteFile },
-    writeFile: mockWriteFile
+    default: { ...actual, writeFile: mockWriteFile, mkdir: mockMkdir },
+    writeFile: mockWriteFile,
+    mkdir: mockMkdir
   }
 })
 

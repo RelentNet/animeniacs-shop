@@ -1,5 +1,5 @@
 import 'server-only'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
 
@@ -83,6 +83,13 @@ function validateImageFile(file: File): void {
 async function writeWebp(buffer: Buffer, subdir: string, filename: string): Promise<string> {
   const absolutePath = path.resolve(UPLOADS_DIR_REL, subdir, filename)
   try {
+    // Ensure the target subdir exists before writing. The named uploads volume
+    // only gets the image's subdirs seeded on FIRST creation, so a volume
+    // created before a given subdir was added (e.g. review-photos/, added in
+    // Phase 12) won't contain it → writeFile would ENOENT. Creating it here
+    // makes uploads resilient to volume age, recreated volumes, and any future
+    // upload subdir (ip-covers/, event-logos/).
+    await mkdir(path.dirname(absolutePath), { recursive: true })
     await writeFile(absolutePath, buffer)
   } catch (err: unknown) {
     const code = (err as NodeJS.ErrnoException).code
