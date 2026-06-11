@@ -38,4 +38,28 @@ describe('ProductCard', () => {
     render(<ProductCard product={{ ...base, priceCents: null }} />)
     expect(screen.getByText('—')).toBeInTheDocument()
   })
+
+  it('renders StarRating + count when rating present and count > 0', () => {
+    render(<ProductCard product={base} rating={{ count: 2, average: 4.5 }} />)
+    expect(screen.getByRole('img', { name: /4\.5 out of 5 stars/i })).toBeInTheDocument()
+    expect(screen.getByText('(2)')).toBeInTheDocument()
+  })
+
+  it('omits the rating when no rating prop is supplied', () => {
+    render(<ProductCard product={base} />)
+    expect(screen.queryByRole('img', { name: /out of 5 stars/i })).toBeNull()
+  })
+
+  it('omits the rating when count is 0', () => {
+    render(<ProductCard product={base} rating={{ count: 0, average: 0 }} />)
+    expect(screen.queryByRole('img', { name: /out of 5 stars/i })).toBeNull()
+  })
+
+  it('REGRESSION: never renders a category name/id even when categoryIds present', () => {
+    const { container } = render(
+      <ProductCard product={{ ...base, categoryIds: ['CAT_NARUTO'] }} />
+    )
+    expect(container.textContent).not.toMatch(/CAT_/i)
+    expect(container.textContent).not.toMatch(/Naruto/i)
+  })
 })

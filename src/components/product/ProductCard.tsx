@@ -1,14 +1,23 @@
+import { StarRating } from '@/components/product/StarRating'
 import type { ArtistProduct } from '@/lib/square/items'
 import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
 /**
- * Shared public product card: image (or placeholder), name, price,
- * linking to the PDP. Used by /shop (Phase 8). Renders NO category
- * information — the IP-never-public constraint is satisfied by omission.
+ * Shared public product card: image (or placeholder), name, price, optional
+ * star-rating summary, linking to the PDP. Used by /shop, /category, /artist.
+ * Renders NO category information — the IP-never-public constraint is satisfied
+ * by omission. The optional `rating` is the published-review summary; it renders
+ * only when present and `count > 0`.
  */
-export function ProductCard({ product }: { product: ArtistProduct }): JSX.Element {
+export function ProductCard({
+  product,
+  rating
+}: {
+  product: ArtistProduct
+  rating?: { count: number; average: number }
+}): JSX.Element {
   return (
     <Link
       href={`/product/${product.id}` as Route}
@@ -34,6 +43,12 @@ export function ProductCard({ product }: { product: ArtistProduct }): JSX.Elemen
       <div className="text-sm text-gray-600">
         {product.priceCents !== null ? `$${(product.priceCents / 100).toFixed(2)}` : '—'}
       </div>
+      {rating && rating.count > 0 && (
+        <div className="mt-1 flex items-center gap-1 text-sm">
+          <StarRating value={rating.average} count={rating.count} />
+          <span className="text-gray-500">({rating.count})</span>
+        </div>
+      )}
     </Link>
   )
 }
