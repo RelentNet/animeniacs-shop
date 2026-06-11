@@ -57,6 +57,47 @@ export async function sendAbandonedCartEmail(opts: {
   })
 }
 
+/**
+ * Sends a password-reset email via Resend (Phase 15, better-auth
+ * `sendResetPassword`). Env-gated identically to {@link sendAbandonedCartEmail}
+ * — silently no-ops when RESEND_API_KEY or RESEND_FROM_EMAIL is unset, so signup
+ * / login still work before Resend is configured (the reset link just won't
+ * send). The `resetUrl` is the better-auth reset endpoint with a one-time token.
+ */
+export async function sendPasswordResetEmail(opts: {
+  to: string
+  resetUrl: string
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY
+  const from = process.env.RESEND_FROM_EMAIL
+
+  if (!apiKey || !from) {
+    console.warn(
+      '[email] sendPasswordResetEmail: RESEND_API_KEY or RESEND_FROM_EMAIL not set — skipping'
+    )
+    return
+  }
+
+  const resend = new Resend(apiKey)
+
+  const text = [
+    'We received a request to reset your Animeniacs password.',
+    '',
+    `Reset it here: ${opts.resetUrl}`,
+    '',
+    "If you didn't request this, you can safely ignore this email.",
+    '',
+    '— The Animeniacs Team'
+  ].join('\n')
+
+  await resend.emails.send({
+    from,
+    to: opts.to,
+    subject: 'Reset your Animeniacs password',
+    text
+  })
+}
+
 function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
 }

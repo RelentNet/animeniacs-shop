@@ -38,6 +38,7 @@
   "dependencies": {
     "@logto/next": "^4.2.10",
     "@radix-ui/react-dialog": "^1.1.15",
+    "better-auth": "^1.6.16",
     "drizzle-orm": "^0.36.4",
     "gray-matter": "^4.0.3",
     "marked": "^15.0.12",
@@ -52,7 +53,9 @@
     "zod": "^3.25.76"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["sharp"]
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

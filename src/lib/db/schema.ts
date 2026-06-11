@@ -254,6 +254,80 @@ export const artists = pgTable(
 export type Artist = typeof artists.$inferSelect
 export type NewArtist = typeof artists.$inferInsert
 
+// ---------------------------------------------------------------------------
+// Phase 15: better-auth (email + password). These four tables are the canonical
+// better-auth 1.x schema (`user`/`session`/`account`/`verification`). Drizzle
+// property names are camelCase to match better-auth's field names; the adapter
+// maps them to the snake_case DB columns. `user` carries two additionalFields:
+// `squareCustomerId` (Square mapping, was the dropped `customer_link`) and
+// `role` (admin gating). DB-managed by better-auth — do not write directly
+// except via the auth API or the `grant-admin` script.
+// ---------------------------------------------------------------------------
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  // additionalFields (better-auth `user.additionalFields`):
+  squareCustomerId: text('square_customer_id'),
+  role: text('role').notNull().default('user'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type User = typeof user.$inferSelect
+export type NewUser = typeof user.$inferInsert
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  token: text('token').notNull().unique(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type Session = typeof session.$inferSelect
+export type NewSession = typeof session.$inferInsert
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: text('user_id')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at', { withTimezone: true }),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type Account = typeof account.$inferSelect
+export type NewAccount = typeof account.$inferInsert
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
+})
+
+export type Verification = typeof verification.$inferSelect
+export type NewVerification = typeof verification.$inferInsert
+
 export const ipNicknames = pgTable('ip_nicknames', {
   id: uuid('id').primaryKey().defaultRandom(),
   squareCategoryId: text('square_category_id').notNull().unique(),

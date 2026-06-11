@@ -20,6 +20,12 @@ const envSchema = z.object({
   LOGTO_APP_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   LOGTO_COOKIE_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 
+  // better-auth (Phase 15). SECRET signs sessions / hashes reset tokens — must
+  // be a strong random value (openssl rand -hex 32) and is REQUIRED. URL is the
+  // app's public base; falls back to NEXT_PUBLIC_SITE_URL when unset.
+  BETTER_AUTH_SECRET: z.string().min(1),
+  BETTER_AUTH_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+
   // Square (Phase 3)
   // Sandbox keys are required for any dev where the SDK is touched.
   // Production keys arrive at Phase 17.
