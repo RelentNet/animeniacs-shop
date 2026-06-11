@@ -1,19 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockGetLogtoContext = vi.fn()
+// getCurrentUser is now backed by better-auth's `auth.api.getSession` (Phase 15,
+// was Logto `getLogtoContext`). The CurrentUser interface is unchanged so the
+// ~13 consumers don't churn: userId = user.id; roles = role==='admin'?['admin']:[].
+const mockGetSession = vi.fn()
 
-vi.mock('@logto/next/server-actions', () => ({ getLogtoContext: mockGetLogtoContext }))
-vi.mock('@/lib/logto', () => ({ logtoConfig: {} }))
+vi.mock('@/lib/auth', () => ({ auth: { api: { getSession: mockGetSession } } }))
+vi.mock('next/headers', () => ({ headers: () => new Headers() }))
 
 describe('getCurrentUser', () => {
   beforeEach(() => {
-    mockGetLogtoContext.mockReset()
+    mockGetSession.mockReset()
   })
 
-  it('returns authenticated claims when signed in', async () => {
-    mockGetLogtoContext.mockResolvedValue({
-      isAuthenticated: true,
-      claims: { sub: 'user-123', email: 'buyer@example.com', name: 'Ada', roles: ['admin'] }
+  it('maps an admin session to roles:[admin]', async () => {
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user-123', email: 'buyer@example.com', name: 'Ada', role: 'admin' }
     })
 
     const { getCurrentUser } = await import('@/lib/auth/get-current-user')
@@ -28,8 +30,25 @@ describe('getCurrentUser', () => {
     })
   })
 
-  it('returns an unauthenticated shape when not signed in', async () => {
-    mockGetLogtoContext.mockResolvedValue({ isAuthenticated: false, claims: null })
+  it('maps a non-admin session to roles:[]', async () => {
+    mockGetSession.mockResolvedValue({
+      user: { id: 'user-9', email: 'c@example.com', name: 'Cee', role: 'user' }
+    })
+
+    const { getCurrentUser } = await import('@/lib/auth/get-current-user')
+    const result = await getCurrentUser()
+
+    expect(result).toEqual({
+      isAuthenticated: true,
+      userId: 'user-9',
+      email: 'c@example.com',
+      name: 'Cee',
+      roles: []
+    })
+  })
+
+  it('returns an unauthenticated shape when there is no session', async () => {
+    mockGetSession.mockResolvedValue(null)
 
     const { getCurrentUser } = await import('@/lib/auth/get-current-user')
     const result = await getCurrentUser()
@@ -43,11 +62,8 @@ describe('getCurrentUser', () => {
     })
   })
 
-  it('defaults roles to [] and missing fields to null when authenticated with sparse claims', async () => {
-    mockGetLogtoContext.mockResolvedValue({
-      isAuthenticated: true,
-      claims: { sub: 'user-456' }
-    })
+  it('defaults missing name/email to null and absent role to roles:[]', async () => {
+    mockGetSession.mockResolvedValue({ user: { id: 'user-456' } })
 
     const { getCurrentUser } = await import('@/lib/auth/get-current-user')
     const result = await getCurrentUser()
@@ -61,8 +77,8 @@ describe('getCurrentUser', () => {
     })
   })
 
-  it('returns an unauthenticated shape when getLogtoContext throws', async () => {
-    mockGetLogtoContext.mockRejectedValue(new Error('no session'))
+  it('returns an unauthenticated shape when getSession throws', async () => {
+    mockGetSession.mockRejectedValue(new Error('no session'))
 
     const { getCurrentUser } = await import('@/lib/auth/get-current-user')
     const result = await getCurrentUser()
