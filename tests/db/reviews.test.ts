@@ -5,6 +5,7 @@ const mockDb = {
   from: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  groupBy: vi.fn(),
   limit: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
@@ -21,6 +22,7 @@ beforeEach(() => {
   mockDb.from.mockReset().mockReturnThis()
   mockDb.where.mockReset().mockReturnThis()
   mockDb.orderBy.mockReset().mockResolvedValue([])
+  mockDb.groupBy.mockReset().mockResolvedValue([])
   mockDb.limit.mockReset().mockResolvedValue([])
   mockDb.insert.mockReset().mockReturnThis()
   mockDb.values.mockReset().mockReturnThis()
@@ -92,6 +94,30 @@ describe('getReviewSummary', () => {
     const { getReviewSummary } = await import('@/lib/db/queries/reviews')
     const result = await getReviewSummary('ITEM_A')
     expect(result).toEqual({ count: 0, average: 0 })
+  })
+})
+
+describe('getReviewSummariesForProducts', () => {
+  it('returns an empty map (without querying) for empty input', async () => {
+    const { getReviewSummariesForProducts } = await import('@/lib/db/queries/reviews')
+    const result = await getReviewSummariesForProducts([])
+    expect(result).toBeInstanceOf(Map)
+    expect(result.size).toBe(0)
+    expect(mockDb.select).not.toHaveBeenCalled()
+  })
+
+  it('groups published-only counts + averages by product id', async () => {
+    mockDb.groupBy.mockResolvedValue([
+      { productId: 'p1', count: 2, average: '4.5' },
+      { productId: 'p2', count: 1, average: '3' }
+    ])
+    const { getReviewSummariesForProducts } = await import('@/lib/db/queries/reviews')
+    const result = await getReviewSummariesForProducts(['p1', 'p2', 'p3'])
+    expect(result.get('p1')).toEqual({ count: 2, average: 4.5 })
+    expect(result.get('p2')).toEqual({ count: 1, average: 3 })
+    // p3 has no published reviews → absent from the map
+    expect(result.has('p3')).toBe(false)
+    expect(mockDb.groupBy).toHaveBeenCalled()
   })
 })
 

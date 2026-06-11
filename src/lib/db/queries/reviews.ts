@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { type NewReview, type Review, reviews } from '@/lib/db/schema'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, avg, count, desc, eq, inArray, sql } from 'drizzle-orm'
 
 /**
  * Thrown when `createReview` hits the `reviews_user_product_unique` constraint
@@ -68,6 +68,39 @@ export async function getReviewSummary(productId: string): Promise<ReviewSummary
     count: Number(row?.count ?? 0),
     average: Number(row?.average ?? 0)
   }
+}
+
+/**
+ * Batch count + average rating over PUBLISHED reviews for many products in a
+ * single grouped query. Returns a `Map<productId, { count, average }>`; products
+ * with no published reviews are simply ABSENT from the map (not zero-filled).
+ * Empty input short-circuits to an empty map without touching the DB. Used by
+ * the /shop listing + category/artist grids to render per-card ratings without
+ * an N+1 of `getReviewSummary`.
+ */
+export async function getReviewSummariesForProducts(
+  productIds: string[]
+): Promise<Map<string, ReviewSummary>> {
+  const summaries = new Map<string, ReviewSummary>()
+  if (productIds.length === 0) return summaries
+
+  const rows = await db
+    .select({
+      productId: reviews.productId,
+      count: count(),
+      average: avg(reviews.rating)
+    })
+    .from(reviews)
+    .where(and(eq(reviews.isPublished, true), inArray(reviews.productId, productIds)))
+    .groupBy(reviews.productId)
+
+  for (const row of rows) {
+    summaries.set(row.productId, {
+      count: Number(row.count ?? 0),
+      average: Number(row.average ?? 0)
+    })
+  }
+  return summaries
 }
 
 /**
