@@ -246,6 +246,12 @@ function stripRecursive(node: unknown): void {
         money.amount = BigInt(money.amount)
       }
     }
+    // `serviceDuration` (item variation, milliseconds) is validated by the SDK
+    // as a bigint, but the snapshot serializes it as a Number — same gotcha as
+    // *Money.amount and ordinal. Coerce it back so the items upsert validates.
+    if (key === 'serviceDuration' && typeof value === 'number') {
+      obj[key] = BigInt(value)
+    }
     stripRecursive(value)
   }
 }
