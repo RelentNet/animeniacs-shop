@@ -1,5 +1,5 @@
 import 'server-only'
-import { getCustomerLinkByUserId, upsertCustomerLink } from '@/lib/db/queries/customer-link'
+import { getUserSquareCustomerId, setUserSquareCustomerId } from '@/lib/db/queries/user'
 import { getSquareClient } from '@/lib/square/client'
 
 /** Subset of the Square Customer we surface to callers (account pages). */
@@ -33,20 +33,23 @@ function splitName(name: string | null): { givenName?: string; familyName?: stri
 
 /**
  * Maps a logged-in buyer to exactly one Square Customer:
- *   1. cached `customer_link` → return it (no Square call)
- *   2. else search Square by email → reuse + cache
- *   3. else create (referenceId = Logto sub) + cache
+ *   1. `user.squareCustomerId` already set → return it (no Square call)
+ *   2. else search Square by email → reuse + persist onto the user row
+ *   3. else create (referenceId = user.id) + persist onto the user row
  * Throws if Square ultimately yields no customer id; the checkout caller
  * swallows that (best-effort — must never block payment).
+ *
+ * Phase 15: the mapping now lives on the `user` row (was the dropped
+ * `customer_link` table).
  */
 export async function findOrCreateSquareCustomer(opts: {
   userId: string
   email: string | null
   name: string | null
 }): Promise<string> {
-  const cached = await getCustomerLinkByUserId(opts.userId)
-  if (cached?.squareCustomerId) {
-    return cached.squareCustomerId
+  const cached = await getUserSquareCustomerId(opts.userId)
+  if (cached) {
+    return cached
   }
 
   const client = getSquareClient()
@@ -60,12 +63,7 @@ export async function findOrCreateSquareCustomer(opts: {
     // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
     const found = (searchResp as any).customers?.[0]
     if (found?.id) {
-      await upsertCustomerLink({
-        userId: opts.userId,
-        email: opts.email,
-        squareCustomerId: found.id,
-        name: opts.name
-      })
+      await setUserSquareCustomerId(opts.userId, found.id)
       return found.id
     }
   }
@@ -84,12 +82,7 @@ export async function findOrCreateSquareCustomer(opts: {
     throw new Error('Square customers.create returned no customer id')
   }
 
-  await upsertCustomerLink({
-    userId: opts.userId,
-    email: opts.email,
-    squareCustomerId: created.id,
-    name: opts.name
-  })
+  await setUserSquareCustomerId(opts.userId, created.id)
   return created.id
 }
 

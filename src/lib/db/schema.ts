@@ -62,7 +62,9 @@ export type NewSmsRecipient = typeof smsRecipients.$inferInsert
 export const wishlists = pgTable(
   'wishlists',
   {
-    userId: text('user_id').notNull(), // Logto user ID
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }), // Phase 15: FK → user.id
     productId: text('product_id').notNull(), // Square catalog item ID
     addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow()
   },
@@ -79,7 +81,8 @@ export const reviews = pgTable(
   {
     id: uuid('id').primaryKey().defaultRandom(),
     productId: text('product_id').notNull(), // Square catalog item ID
-    userId: text('user_id'), // Logto user ID; nullable for legacy/imported reviews
+    // Phase 15: FK → user.id (set null on delete); nullable for guest/imported reviews
+    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     orderId: text('order_id'), // Square order ID; used to verify purchase
     rating: integer('rating').notNull(),
     title: text('title'),
@@ -108,7 +111,8 @@ export const abandonedCarts = pgTable(
     buyerEmail: text('buyer_email'), // nullable; only known if buyer typed it
     // Phase 11 attribution bridge: the webhook is server-to-server (no Logto
     // session), so it reads the buyer's identity from this row to attribute orders.
-    buyerUserId: text('buyer_user_id'), // Logto sub of the buyer; null for guests
+    // Phase 15: FK → user.id (set null on delete); null for guests
+    buyerUserId: text('buyer_user_id').references(() => user.id, { onDelete: 'set null' }),
     squareCustomerId: text('square_customer_id'), // Square customer attributed at checkout
     cartSnapshot: jsonb('cart_snapshot').notNull(), // line items for the reminder email
     // TS enum is a type hint only; Drizzle does not emit CHECK from it.
@@ -132,19 +136,6 @@ export const abandonedCarts = pgTable(
 export type AbandonedCart = typeof abandonedCarts.$inferSelect
 export type NewAbandonedCart = typeof abandonedCarts.$inferInsert
 
-// Phase 11: re-keyed from `email` PK to the Logto `sub`. The previous shape was
-// empty + unreferenced, so the migration drops/recreates the PK safely.
-export const customerLink = pgTable('customer_link', {
-  userId: text('user_id').primaryKey(), // Logto sub
-  email: text('email'), // normalized lowercase
-  squareCustomerId: text('square_customer_id').notNull(),
-  name: text('name'),
-  cachedAt: timestamp('cached_at', { withTimezone: true }).notNull().defaultNow()
-})
-
-export type CustomerLink = typeof customerLink.$inferSelect
-export type NewCustomerLink = typeof customerLink.$inferInsert
-
 // Phase 11: durable read model of completed orders. Square stays the system of
 // record for money; this table powers the customer-facing /account order history.
 export const orders = pgTable(
@@ -153,7 +144,8 @@ export const orders = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     squareOrderId: text('square_order_id').notNull().unique(), // idempotency key for upsert
     squarePaymentId: text('square_payment_id'),
-    userId: text('user_id'), // Logto sub; null for guest orders
+    // Phase 15: FK → user.id (set null on delete); null for guest orders
+    userId: text('user_id').references(() => user.id, { onDelete: 'set null' }),
     buyerEmail: text('buyer_email'), // display/fallback
     squareCustomerId: text('square_customer_id'), // mirror of the Square order customer
     // TS enum is a type hint only; explicit CHECK below enforces at DB level.

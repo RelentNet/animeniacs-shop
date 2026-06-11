@@ -1,5 +1,5 @@
 import { getCurrentUser } from '@/lib/auth/get-current-user'
-import { getCustomerLinkByUserId } from '@/lib/db/queries/customer-link'
+import { getUserSquareCustomerId } from '@/lib/db/queries/user'
 import { getSquareCustomer } from '@/lib/square/customers'
 import type { Route } from 'next'
 import Link from 'next/link'
@@ -18,9 +18,9 @@ export default async function AccountPage(): Promise<JSX.Element> {
   // who never checked out has no customer_link yet → show an empty form.
   let addressInitial: AddressFormInitial = {}
   if (user.userId) {
-    const link = await getCustomerLinkByUserId(user.userId)
-    if (link?.squareCustomerId) {
-      const customer = await getSquareCustomer(link.squareCustomerId)
+    const squareCustomerId = await getUserSquareCustomerId(user.userId)
+    if (squareCustomerId) {
+      const customer = await getSquareCustomer(squareCustomerId)
       const addr = customer?.address
       if (addr) {
         addressInitial = {

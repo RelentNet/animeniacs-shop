@@ -13,13 +13,15 @@ const mockGetSquareClient = vi.fn(() => ({
   }
 }))
 
+// Phase 15: the Square↔user mapping is now read/written on the user row via
+// these query helpers (was the dropped `customer_link` table).
 const mockGetLink = vi.fn()
-const mockUpsertLink = vi.fn()
+const mockSetLink = vi.fn()
 
 vi.mock('@/lib/square/client', () => ({ getSquareClient: mockGetSquareClient }))
-vi.mock('@/lib/db/queries/customer-link', () => ({
-  getCustomerLinkByUserId: mockGetLink,
-  upsertCustomerLink: mockUpsertLink
+vi.mock('@/lib/db/queries/user', () => ({
+  getUserSquareCustomerId: mockGetLink,
+  setUserSquareCustomerId: mockSetLink
 }))
 
 beforeEach(() => {
@@ -28,12 +30,12 @@ beforeEach(() => {
   mockGet.mockReset()
   mockUpdate.mockReset()
   mockGetLink.mockReset()
-  mockUpsertLink.mockReset().mockResolvedValue(undefined)
+  mockSetLink.mockReset().mockResolvedValue(undefined)
 })
 
 describe('findOrCreateSquareCustomer', () => {
   it('cached path: returns the linked squareCustomerId without calling Square', async () => {
-    mockGetLink.mockResolvedValue({ userId: 'u1', squareCustomerId: 'sq_cached' })
+    mockGetLink.mockResolvedValue('sq_cached')
 
     const { findOrCreateSquareCustomer } = await import('@/lib/square/customers')
     const id = await findOrCreateSquareCustomer({
@@ -47,8 +49,8 @@ describe('findOrCreateSquareCustomer', () => {
     expect(mockCreate).not.toHaveBeenCalled()
   })
 
-  it('search-found path: reuses the customer found by email and upserts the link', async () => {
-    mockGetLink.mockResolvedValue(undefined)
+  it('search-found path: reuses the customer found by email and persists onto the user', async () => {
+    mockGetLink.mockResolvedValue(null)
     mockSearch.mockResolvedValue({ customers: [{ id: 'sq_found' }] })
 
     const { findOrCreateSquareCustomer } = await import('@/lib/square/customers')
@@ -60,13 +62,11 @@ describe('findOrCreateSquareCustomer', () => {
 
     expect(id).toBe('sq_found')
     expect(mockCreate).not.toHaveBeenCalled()
-    expect(mockUpsertLink).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', squareCustomerId: 'sq_found' })
-    )
+    expect(mockSetLink).toHaveBeenCalledWith('u1', 'sq_found')
   })
 
-  it('create path: creates a customer with referenceId=userId and upserts the link', async () => {
-    mockGetLink.mockResolvedValue(undefined)
+  it('create path: creates a customer with referenceId=userId and persists onto the user', async () => {
+    mockGetLink.mockResolvedValue(null)
     mockSearch.mockResolvedValue({ customers: [] })
     mockCreate.mockResolvedValue({ customer: { id: 'sq_new' } })
 
@@ -81,13 +81,11 @@ describe('findOrCreateSquareCustomer', () => {
     expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({ referenceId: 'u1', emailAddress: 'u1@example.com' })
     )
-    expect(mockUpsertLink).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: 'u1', squareCustomerId: 'sq_new' })
-    )
+    expect(mockSetLink).toHaveBeenCalledWith('u1', 'sq_new')
   })
 
   it('create path with no email: skips search and creates directly', async () => {
-    mockGetLink.mockResolvedValue(undefined)
+    mockGetLink.mockResolvedValue(null)
     mockCreate.mockResolvedValue({ customer: { id: 'sq_new2' } })
 
     const { findOrCreateSquareCustomer } = await import('@/lib/square/customers')
@@ -98,7 +96,7 @@ describe('findOrCreateSquareCustomer', () => {
   })
 
   it('throws when Square create returns no customer id (caller swallows)', async () => {
-    mockGetLink.mockResolvedValue(undefined)
+    mockGetLink.mockResolvedValue(null)
     mockSearch.mockResolvedValue({ customers: [] })
     mockCreate.mockResolvedValue({ customer: {} })
 

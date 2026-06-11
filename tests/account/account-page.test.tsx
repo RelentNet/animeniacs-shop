@@ -2,12 +2,12 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetCurrentUser = vi.fn()
-const mockGetCustomerLink = vi.fn().mockResolvedValue(undefined)
+const mockGetCustomerLink = vi.fn().mockResolvedValue(null)
 const mockGetSquareCustomer = vi.fn().mockResolvedValue(null)
 
 vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
-vi.mock('@/lib/db/queries/customer-link', () => ({
-  getCustomerLinkByUserId: mockGetCustomerLink
+vi.mock('@/lib/db/queries/user', () => ({
+  getUserSquareCustomerId: mockGetCustomerLink
 }))
 vi.mock('@/lib/square/customers', () => ({
   getSquareCustomer: mockGetSquareCustomer,
@@ -23,7 +23,7 @@ vi.mock('react-dom', async (importOriginal) => {
 
 beforeEach(() => {
   mockGetCurrentUser.mockReset()
-  mockGetCustomerLink.mockReset().mockResolvedValue(undefined)
+  mockGetCustomerLink.mockReset().mockResolvedValue(null)
   mockGetSquareCustomer.mockReset().mockResolvedValue(null)
 })
 
