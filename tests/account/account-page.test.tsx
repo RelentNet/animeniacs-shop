@@ -2,16 +2,11 @@ import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockGetCurrentUser = vi.fn()
-const mockGetCustomerLink = vi.fn().mockResolvedValue(null)
-const mockGetSquareCustomer = vi.fn().mockResolvedValue(null)
+const mockGetAddresses = vi.fn().mockResolvedValue([])
 
 vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
-vi.mock('@/lib/db/queries/user', () => ({
-  getUserSquareCustomerId: mockGetCustomerLink
-}))
-vi.mock('@/lib/square/customers', () => ({
-  getSquareCustomer: mockGetSquareCustomer,
-  findOrCreateSquareCustomer: vi.fn()
+vi.mock('@/lib/db/queries/addresses', () => ({
+  getAddresses: mockGetAddresses
 }))
 
 // useFormState from react-dom is undefined under the jsdom/SSR transform these
@@ -23,8 +18,7 @@ vi.mock('react-dom', async (importOriginal) => {
 
 beforeEach(() => {
   mockGetCurrentUser.mockReset()
-  mockGetCustomerLink.mockReset().mockResolvedValue(null)
-  mockGetSquareCustomer.mockReset().mockResolvedValue(null)
+  mockGetAddresses.mockReset().mockResolvedValue([])
 })
 
 describe('/account landing page', () => {

@@ -1,39 +1,18 @@
 import { getCurrentUser } from '@/lib/auth/get-current-user'
-import { getUserSquareCustomerId } from '@/lib/db/queries/user'
-import { getSquareCustomer } from '@/lib/square/customers'
+import { getAddresses } from '@/lib/db/queries/addresses'
 import type { Route } from 'next'
 import Link from 'next/link'
-import { AddressForm, type AddressFormInitial } from './_components/AddressForm'
+import { SavedAddresses } from './_components/SavedAddresses'
 
 export const metadata = {
   title: 'My Account | Animeniacs',
-  description: 'Your account, orders, and saved shipping address.'
+  description: 'Your account, orders, and saved shipping addresses.'
 }
 
 export default async function AccountPage(): Promise<JSX.Element> {
   const user = await getCurrentUser()
   const greetingName = user.name ?? user.email ?? 'there'
-
-  // Resolve any existing Square customer address to pre-fill the form. A buyer
-  // who never checked out has no customer_link yet → show an empty form.
-  let addressInitial: AddressFormInitial = {}
-  if (user.userId) {
-    const squareCustomerId = await getUserSquareCustomerId(user.userId)
-    if (squareCustomerId) {
-      const customer = await getSquareCustomer(squareCustomerId)
-      const addr = customer?.address
-      if (addr) {
-        addressInitial = {
-          addressLine1: addr.addressLine1 ?? '',
-          addressLine2: addr.addressLine2 ?? '',
-          locality: addr.locality ?? '',
-          administrativeDistrictLevel1: addr.administrativeDistrictLevel1 ?? '',
-          postalCode: addr.postalCode ?? '',
-          country: addr.country ?? 'US'
-        }
-      }
-    }
-  }
+  const addresses = user.userId ? await getAddresses(user.userId) : []
 
   return (
     <div>
@@ -52,9 +31,11 @@ export default async function AccountPage(): Promise<JSX.Element> {
       </section>
 
       <section className="mt-8">
-        <h2 className="text-xl font-semibold">Saved shipping address</h2>
-        <p className="mt-1 text-gray-700">A saved address speeds up future checkouts.</p>
-        <AddressForm initial={addressInitial} />
+        <h2 className="text-xl font-semibold">Saved shipping addresses</h2>
+        <p className="mt-1 text-gray-700">
+          Save addresses to speed up checkout. Your default address is prefilled at checkout.
+        </p>
+        <SavedAddresses addresses={addresses} />
       </section>
     </div>
   )

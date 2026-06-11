@@ -1,11 +1,8 @@
 'use server'
 
 import { getCurrentUser } from '@/lib/auth/get-current-user'
-import {
-  type CustomerAddress,
-  findOrCreateSquareCustomer,
-  updateSquareCustomerAddress
-} from '@/lib/square/customers'
+import { deleteAddress, saveAddress, setDefaultAddress } from '@/lib/db/queries/addresses'
+import type { SavedAddressDetails } from '@/lib/db/schema'
 import { revalidatePath } from 'next/cache'
 
 export interface AddressFormState {
@@ -19,11 +16,11 @@ function readField(form: FormData, key: string): string {
 }
 
 /**
- * Saves the buyer's shipping address onto their Square Customer. Find-or-creates
- * the customer first (a buyer who never checked out has no mapping yet). Returns
- * a saved/error state for the useFormState-driven AddressForm.
+ * Adds a new saved address for the signed-in user. Returns a saved/error state
+ * for the useFormState-driven add form. When "make default" is checked, the
+ * query layer clears any other default in the same transaction.
  */
-export async function saveAddressAction(
+export async function addAddressAction(
   _prev: AddressFormState,
   form: FormData
 ): Promise<AddressFormState> {
@@ -32,33 +29,30 @@ export async function saveAddressAction(
     return { error: 'You must be signed in to save an address.' }
   }
 
-  const addressLine1 = readField(form, 'addressLine1')
-  const locality = readField(form, 'locality')
-  const administrativeDistrictLevel1 = readField(form, 'administrativeDistrictLevel1')
-  const postalCode = readField(form, 'postalCode')
-  const country = readField(form, 'country') || 'US'
+  const label = readField(form, 'label') || 'Shipping address'
+  const firstName = readField(form, 'firstName')
+  const lastName = readField(form, 'lastName')
+  const line1 = readField(form, 'line1')
+  const city = readField(form, 'city')
+  const state = readField(form, 'state')
+  const zip = readField(form, 'zip')
 
-  if (!addressLine1 || !locality || !administrativeDistrictLevel1 || !postalCode) {
-    return { error: 'Please fill in street, city, state, and postal code.' }
+  if (!firstName || !lastName || !line1 || !city || !state || !zip) {
+    return { error: 'Please fill in name, street, city, state, and ZIP.' }
   }
 
-  const address: CustomerAddress = {
-    addressLine1,
-    locality,
-    administrativeDistrictLevel1,
-    postalCode,
-    country
-  }
-  const addressLine2 = readField(form, 'addressLine2')
-  if (addressLine2) address.addressLine2 = addressLine2
+  const address: SavedAddressDetails = { firstName, lastName, line1, city, state, zip }
+  const line2 = readField(form, 'line2')
+  if (line2) address.line2 = line2
+  const phone = readField(form, 'phone')
+  if (phone) address.phone = phone
 
   try {
-    const customerId = await findOrCreateSquareCustomer({
-      userId: user.userId,
-      email: user.email,
-      name: user.name
+    await saveAddress(user.userId, {
+      label,
+      address,
+      isDefault: form.get('isDefault') === 'on'
     })
-    await updateSquareCustomerAddress(customerId, address)
   } catch (err) {
     console.error('[account] address save failed:', err)
     return { error: 'Could not save your address. Please try again.' }
@@ -66,4 +60,24 @@ export async function saveAddressAction(
 
   revalidatePath('/account')
   return { saved: true }
+}
+
+/** Deletes one of the signed-in user's addresses (owner-scoped in the query). */
+export async function deleteAddressAction(form: FormData): Promise<void> {
+  const user = await getCurrentUser()
+  if (!user.isAuthenticated || !user.userId) return
+  const id = readField(form, 'id')
+  if (!id) return
+  await deleteAddress(user.userId, id)
+  revalidatePath('/account')
+}
+
+/** Marks one of the signed-in user's addresses as the default (owner-scoped). */
+export async function setDefaultAddressAction(form: FormData): Promise<void> {
+  const user = await getCurrentUser()
+  if (!user.isAuthenticated || !user.userId) return
+  const id = readField(form, 'id')
+  if (!id) return
+  await setDefaultAddress(user.userId, id)
+  revalidatePath('/account')
 }

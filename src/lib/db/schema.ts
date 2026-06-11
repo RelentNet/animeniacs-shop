@@ -320,6 +320,41 @@ export const verification = pgTable('verification', {
 export type Verification = typeof verification.$inferSelect
 export type NewVerification = typeof verification.$inferInsert
 
+/** The shape stored in `saved_addresses.address` (jsonb). */
+export interface SavedAddressDetails {
+  firstName: string
+  lastName: string
+  line1: string
+  line2?: string
+  city: string
+  state: string
+  zip: string
+  phone?: string
+}
+
+// Phase 15: multiple labeled shipping addresses per user (replaces Phase 11's
+// single address-on-the-Square-customer). One default per user is enforced in
+// the query layer (saveAddress unsets the others in a transaction).
+export const savedAddresses = pgTable(
+  'saved_addresses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    address: jsonb('address').$type<SavedAddressDetails>().notNull(),
+    isDefault: boolean('is_default').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    userIdIdx: index('saved_addresses_user_id_idx').on(table.userId)
+  })
+)
+
+export type SavedAddress = typeof savedAddresses.$inferSelect
+export type NewSavedAddress = typeof savedAddresses.$inferInsert
+
 export const ipNicknames = pgTable('ip_nicknames', {
   id: uuid('id').primaryKey().defaultRandom(),
   squareCategoryId: text('square_category_id').notNull().unique(),
