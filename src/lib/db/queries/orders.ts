@@ -1,7 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { type NewOrder, type Order, orders } from '@/lib/db/schema'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 
 /** Refund-aware order status (matches the `orders_status_valid` CHECK). */
 export type OrderStatus = 'completed' | 'refunded' | 'partially_refunded'
@@ -31,6 +31,22 @@ export async function upsertOrder(order: NewOrder): Promise<void> {
         updatedAt: new Date()
       }
     })
+}
+
+/**
+ * Guest-order claiming (Phase 15): attach orders placed as a guest to a newly
+ * signed-in account by verified email. Only touches rows with `userId IS NULL`
+ * matched on a case-insensitive `buyerEmail` — never reassigns an already-owned
+ * order. Idempotent (a second run finds nothing left to claim). Returns the
+ * number of orders claimed.
+ */
+export async function claimGuestOrders(userId: string, email: string): Promise<number> {
+  const claimed = await db
+    .update(orders)
+    .set({ userId, updatedAt: new Date() })
+    .where(and(isNull(orders.userId), sql`lower(${orders.buyerEmail}) = ${email.toLowerCase()}`))
+    .returning({ id: orders.id })
+  return claimed.length
 }
 
 export async function getOrdersForUser(userId: string): Promise<Order[]> {

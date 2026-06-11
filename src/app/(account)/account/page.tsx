@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { getAddresses } from '@/lib/db/queries/addresses'
+import { claimGuestOrders } from '@/lib/db/queries/orders'
 import type { Route } from 'next'
 import Link from 'next/link'
 import { SavedAddresses } from './_components/SavedAddresses'
@@ -12,6 +13,14 @@ export const metadata = {
 export default async function AccountPage(): Promise<JSX.Element> {
   const user = await getCurrentUser()
   const greetingName = user.name ?? user.email ?? 'there'
+
+  // Post-login guest-order claiming (spec §7): attach any orders placed as a
+  // guest with this account's email. Idempotent — only claims null-userId rows,
+  // so re-running on every /account visit is safe.
+  if (user.userId && user.email) {
+    await claimGuestOrders(user.userId, user.email)
+  }
+
   const addresses = user.userId ? await getAddresses(user.userId) : []
 
   return (

@@ -10,7 +10,8 @@ const mockDb = {
   values: vi.fn(),
   onConflictDoUpdate: vi.fn(),
   update: vi.fn(),
-  set: vi.fn()
+  set: vi.fn(),
+  returning: vi.fn()
 }
 
 vi.mock('@/lib/db/client', () => ({ db: mockDb }))
@@ -26,6 +27,7 @@ beforeEach(() => {
   mockDb.onConflictDoUpdate.mockReset().mockResolvedValue(undefined)
   mockDb.update.mockReset().mockReturnThis()
   mockDb.set.mockReset().mockReturnThis()
+  mockDb.returning.mockReset().mockResolvedValue([])
 })
 
 const newOrder = {
@@ -119,6 +121,30 @@ describe('setOrderFulfillmentState', () => {
       expect.objectContaining({ fulfillmentState: 'PREPARED', updatedAt: expect.any(Date) })
     )
     expect(mockDb.where).toHaveBeenCalled()
+  })
+})
+
+describe('claimGuestOrders', () => {
+  it('assigns the user id, scoped to null-userId rows, and returns the claim count', async () => {
+    mockDb.returning.mockResolvedValue([{ id: 'o1' }, { id: 'o2' }])
+
+    const { claimGuestOrders } = await import('@/lib/db/queries/orders')
+    const count = await claimGuestOrders('u1', 'Buyer@Example.com')
+
+    expect(count).toBe(2)
+    expect(mockDb.update).toHaveBeenCalled()
+    const setArg = mockDb.set.mock.calls[0][0]
+    expect(setArg).toEqual(
+      expect.objectContaining({ userId: 'u1', updatedAt: expect.any(Date) })
+    )
+    expect(mockDb.where).toHaveBeenCalled()
+    expect(mockDb.returning).toHaveBeenCalled()
+  })
+
+  it('returns 0 when there are no matching guest orders', async () => {
+    mockDb.returning.mockResolvedValue([])
+    const { claimGuestOrders } = await import('@/lib/db/queries/orders')
+    expect(await claimGuestOrders('u1', 'nobody@example.com')).toBe(0)
   })
 })
 

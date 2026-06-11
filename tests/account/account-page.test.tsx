@@ -4,9 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockGetCurrentUser = vi.fn()
 const mockGetAddresses = vi.fn().mockResolvedValue([])
 
+const mockClaimGuestOrders = vi.fn().mockResolvedValue(0)
+
 vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/db/queries/addresses', () => ({
   getAddresses: mockGetAddresses
+}))
+vi.mock('@/lib/db/queries/orders', () => ({
+  claimGuestOrders: mockClaimGuestOrders
 }))
 
 // useFormState from react-dom is undefined under the jsdom/SSR transform these
