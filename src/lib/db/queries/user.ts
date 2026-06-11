@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
  * True when at least one user has the `admin` role. The (admin) gate uses this
  * to distinguish "you're not an admin" (403) from "nobody is an admin yet" — the
  * latter renders a provisioning hint so the operator isn't hard-locked out after
- * the Logto→better-auth migration (run `pnpm auth:grant-admin <email>`).
+ * the auth migration (run `pnpm auth:grant-admin <email>`).
  */
 export async function hasAnyAdmin(): Promise<boolean> {
   const rows = await db

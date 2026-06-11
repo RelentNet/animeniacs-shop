@@ -9,8 +9,8 @@ import { redirect } from 'next/navigation'
 export const dynamic = 'force-dynamic'
 
 /**
- * Auth gate for every page under the (admin) route group (Phase 15: better-auth,
- * was Logto). Behaviour:
+ * Auth gate for every page under the (admin) route group (Phase 15: better-auth).
+ * Behaviour:
  *   - Unauthenticated → redirect to /sign-in.
  *   - Authenticated without the `admin` role:
  *       · if NO admin exists yet → render a provisioning hint (so the operator

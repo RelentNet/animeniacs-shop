@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Phase 15: the (admin) gate now reads better-auth via getCurrentUser (was Logto
-// getLogtoContext). roles is derived from the user `role` column. When the user
+// Phase 15: the (admin) gate now reads better-auth via getCurrentUser (was the
+// old OIDC context). roles is derived from the user `role` column. When the user
 // isn't an admin we distinguish "no admin exists yet" (provisioning hint) from
 // "you're not an admin" (403), so the operator isn't hard-locked after migration.
 

@@ -4,8 +4,8 @@ import { authClient } from '@/lib/auth-client'
 import { useState } from 'react'
 
 /**
- * Sign-out control (Phase 15, better-auth). Replaces the old `/sign-out` Logto
- * route link. Clears the session via the auth client then hard-navigates home
+ * Sign-out control (Phase 15, better-auth). Replaces the old `/sign-out` route
+ * link. Clears the session via the auth client then hard-navigates home
  * so every server gate re-renders without the session cookie.
  */
 export function SignOutButton({ className }: { className?: string }): JSX.Element {

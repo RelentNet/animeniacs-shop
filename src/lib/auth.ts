@@ -9,7 +9,7 @@ import { nextCookies } from 'better-auth/next-js'
 
 /**
  * better-auth (Phase 15) — email + password, sessions + users in our own
- * Postgres. Replaces the external Logto OIDC service. better-auth owns password
+ * Postgres. Replaces the external OIDC service. better-auth owns password
  * hashing + session cookies; `getCurrentUser()` reads `auth.api.getSession`.
  *
  * Decisions (spec §3):

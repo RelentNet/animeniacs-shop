@@ -8,10 +8,10 @@ import { headers } from 'next/headers'
  * `auth.api.getSession` here gives callers a single null-safe shape regardless
  * of whether a session exists.
  *
- * Phase 15: the internals swapped from Logto `getLogtoContext` to better-auth,
+ * Phase 15: the internals swapped from the previous OIDC provider to better-auth,
  * but the `CurrentUser` interface is kept BYTE-IDENTICAL so the ~13 consumers
- * are untouched — `userId` is now the better-auth `user.id` (was the Logto
- * `sub`) and `roles` is derived from the `role` column on the user row.
+ * are untouched — `userId` is now the better-auth `user.id` (was the OIDC
+ * subject) and `roles` is derived from the `role` column on the user row.
  */
 export interface CurrentUser {
   isAuthenticated: boolean

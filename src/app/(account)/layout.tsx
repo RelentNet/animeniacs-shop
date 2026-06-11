@@ -2,9 +2,9 @@ import { SignOutButton } from '@/components/auth/SignOutButton'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { redirect } from 'next/navigation'
 
-// Account routes read the Logto session + DB at request time. Forcing dynamic
+// Account routes read the auth session + DB at request time. Forcing dynamic
 // stops Next.js from attempting build-time prerender (which would try to reach
-// the Postgres host / Logto in an environment that has neither). Mirrors the
+// the Postgres host in an environment that has neither). Mirrors the
 // (admin) group and the force-dynamic root layout.
 export const dynamic = 'force-dynamic'
 

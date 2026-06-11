@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // getCurrentUser is now backed by better-auth's `auth.api.getSession` (Phase 15,
-// was Logto `getLogtoContext`). The CurrentUser interface is unchanged so the
+// was the old OIDC context). The CurrentUser interface is unchanged so the
 // ~13 consumers don't churn: userId = user.id; roles = role==='admin'?['admin']:[].
 const mockGetSession = vi.fn()
 

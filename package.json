@@ -37,7 +37,6 @@
     "sq:account-probe": "tsx scripts/square-account-probe/probe.ts"
   },
   "dependencies": {
-    "@logto/next": "^4.2.10",
     "@radix-ui/react-dialog": "^1.1.15",
     "better-auth": "^1.6.16",
     "drizzle-orm": "^0.36.4",

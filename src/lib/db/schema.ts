@@ -109,7 +109,7 @@ export const abandonedCarts = pgTable(
     cartId: text('cart_id').primaryKey(), // UUID we generate at /api/checkout
     squareOrderId: text('square_order_id'), // populated once Square assigns an order ID
     buyerEmail: text('buyer_email'), // nullable; only known if buyer typed it
-    // Phase 11 attribution bridge: the webhook is server-to-server (no Logto
+    // Phase 11 attribution bridge: the webhook is server-to-server (no auth
     // session), so it reads the buyer's identity from this row to attribute orders.
     // Phase 15: FK → user.id (set null on delete); null for guests
     buyerUserId: text('buyer_user_id').references(() => user.id, { onDelete: 'set null' }),

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mockGetLogtoContext = vi.fn()
+const mockGetCurrentUser = vi.fn()
 const mockCreatePendingCart = vi.fn().mockResolvedValue({})
 const mockCreatePaymentLink = vi.fn().mockResolvedValue({
   checkoutUrl: 'https://squareup.com/pay/abc',
@@ -10,12 +10,11 @@ const mockCreatePaymentLink = vi.fn().mockResolvedValue({
 const mockValidateCart = vi.fn().mockResolvedValue({ ok: true, lines: [] })
 const mockFindOrCreate = vi.fn()
 
-vi.mock('@logto/next/server-actions', () => ({ getLogtoContext: mockGetLogtoContext }))
+vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePendingCart }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreatePaymentLink }))
 vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart }))
 vi.mock('@/lib/square/customers', () => ({ findOrCreateSquareCustomer: mockFindOrCreate }))
-vi.mock('@/lib/logto', () => ({ logtoConfig: {} }))
 
 const validBody = {
   items: [
@@ -31,7 +30,7 @@ function makeReq() {
 }
 
 beforeEach(() => {
-  mockGetLogtoContext.mockReset()
+  mockGetCurrentUser.mockReset()
   mockCreatePendingCart.mockReset().mockResolvedValue({})
   mockCreatePaymentLink.mockReset().mockResolvedValue({
     checkoutUrl: 'https://squareup.com/pay/abc',
@@ -45,8 +44,12 @@ beforeEach(() => {
 
 describe('POST /api/checkout — Square customer mapping', () => {
   it('signed-in buyer: maps to a Square customer + persists the identity bridge', async () => {
-    mockGetLogtoContext.mockResolvedValue({
-      claims: { sub: 'user-123', email: 'buyer@example.com', name: 'Ada' }
+    mockGetCurrentUser.mockResolvedValue({
+      isAuthenticated: true,
+      userId: 'user-123',
+      email: 'buyer@example.com',
+      name: 'Ada',
+      roles: []
     })
     mockFindOrCreate.mockResolvedValue('sq_cust_1')
 
@@ -68,8 +71,12 @@ describe('POST /api/checkout — Square customer mapping', () => {
   })
 
   it('still returns a checkout URL when the Customers API throws (best-effort)', async () => {
-    mockGetLogtoContext.mockResolvedValue({
-      claims: { sub: 'user-123', email: 'buyer@example.com', name: 'Ada' }
+    mockGetCurrentUser.mockResolvedValue({
+      isAuthenticated: true,
+      userId: 'user-123',
+      email: 'buyer@example.com',
+      name: 'Ada',
+      roles: []
     })
     mockFindOrCreate.mockRejectedValue(new Error('square customers down'))
 
@@ -90,7 +97,13 @@ describe('POST /api/checkout — Square customer mapping', () => {
   })
 
   it('guest checkout: passes null bridge fields and never calls the Customers API', async () => {
-    mockGetLogtoContext.mockResolvedValue({ claims: null })
+    mockGetCurrentUser.mockResolvedValue({
+      isAuthenticated: false,
+      userId: null,
+      email: null,
+      name: null,
+      roles: []
+    })
 
     const { POST } = await import('@/app/api/checkout/route')
     const res = await POST(makeReq())

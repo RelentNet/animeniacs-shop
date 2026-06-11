@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { describe, expect, it, vi } from 'vitest'
 
-const mockGetLogtoContext = vi.fn()
+const mockGetCurrentUser = vi.fn()
 const mockCreatePendingCart = vi.fn().mockResolvedValue({})
 const mockCreatePaymentLink = vi.fn().mockResolvedValue({
   checkoutUrl: 'https://squareup.com/pay/abc',
@@ -9,11 +9,13 @@ const mockCreatePaymentLink = vi.fn().mockResolvedValue({
 })
 const mockValidateCart = vi.fn().mockResolvedValue({ ok: true, lines: [] })
 
-vi.mock('@logto/next/server-actions', () => ({ getLogtoContext: mockGetLogtoContext }))
+vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePendingCart }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreatePaymentLink }))
 vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart }))
-vi.mock('@/lib/logto', () => ({ logtoConfig: {} }))
+vi.mock('@/lib/square/customers', () => ({
+  findOrCreateSquareCustomer: vi.fn().mockResolvedValue('sq_1')
+}))
 
 const validBody = {
   items: [
@@ -23,7 +25,13 @@ const validBody = {
 
 describe('POST /api/checkout — buyer email capture', () => {
   it('writes buyer email when user is signed in', async () => {
-    mockGetLogtoContext.mockResolvedValue({ claims: { email: 'buyer@example.com' } })
+    mockGetCurrentUser.mockResolvedValue({
+      isAuthenticated: true,
+      userId: 'user-1',
+      email: 'buyer@example.com',
+      name: null,
+      roles: []
+    })
     vi.stubEnv('SQUARE_LOCATION_ID', 'LOC_1')
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://dev.animeniacs.shop')
 
@@ -40,7 +48,13 @@ describe('POST /api/checkout — buyer email capture', () => {
   })
 
   it('writes null email when user is not signed in', async () => {
-    mockGetLogtoContext.mockResolvedValue({ claims: null })
+    mockGetCurrentUser.mockResolvedValue({
+      isAuthenticated: false,
+      userId: null,
+      email: null,
+      name: null,
+      roles: []
+    })
     vi.stubEnv('SQUARE_LOCATION_ID', 'LOC_1')
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://dev.animeniacs.shop')
 

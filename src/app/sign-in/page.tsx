@@ -7,8 +7,8 @@ import Link from 'next/link'
 import { type FormEvent, useState } from 'react'
 
 /**
- * Email + password sign-in (Phase 15, better-auth). Replaces the Logto hosted
- * redirect. On success we do a full-page navigation (not router.push) so the
+ * Email + password sign-in (Phase 15, better-auth). Replaces the old hosted
+ * OIDC redirect. On success we do a full-page navigation (not router.push) so the
  * freshly-set session cookie is present when the server gates re-render; admins
  * land on /admin, everyone else on /account.
  */

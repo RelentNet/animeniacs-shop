@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { createPaymentLink } from '@/lib/checkout/create-payment-link'
 import { validateCart } from '@/lib/checkout/validate-cart'
 import { createPendingCart } from '@/lib/db/queries/abandoned-carts'
-import { logtoConfig } from '@/lib/logto'
 import { findOrCreateSquareCustomer } from '@/lib/square/customers'
-import { getLogtoContext } from '@logto/next/server-actions'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -45,29 +44,14 @@ export async function POST(request: Request): Promise<NextResponse> {
     )
   }
 
-  // Capture buyer identity for logged-in users. Email feeds abandoned-cart
-  // recovery; the sub + name drive the Logto↔Square customer mapping. All fall
-  // back to null for anonymous/guest checkout (unchanged guest behavior).
-  let buyerEmail: string | null = null
-  let buyerUserId: string | null = null
-  let buyerName: string | null = null
-  try {
-    const ctx = await getLogtoContext(logtoConfig)
-    const email = ctx?.claims?.email
-    if (typeof email === 'string' && email.length > 0) {
-      buyerEmail = email
-    }
-    const sub = ctx?.claims?.sub
-    if (typeof sub === 'string' && sub.length > 0) {
-      buyerUserId = sub
-    }
-    const name = ctx?.claims?.name
-    if (typeof name === 'string' && name.length > 0) {
-      buyerName = name
-    }
-  } catch {
-    // Not signed in or Logto unavailable — continue with null identity
-  }
+  // Capture buyer identity for logged-in users (Phase 15: better-auth session).
+  // Email feeds abandoned-cart recovery; the user id + name drive the Square
+  // customer mapping. getCurrentUser returns nulls for anonymous/guest checkout
+  // and never throws (unchanged guest behavior).
+  const currentUser = await getCurrentUser()
+  const buyerEmail: string | null = currentUser.email
+  const buyerUserId: string | null = currentUser.userId
+  const buyerName: string | null = currentUser.name
 
   // Map the signed-in buyer to a Square customer. BEST-EFFORT (spec §8): a
   // Customers-API failure must never block payment — log + continue with no

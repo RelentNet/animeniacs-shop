@@ -14,11 +14,6 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   DATABASE_URL: z.string().url(),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
-  LOGTO_ENDPOINT: z.string().url().default('http://localhost:3001'),
-  LOGTO_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
-  LOGTO_APP_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  LOGTO_APP_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-  LOGTO_COOKIE_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
 
   // better-auth (Phase 15). SECRET signs sessions / hashes reset tokens — must
   // be a strong random value (openssl rand -hex 32) and is REQUIRED. URL is the
