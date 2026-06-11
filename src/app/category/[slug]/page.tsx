@@ -1,8 +1,7 @@
+import { ProductCard } from '@/components/product/ProductCard'
 import { getProductsForIpNickname } from '@/lib/categories'
 import { getIpNicknameBySlug } from '@/lib/db/queries/ip-nicknames'
-import type { Route } from 'next'
-import Image from 'next/image'
-import Link from 'next/link'
+import { getReviewSummariesForProducts } from '@/lib/db/queries/reviews'
 import { notFound } from 'next/navigation'
 
 interface PageProps {
@@ -23,6 +22,7 @@ export default async function CategoryPage({ params }: PageProps): Promise<JSX.E
   if (!nickname || !nickname.isPublic) notFound()
 
   const products = await getProductsForIpNickname(nickname)
+  const summaries = await getReviewSummariesForProducts(products.map((p) => p.id))
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8">
@@ -52,31 +52,7 @@ export default async function CategoryPage({ params }: PageProps): Promise<JSX.E
           <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3">
             {products.map((p) => (
               <li key={p.id}>
-                <Link
-                  href={`/product/${p.id}` as Route}
-                  className="block rounded-lg transition hover:opacity-90"
-                >
-                  {p.imageUrl ? (
-                    <Image
-                      src={p.imageUrl}
-                      alt={p.name}
-                      width={600}
-                      height={900}
-                      className="aspect-[2/3] w-full rounded-md object-cover"
-                    />
-                  ) : (
-                    <div
-                      aria-hidden="true"
-                      className="flex aspect-[2/3] w-full items-center justify-center rounded-md bg-gray-200 text-sm text-gray-500"
-                    >
-                      No image
-                    </div>
-                  )}
-                  <div className="mt-2 text-sm font-medium">{p.name}</div>
-                  {p.priceCents !== null && (
-                    <div className="text-sm text-gray-600">${(p.priceCents / 100).toFixed(2)}</div>
-                  )}
-                </Link>
+                <ProductCard product={p} rating={summaries.get(p.id)} />
               </li>
             ))}
           </ul>

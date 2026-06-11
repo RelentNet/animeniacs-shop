@@ -14,6 +14,12 @@ vi.mock('@/lib/square/items', () => ({
   getItemsByCategoryId: (catId: string) => getItemsByCategoryIdMock(catId)
 }))
 
+// Default: no rating summaries. Individual tests override.
+const getReviewSummariesMock = vi.fn().mockResolvedValue(new Map())
+vi.mock('@/lib/db/queries/reviews', () => ({
+  getReviewSummariesForProducts: (ids: string[]) => getReviewSummariesMock(ids)
+}))
+
 const notFoundMock = vi.fn(() => {
   throw new Error('__NOT_FOUND__')
 })
@@ -168,6 +174,18 @@ describe('/artist/[slug] profile page', () => {
     // Each product links to its PDP.
     expect(container.querySelector('a[href="/product/IT_1"]')).toBeTruthy()
     expect(container.querySelector('a[href="/product/IT_2"]')).toBeTruthy()
+  })
+
+  it('renders star ratings on cards when summaries are present', async () => {
+    getArtistBySlugMock.mockResolvedValue(makeArtist())
+    getItemsByCategoryIdMock.mockResolvedValue([
+      { id: 'IT_1', name: 'Saru Naruto', imageUrl: null, priceCents: 7500, categoryIds: ['CAT_BXNNY'], updatedAt: null }
+    ])
+    getReviewSummariesMock.mockResolvedValue(new Map([['IT_1', { count: 4, average: 4 }]]))
+    const mod = await import('@/app/artist/[slug]/page')
+    const element = await mod.default({ params: { slug: 'bxnny.arts' } })
+    const { getByRole } = render(element)
+    expect(getByRole('img', { name: /4\.0 out of 5 stars/i })).toBeTruthy()
   })
 
   it('renders no-image placeholder when an item has imageUrl=null', async () => {

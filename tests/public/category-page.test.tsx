@@ -3,20 +3,23 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
-const { mockGetBySlug, mockGetProducts, mockGetCategoryNameMap, mockNotFound } = vi.hoisted(
-  () => ({
+const { mockGetBySlug, mockGetProducts, mockGetCategoryNameMap, mockGetSummaries, mockNotFound } =
+  vi.hoisted(() => ({
     mockGetBySlug: vi.fn(),
     mockGetProducts: vi.fn(),
     mockGetCategoryNameMap: vi.fn(),
+    mockGetSummaries: vi.fn(() => Promise.resolve(new Map())),
     mockNotFound: vi.fn(() => {
       throw new Error('NEXT_NOT_FOUND')
     })
-  })
-)
+  }))
 
 vi.mock('@/lib/db/queries/ip-nicknames', () => ({ getIpNicknameBySlug: mockGetBySlug }))
 vi.mock('@/lib/categories', () => ({ getProductsForIpNickname: mockGetProducts }))
 vi.mock('@/lib/square/categories', () => ({ getCategoryNameMap: mockGetCategoryNameMap }))
+vi.mock('@/lib/db/queries/reviews', () => ({
+  getReviewSummariesForProducts: mockGetSummaries
+}))
 vi.mock('next/navigation', () => ({ notFound: mockNotFound }))
 vi.mock('next/image', () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />
@@ -89,6 +92,18 @@ describe('CategoryPage', () => {
     const link1 = screen.getByRole('link', { name: /print a/i })
     expect(link1).toHaveAttribute('href', '/product/P1')
     expect(screen.getByText('Print B')).toBeInTheDocument()
+  })
+
+  it('renders star ratings on cards when summaries are present', async () => {
+    mockGetBySlug.mockResolvedValueOnce(nickname())
+    mockGetProducts.mockResolvedValueOnce([
+      { id: 'P1', name: 'Print A', imageUrl: null, priceCents: 2500, categoryIds: [], updatedAt: null }
+    ])
+    mockGetCategoryNameMap.mockResolvedValueOnce(new Map())
+    mockGetSummaries.mockResolvedValueOnce(new Map([['P1', { count: 2, average: 5 }]]))
+    const ui = await CategoryPage({ params: { slug: 'ramen-shop' } })
+    render(ui)
+    expect(screen.getByRole('img', { name: /5\.0 out of 5 stars/i })).toBeInTheDocument()
   })
 
   it('shows empty state when no products', async () => {

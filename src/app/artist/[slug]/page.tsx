@@ -1,9 +1,10 @@
+import { ProductCard } from '@/components/product/ProductCard'
 import { getArtistBySlug } from '@/lib/db/queries/artists'
+import { getReviewSummariesForProducts } from '@/lib/db/queries/reviews'
 import type { Artist } from '@/lib/db/schema'
+import type { ReviewSummary } from '@/lib/db/queries/reviews'
 import { type ArtistProduct, getItemsByCategoryId } from '@/lib/square/items'
-import type { Route } from 'next'
 import Image from 'next/image'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
 
 interface PageProps {
@@ -29,12 +30,17 @@ export default async function ArtistProfilePage({ params }: PageProps): Promise<
   // haven't re-categorized real items yet, the result is empty and we
   // show the design-spec empty state.
   const products = await getItemsByCategoryId(artist.squareCategoryId)
+  const summaries = await getReviewSummariesForProducts(products.map((p) => p.id))
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       <ArtistHeader artist={artist} />
 
-      {products.length === 0 ? <EmptyState artist={artist} /> : <ProductGrid products={products} />}
+      {products.length === 0 ? (
+        <EmptyState artist={artist} />
+      ) : (
+        <ProductGrid products={products} summaries={summaries} />
+      )}
     </div>
   )
 }
@@ -112,38 +118,20 @@ function SocialLinks({ artist }: { artist: Artist }): JSX.Element | null {
   )
 }
 
-function ProductGrid({ products }: { products: ArtistProduct[] }): JSX.Element {
+function ProductGrid({
+  products,
+  summaries
+}: {
+  products: ArtistProduct[]
+  summaries: Map<string, ReviewSummary>
+}): JSX.Element {
   return (
     <section className="mt-12">
       <h2 className="sr-only">Drops</h2>
       <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3">
         {products.map((p) => (
           <li key={p.id}>
-            <Link
-              href={`/product/${p.id}` as Route}
-              className="block rounded-lg transition hover:opacity-90"
-            >
-              {p.imageUrl ? (
-                <Image
-                  src={p.imageUrl}
-                  alt={p.name}
-                  width={600}
-                  height={900}
-                  className="aspect-[2/3] w-full rounded-md object-cover"
-                />
-              ) : (
-                <div
-                  aria-hidden="true"
-                  className="flex aspect-[2/3] w-full items-center justify-center rounded-md bg-gray-200 text-sm text-gray-500"
-                >
-                  No image
-                </div>
-              )}
-              <div className="mt-2 text-sm font-medium">{p.name}</div>
-              {p.priceCents !== null && (
-                <div className="text-sm text-gray-600">${(p.priceCents / 100).toFixed(2)}</div>
-              )}
-            </Link>
+            <ProductCard product={p} rating={summaries.get(p.id)} />
           </li>
         ))}
       </ul>
