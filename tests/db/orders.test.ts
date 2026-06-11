@@ -134,9 +134,7 @@ describe('claimGuestOrders', () => {
     expect(count).toBe(2)
     expect(mockDb.update).toHaveBeenCalled()
     const setArg = mockDb.set.mock.calls[0][0]
-    expect(setArg).toEqual(
-      expect.objectContaining({ userId: 'u1', updatedAt: expect.any(Date) })
-    )
+    expect(setArg).toEqual(expect.objectContaining({ userId: 'u1', updatedAt: expect.any(Date) }))
     expect(mockDb.where).toHaveBeenCalled()
     expect(mockDb.returning).toHaveBeenCalled()
   })

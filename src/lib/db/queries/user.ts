@@ -10,11 +10,7 @@ import { eq } from 'drizzle-orm'
  * the auth migration (run `pnpm auth:grant-admin <email>`).
  */
 export async function hasAnyAdmin(): Promise<boolean> {
-  const rows = await db
-    .select({ id: user.id })
-    .from(user)
-    .where(eq(user.role, 'admin'))
-    .limit(1)
+  const rows = await db.select({ id: user.id }).from(user).where(eq(user.role, 'admin')).limit(1)
   return rows.length > 0
 }
 
@@ -40,8 +36,5 @@ export async function setUserSquareCustomerId(
   userId: string,
   squareCustomerId: string
 ): Promise<void> {
-  await db
-    .update(user)
-    .set({ squareCustomerId, updatedAt: new Date() })
-    .where(eq(user.id, userId))
+  await db.update(user).set({ squareCustomerId, updatedAt: new Date() }).where(eq(user.id, userId))
 }

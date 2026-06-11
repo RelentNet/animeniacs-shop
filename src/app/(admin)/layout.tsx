@@ -36,8 +36,8 @@ export default async function AdminLayout({
         <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
           <h1>Admin area — no admin provisioned yet</h1>
           <p>
-            No account has the <code>admin</code> role. Sign up with your admin email, then grant
-            it from a terminal:
+            No account has the <code>admin</code> role. Sign up with your admin email, then grant it
+            from a terminal:
           </p>
           <pre>
             <code>pnpm auth:grant-admin &lt;your-email&gt;</code>

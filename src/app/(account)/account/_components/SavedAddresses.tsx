@@ -90,13 +90,23 @@ export function SavedAddresses({ addresses }: { addresses: SavedAddress[] }): JS
             <label htmlFor="firstName" className="text-sm font-medium text-gray-900">
               First name
             </label>
-            <input id="firstName" name="firstName" autoComplete="given-name" className={INPUT_CLASS} />
+            <input
+              id="firstName"
+              name="firstName"
+              autoComplete="given-name"
+              className={INPUT_CLASS}
+            />
           </div>
           <div>
             <label htmlFor="lastName" className="text-sm font-medium text-gray-900">
               Last name
             </label>
-            <input id="lastName" name="lastName" autoComplete="family-name" className={INPUT_CLASS} />
+            <input
+              id="lastName"
+              name="lastName"
+              autoComplete="family-name"
+              className={INPUT_CLASS}
+            />
           </div>
         </div>
 
