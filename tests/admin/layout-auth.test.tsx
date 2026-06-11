@@ -1,35 +1,26 @@
 import { render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// ---- Module mocks ----
-//
-// The layout reads `getLogtoContext` from `@logto/next/server-actions`
-// and `redirect` from `next/navigation`. Both need to be mockable per
-// test so we can drive the three auth branches independently.
+// Phase 15: the (admin) gate now reads better-auth via getCurrentUser (was Logto
+// getLogtoContext). roles is derived from the user `role` column. When the user
+// isn't an admin we distinguish "no admin exists yet" (provisioning hint) from
+// "you're not an admin" (403), so the operator isn't hard-locked after migration.
 
-const getLogtoContextMock = vi.fn()
-vi.mock('@logto/next/server-actions', () => ({
-  getLogtoContext: (...args: unknown[]) => getLogtoContextMock(...args)
+const getCurrentUserMock = vi.fn()
+vi.mock('@/lib/auth/get-current-user', () => ({
+  getCurrentUser: (...args: unknown[]) => getCurrentUserMock(...args)
+}))
+
+const hasAnyAdminMock = vi.fn()
+vi.mock('@/lib/db/queries/user', () => ({
+  hasAnyAdmin: (...args: unknown[]) => hasAnyAdminMock(...args)
 }))
 
 const redirectMock = vi.fn((path: string) => {
-  // Match Next.js's behaviour: `redirect()` throws a special error
-  // that aborts rendering. We approximate by throwing here so the
-  // calling code's control flow terminates the same way.
   throw new Error(`__REDIRECT__:${path}`)
 })
-vi.mock('next/navigation', () => ({
-  redirect: redirectMock
-}))
+vi.mock('next/navigation', () => ({ redirect: redirectMock }))
 
-const isLogtoConfiguredMock = vi.fn()
-vi.mock('@/lib/logto', () => ({
-  // logtoConfig is opaque to the layout — any non-undefined value works.
-  logtoConfig: { __test: true },
-  isLogtoConfigured: () => isLogtoConfiguredMock()
-}))
-
-// Import AFTER the mocks are registered so the layout picks them up.
 async function loadLayout() {
   const mod = await import('@/app/(admin)/layout')
   return mod.default
@@ -38,38 +29,23 @@ async function loadLayout() {
 describe('(admin) route group auth gate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default: Logto IS configured. Individual tests can override.
-    isLogtoConfiguredMock.mockReturnValue(true)
+    // Default: an admin already exists, so non-admins get a hard 403.
+    hasAnyAdminMock.mockResolvedValue(true)
   })
 
   afterEach(() => {
     vi.resetModules()
   })
 
-  it('renders the setup-required screen when Logto is not configured', async () => {
-    isLogtoConfiguredMock.mockReturnValue(false)
-    const Layout = await loadLayout()
-    const element = await Layout({ children: <div>child</div> })
-    const { container } = render(element)
-    expect(container.textContent).toMatch(/Logto not yet configured/i)
-    expect(container.textContent).toMatch(/logto-setup\.md/)
-    // getLogtoContext must NOT be called when config is missing —
-    // otherwise the SDK crashes on empty credentials.
-    expect(getLogtoContextMock).not.toHaveBeenCalled()
-  })
-
   it('redirects to /sign-in when the request is unauthenticated', async () => {
-    getLogtoContextMock.mockResolvedValue({ isAuthenticated: false })
+    getCurrentUserMock.mockResolvedValue({ isAuthenticated: false, roles: [] })
     const Layout = await loadLayout()
     await expect(Layout({ children: <div>child</div> })).rejects.toThrow('__REDIRECT__:/sign-in')
     expect(redirectMock).toHaveBeenCalledWith('/sign-in')
   })
 
-  it('renders 403 when the user is authenticated but lacks the admin role', async () => {
-    getLogtoContextMock.mockResolvedValue({
-      isAuthenticated: true,
-      claims: { sub: 'u-1', roles: ['member'] }
-    })
+  it('renders 403 when authenticated but lacking the admin role (an admin exists)', async () => {
+    getCurrentUserMock.mockResolvedValue({ isAuthenticated: true, roles: [], userId: 'u-1' })
     const Layout = await loadLayout()
     const element = await Layout({ children: <div>secret</div> })
     const { container } = render(element)
@@ -78,28 +54,29 @@ describe('(admin) route group auth gate', () => {
     expect(container.textContent).not.toMatch(/secret/)
   })
 
-  it('renders 403 when claims has no roles array at all', async () => {
-    getLogtoContextMock.mockResolvedValue({
-      isAuthenticated: true,
-      claims: { sub: 'u-1' }
-    })
+  it('renders a provisioning hint (not 403) when no admin exists yet', async () => {
+    getCurrentUserMock.mockResolvedValue({ isAuthenticated: true, roles: [], userId: 'u-1' })
+    hasAnyAdminMock.mockResolvedValue(false)
     const Layout = await loadLayout()
     const element = await Layout({ children: <div>secret</div> })
     const { container } = render(element)
-    expect(container.textContent).toMatch(/403/i)
+    expect(container.textContent).toMatch(/no admin/i)
+    expect(container.textContent).toMatch(/auth:grant-admin/i)
+    expect(container.textContent).not.toMatch(/secret/)
   })
 
   it('renders children when the user has the admin role', async () => {
-    getLogtoContextMock.mockResolvedValue({
+    getCurrentUserMock.mockResolvedValue({
       isAuthenticated: true,
-      claims: { sub: 'u-1', roles: ['admin', 'member'] }
+      roles: ['admin'],
+      userId: 'u-1'
     })
     const Layout = await loadLayout()
     const element = await Layout({ children: <div>admin-only content</div> })
     const { container, getByText } = render(element)
-    // The shell renders the children verbatim (plus a scoped <style> for admin
-    // form-control borders, which is not visible text).
     expect(getByText('admin-only content')).toBeTruthy()
     expect(container.querySelector('.admin-shell')).toBeTruthy()
+    // A signed-in admin never triggers the "no admin" lookup.
+    expect(hasAnyAdminMock).not.toHaveBeenCalled()
   })
 })

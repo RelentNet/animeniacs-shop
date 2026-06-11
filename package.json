@@ -25,6 +25,7 @@
     "db:studio": "drizzle-kit studio",
     "content:build": "tsx scripts/content-build.ts",
     "prebuild": "pnpm content:build",
+    "auth:grant-admin": "tsx --env-file=.env.local scripts/auth/grant-admin.ts",
     "sq:snapshot": "tsx scripts/square-cleanup/snapshot.ts",
     "sq:mirror": "tsx scripts/square-cleanup/mirror.ts",
     "sq:audit": "tsx scripts/square-cleanup/audit.ts",

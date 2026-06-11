@@ -50,6 +50,22 @@ describe('getUserSquareCustomerId', () => {
   })
 })
 
+describe('hasAnyAdmin', () => {
+  it('returns true when at least one admin exists', async () => {
+    mockDb.limit.mockResolvedValue([{ id: 'u-admin' }])
+
+    const { hasAnyAdmin } = await import('@/lib/db/queries/user')
+    expect(await hasAnyAdmin()).toBe(true)
+  })
+
+  it('returns false when no admin exists', async () => {
+    mockDb.limit.mockResolvedValue([])
+
+    const { hasAnyAdmin } = await import('@/lib/db/queries/user')
+    expect(await hasAnyAdmin()).toBe(false)
+  })
+})
+
 describe('setUserSquareCustomerId', () => {
   it('updates the user row with the squareCustomerId', async () => {
     mockDb.where.mockResolvedValue(undefined)
