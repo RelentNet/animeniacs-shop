@@ -21,7 +21,18 @@ export const ArtistInputSchema = z.object({
   displayName: z.string().min(1).max(120),
   squareCategoryId: z.string().min(1),
   status: z.enum(['active', 'inactive']).default('active'),
-  avatarUrl: z.string().url().nullable().optional(),
+  // avatarUrl is NOT a plain z.string().url(): saveAvatar() returns an
+  // app-relative path under /public (e.g. /images/uploads/artists/<slug>.webp),
+  // which z.string().url() rejects. Accept either an app-relative path
+  // (leading "/") or an absolute http(s) URL. The other social fields below
+  // stay z.string().url() — those are genuine external URLs.
+  avatarUrl: z
+    .string()
+    .refine((v) => v.startsWith('/') || /^https?:\/\//.test(v), {
+      message: 'must be an app-relative path or a URL'
+    })
+    .nullable()
+    .optional(),
   bio: z.string().max(2000).nullable().optional(),
   instagram: z.string().url().nullable().optional(),
   twitter: z.string().url().nullable().optional(),
