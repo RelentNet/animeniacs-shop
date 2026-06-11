@@ -1,13 +1,16 @@
 import { ProductCard } from '@/components/product/ProductCard'
+import { Pagination } from '@/components/shop/Pagination'
+import { type FilterOption, ShopFilters } from '@/components/shop/ShopFilters'
+import { getActiveArtists } from '@/lib/db/queries/artists'
 import { getPublicIpNicknames } from '@/lib/db/queries/ip-nicknames'
+import { getReviewSummariesForProducts } from '@/lib/db/queries/reviews'
+import { filterAndSortProducts, paginate } from '@/lib/shop/filter'
+import { type RawSearchParams, parseShopParams } from '@/lib/shop/parse-params'
 import { getShopProducts } from '@/lib/square/items'
-import type { Route } from 'next'
-import Link from 'next/link'
 
-// Reads the live Square catalog + public IP nicknames at request time.
-// Forcing dynamic stops Next.js from attempting build-time prerender,
-// which would try to reach Square / the Postgres host during build.
-// Phase 7.5/B.6 fix.
+// Reads the live Square catalog + DB at request time and branches on
+// searchParams, so the route must stay dynamic (no build-time prerender,
+// which would try to reach Square / Postgres during build). Phase 7.5/B.6.
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
@@ -15,8 +18,52 @@ export const metadata = {
   description: 'Browse the full collection.'
 }
 
-export default async function ShopPage(): Promise<JSX.Element> {
-  const [products, nicknames] = await Promise.all([getShopProducts(), getPublicIpNicknames()])
+const PAGE_SIZE = 24
+
+export default async function ShopPage({
+  searchParams
+}: {
+  searchParams: RawSearchParams
+}): Promise<JSX.Element> {
+  const [products, nicknames, artists] = await Promise.all([
+    getShopProducts(),
+    getPublicIpNicknames(),
+    getActiveArtists()
+  ])
+
+  // Filter options come ONLY from the curated public sources (public IP
+  // nicknames + active artists) — never raw Square category names.
+  const categoryOptions: FilterOption[] = nicknames.map((n) => ({
+    slug: n.slug,
+    label: n.nickname
+  }))
+  const artistOptions: FilterOption[] = artists.map((a) => ({
+    slug: a.slug,
+    label: a.displayName
+  }))
+
+  const query = parseShopParams(searchParams ?? {})
+  // Resolve the slug filters to their Square category ids using the same
+  // curated lists the dropdowns are built from. Unknown slugs resolve to null
+  // (the filter is then a no-op), so junk values can never error.
+  query.categoryId =
+    nicknames.find((n) => n.slug === query.categorySlug)?.squareCategoryId ?? null
+  query.artistCategoryId = artists.find((a) => a.slug === query.artistSlug)?.squareCategoryId ?? null
+
+  const summaries = await getReviewSummariesForProducts(products.map((p) => p.id))
+
+  const filtered = filterAndSortProducts(products, summaries, query)
+  const { pageItems, page, pageCount, total } = paginate(filtered, query.page, PAGE_SIZE)
+
+  // Active params (string form) so Pagination preserves filter/sort state.
+  const paginationParams: Record<string, string | undefined> = {
+    q: query.q ?? undefined,
+    category: query.categorySlug ?? undefined,
+    artist: query.artistSlug ?? undefined,
+    min: query.minCents !== null ? (query.minCents / 100).toString() : undefined,
+    max: query.maxCents !== null ? (query.maxCents / 100).toString() : undefined,
+    sort: query.sort ?? undefined
+  }
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -25,37 +72,30 @@ export default async function ShopPage(): Promise<JSX.Element> {
         <p className="mt-2 text-gray-700">Browse the full collection.</p>
       </header>
 
-      {nicknames.length > 0 && (
-        <nav data-testid="ip-chips" aria-label="Browse by series" className="mb-8">
-          <ul className="flex flex-wrap gap-2">
-            {nicknames.map((n) => (
-              <li key={n.id}>
-                <Link
-                  href={`/category/${n.slug}` as Route}
-                  className="inline-block rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-800 transition hover:bg-gray-200"
-                >
-                  {n.nickname}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
+      <ShopFilters categories={categoryOptions} artists={artistOptions} query={query} />
 
-      {products.length === 0 ? (
+      {total === 0 ? (
         <section className="rounded-lg bg-gray-50 p-8 text-center">
-          <p>No products available yet — check back soon.</p>
+          <p>
+            {products.length === 0
+              ? 'No products available yet — check back soon.'
+              : 'No products match your filters.'}
+          </p>
         </section>
       ) : (
         <section>
           <h2 className="sr-only">Products</h2>
+          <p className="mb-4 text-sm text-gray-500">
+            {total} product{total === 1 ? '' : 's'}
+          </p>
           <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-            {products.map((p) => (
+            {pageItems.map((p) => (
               <li key={p.id}>
-                <ProductCard product={p} />
+                <ProductCard product={p} rating={summaries.get(p.id)} />
               </li>
             ))}
           </ul>
+          <Pagination page={page} pageCount={pageCount} params={paginationParams} />
         </section>
       )}
     </div>
