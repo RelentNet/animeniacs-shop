@@ -92,3 +92,32 @@ describe('getCurrentUser', () => {
     })
   })
 })
+
+describe('deriveRoles (role column + ADMIN_EMAILS allowlist)', () => {
+  it('grants admin from the role column', async () => {
+    const { deriveRoles } = await import('@/lib/auth/get-current-user')
+    expect(deriveRoles('admin', 'x@y.com', new Set())).toEqual(['admin'])
+  })
+
+  it('grants admin from the email allowlist regardless of role', async () => {
+    const { deriveRoles } = await import('@/lib/auth/get-current-user')
+    const allow = new Set(['biz@animeniacs.shop'])
+    expect(deriveRoles('user', 'biz@animeniacs.shop', allow)).toEqual(['admin'])
+  })
+
+  it('matches the allowlist case-insensitively', async () => {
+    const { deriveRoles } = await import('@/lib/auth/get-current-user')
+    const allow = new Set(['biz@animeniacs.shop'])
+    expect(deriveRoles('user', 'BIZ@Animeniacs.Shop', allow)).toEqual(['admin'])
+  })
+
+  it('returns [] for a non-admin, non-allowlisted user', async () => {
+    const { deriveRoles } = await import('@/lib/auth/get-current-user')
+    expect(deriveRoles('user', 'other@x.com', new Set(['biz@animeniacs.shop']))).toEqual([])
+  })
+
+  it('returns [] for a null email with an empty allowlist', async () => {
+    const { deriveRoles } = await import('@/lib/auth/get-current-user')
+    expect(deriveRoles(null, null, new Set())).toEqual([])
+  })
+})

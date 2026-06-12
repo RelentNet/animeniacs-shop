@@ -1,5 +1,6 @@
 import 'server-only'
 import { auth } from '@/lib/auth'
+import { env } from '@/lib/env'
 import { headers } from 'next/headers'
 
 /**
@@ -30,6 +31,30 @@ const ANONYMOUS: CurrentUser = {
   roles: []
 }
 
+/**
+ * Emails granted admin regardless of the user-row `role` column. Lets the
+ * operator provision admin WITHOUT direct DB access — the dev/prod Postgres is
+ * internal to Coolify, so `grant-admin` (which needs a DB connection) can't run
+ * from a workstation. Set `ADMIN_EMAILS` (comma-separated) in the deploy env.
+ * The `role` column still works for explicit grants via the grant-admin script.
+ */
+const ADMIN_EMAIL_ALLOWLIST = new Set(
+  (env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+)
+
+/** Collapse the user-row `role` + the email allowlist into the roles array. */
+export function deriveRoles(
+  role: string | null | undefined,
+  email: string | null,
+  adminEmails: Set<string> = ADMIN_EMAIL_ALLOWLIST
+): string[] {
+  const isAdmin = role === 'admin' || (email !== null && adminEmails.has(email.toLowerCase()))
+  return isAdmin ? ['admin'] : []
+}
+
 export async function getCurrentUser(): Promise<CurrentUser> {
   try {
     const session = await auth.api.getSession({ headers: await headers() })
@@ -37,14 +62,15 @@ export async function getCurrentUser(): Promise<CurrentUser> {
       return ANONYMOUS
     }
     const u = session.user
+    const email = u.email ?? null
     return {
       isAuthenticated: true,
       userId: u.id,
-      email: u.email ?? null,
+      email,
       name: u.name ?? null,
-      // `role` is the user-row column (better-auth additionalField). Collapse it
-      // to the roles array the (admin) gate already checks via includes('admin').
-      roles: u.role === 'admin' ? ['admin'] : []
+      // Admin from the user-row `role` column OR the ADMIN_EMAILS allowlist.
+      // The (admin) gate checks roles.includes('admin').
+      roles: deriveRoles(u.role, email)
     }
   } catch {
     // No session / auth subsystem error — treat as anonymous rather than throwing.

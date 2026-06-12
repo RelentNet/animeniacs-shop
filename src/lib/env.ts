@@ -23,6 +23,10 @@ const envSchema = z.object({
   // in src/lib/auth.ts. URL is the app's public base; falls back to NEXT_PUBLIC_SITE_URL.
   BETTER_AUTH_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   BETTER_AUTH_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  // Comma-separated email allowlist granted admin regardless of the user-row
+  // `role` column. Provisions admin WITHOUT direct DB access (the Postgres is
+  // internal to Coolify). Empty/absent = disabled; the role column still works.
+  ADMIN_EMAILS: z.preprocess(emptyToUndefined, z.string().optional()),
 
   // Square (Phase 3)
   // Sandbox keys are required for any dev where the SDK is touched.

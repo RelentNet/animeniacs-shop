@@ -71,6 +71,9 @@ services:
       # better-auth (Phase 15 — replaced Logto). BETTER_AUTH_SECRET is REQUIRED.
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      # Comma-separated emails granted admin without a DB write (the Postgres is
+      # internal to Coolify, so grant-admin can't run from a workstation).
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
       SQUARE_ENV: ${SQUARE_ENV:-sandbox}
       SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN}
       SQUARE_LOCATION_ID: ${SQUARE_LOCATION_ID}
