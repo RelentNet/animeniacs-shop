@@ -15,10 +15,13 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url(),
   NEXT_PUBLIC_SITE_URL: z.string().url().default('http://localhost:3000'),
 
-  // better-auth (Phase 15). SECRET signs sessions / hashes reset tokens — must
-  // be a strong random value (openssl rand -hex 32) and is REQUIRED. URL is the
-  // app's public base; falls back to NEXT_PUBLIC_SITE_URL when unset.
-  BETTER_AUTH_SECRET: z.string().min(1),
+  // better-auth (Phase 15). SECRET signs sessions / hashes reset tokens. It is
+  // OPTIONAL *in this schema* so the production build — which imports this module
+  // while collecting page data — does NOT fail when the secret is a runtime-only
+  // var in the deploy env (a build must not depend on runtime secrets; cf. the
+  // Phase 9 force-dynamic post-mortem). Runtime presence is REQUIRED and enforced
+  // in src/lib/auth.ts. URL is the app's public base; falls back to NEXT_PUBLIC_SITE_URL.
+  BETTER_AUTH_SECRET: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   BETTER_AUTH_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
 
   // Square (Phase 3)
