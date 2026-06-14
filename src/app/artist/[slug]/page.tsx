@@ -11,6 +11,12 @@ interface PageProps {
   params: { slug: string }
 }
 
+// ISR (Phase 16, spec §3): public data only (no session read). On-demand —
+// NO generateStaticParams, so the builder prerenders nothing and never hits
+// the DB at build time; the first request renders with live data and caches
+// for up to 5 minutes. Admin artist mutations also revalidate `/artist/[slug]`.
+export const revalidate = 300
+
 export async function generateMetadata({ params }: PageProps) {
   const artist = await getArtistBySlug(params.slug)
   if (!artist) return { title: 'Artist not found | Animeniacs' }

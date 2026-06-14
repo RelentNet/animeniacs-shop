@@ -8,6 +8,12 @@ interface PageProps {
   params: { slug: string }
 }
 
+// ISR (Phase 16, spec §3): public data only (no session read). On-demand —
+// NO generateStaticParams, so the builder prerenders nothing and never hits
+// the DB at build time; the first request renders with live data and caches
+// for up to 5 minutes. Admin ip-nickname mutations revalidate `/category/[slug]`.
+export const revalidate = 300
+
 export async function generateMetadata({ params }: PageProps) {
   const nickname = await getIpNicknameBySlug(params.slug)
   if (!nickname || !nickname.isPublic) return { title: 'Not found | Animeniacs' }

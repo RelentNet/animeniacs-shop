@@ -3,19 +3,22 @@ import type { Route } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 
-// Reads the live artists list from Postgres at request time. Forcing
-// dynamic stops Next.js from attempting build-time prerender, which
-// would try to resolve the runtime Postgres hostname during build.
-// Phase 7.5/B.6 fix.
-export const dynamic = 'force-dynamic'
+// ISR (Phase 16, spec §3): public artists list, regenerated at most every
+// 5 minutes. Admin artist mutations already revalidate `/artist`, so changes
+// propagate on save too. Build tolerance (spec §4): during `next build` the
+// data read below is skipped (the builder can't reach Postgres) and we render
+// the empty shell; the first runtime regeneration fills the list in.
+export const revalidate = 300
 
 export const metadata = {
   title: 'Artists | Animeniacs',
   description: 'Browse the artists who make every Animeniacs drop.'
 }
 
+const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+
 export default async function ArtistGalleryPage(): Promise<JSX.Element> {
-  const artists = await getActiveArtists()
+  const artists = isBuildPhase ? [] : await getActiveArtists()
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">

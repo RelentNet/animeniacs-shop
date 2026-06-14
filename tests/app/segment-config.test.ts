@@ -22,6 +22,7 @@ vi.mock('@/components/layout/Footer', () => ({ Footer: () => null }))
 vi.mock('@/components/layout/Header', () => ({ Header: () => null }))
 vi.mock('@/components/layout/PromoBar', () => ({ PromoBar: () => null }))
 vi.mock('@/app/orders/lookup/LookupForm', () => ({ LookupForm: () => null }))
+vi.mock('@/components/product/ProductCard', () => ({ ProductCard: () => null }))
 vi.mock('@/lib/auth/get-current-user', () => ({
   getCurrentUser: vi.fn(async () => ({
     isAuthenticated: false,
@@ -57,5 +58,24 @@ describe('route segment config (spec §3 decision table)', () => {
   it('(admin) layout KEEPS force-dynamic (per-user)', async () => {
     const mod = await import('@/app/(admin)/layout')
     expect((mod as Record<string, unknown>).dynamic).toBe('force-dynamic')
+  })
+
+  it('/artist index is ISR (revalidate=300, no force-dynamic)', async () => {
+    const mod = await import('@/app/artist/page')
+    expect((mod as Record<string, unknown>).revalidate).toBe(300)
+    expect((mod as Record<string, unknown>).dynamic).toBeUndefined()
+  })
+
+  it('/artist/[slug] is ISR (revalidate=300, no generateStaticParams)', async () => {
+    const mod = await import('@/app/artist/[slug]/page')
+    expect((mod as Record<string, unknown>).revalidate).toBe(300)
+    // On-demand ISR: the builder must prerender nothing (no build-time DB read).
+    expect((mod as Record<string, unknown>).generateStaticParams).toBeUndefined()
+  })
+
+  it('/category/[slug] is ISR (revalidate=300, no generateStaticParams)', async () => {
+    const mod = await import('@/app/category/[slug]/page')
+    expect((mod as Record<string, unknown>).revalidate).toBe(300)
+    expect((mod as Record<string, unknown>).generateStaticParams).toBeUndefined()
   })
 })
