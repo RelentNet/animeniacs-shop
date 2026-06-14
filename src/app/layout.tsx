@@ -11,17 +11,14 @@ export const metadata: Metadata = {
 }
 
 /**
- * The root layout renders <PromoBar />, which reads the `promo_bar`
- * setting from Postgres. That read must happen at request time, not during
- * the production build: the Docker builder cannot resolve the database host,
- * so prerendering any page that uses this layout (i.e. every page) throws
- * `ENOTFOUND` and fails `pnpm build`. Forcing dynamic rendering here opts the
- * whole tree out of build-time static generation, which is the sanctioned fix
- * per the Phase 9 plan ("do NOT add force-dynamic to the root layout unless
- * the build fails specifically on it" — it does).
+ * No `force-dynamic` here (Phase 16, spec §4). The root layout renders
+ * <PromoBar />, which reads the `promo_bar` setting from Postgres — but build
+ * tolerance now lives in the data layer (`getSetting` returns null during
+ * `next build`, see src/lib/db/queries/site-settings.ts), so the Docker
+ * builder no longer hits ENOTFOUND. Keeping the tree dynamic would defeat the
+ * whole caching pass; genuinely per-request routes opt into dynamic rendering
+ * themselves (cookies/searchParams) or carry their own explicit export.
  */
-export const dynamic = 'force-dynamic'
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">

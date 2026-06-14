@@ -5,8 +5,10 @@ export const metadata = {
   description: 'Find a past order using your email and order number.'
 }
 
-// The lookup action reads the DB at request time; keep this route dynamic.
-export const dynamic = 'force-dynamic'
+// No `force-dynamic` (Phase 16, spec §3): this page renders only static text
+// and the client <LookupForm />. The DB read happens in lookupOrderAction (a
+// server action), which runs dynamically regardless — the page itself can be
+// statically prerendered.
 
 export default function OrderLookupPage(): JSX.Element {
   return (
