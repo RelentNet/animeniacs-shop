@@ -79,4 +79,22 @@ describe('(admin) route group auth gate', () => {
     // A signed-in admin never triggers the "no admin" lookup.
     expect(hasAnyAdminMock).not.toHaveBeenCalled()
   })
+
+  it('renders an "Admin home" back-link to /admin in the admin shell (spec §6)', async () => {
+    getCurrentUserMock.mockResolvedValue({
+      isAuthenticated: true,
+      roles: ['admin'],
+      userId: 'u-1'
+    })
+    const Layout = await loadLayout()
+    // Render as if we're on an admin sub-page — the layout wraps every one.
+    const element = await Layout({ children: <div>artist editor</div> })
+    const { getByRole } = render(element)
+
+    const homeLink = getByRole('link', { name: /admin home/i })
+    expect(homeLink).toBeTruthy()
+    expect(homeLink.getAttribute('href')).toBe('/admin')
+    // The page's own content still renders alongside the header.
+    expect(getByRole('navigation', { name: /admin/i })).toBeTruthy()
+  })
 })

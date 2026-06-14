@@ -99,6 +99,25 @@ export default async function AdminLayout({
           outline-offset: 1px;
         }
       `}</style>
+      {/*
+       * Slim admin header (Phase 16, spec §6): every page under (admin) gets an
+       * obvious way back to the dashboard. Operator request — there was no easy
+       * route home from admin sub-pages. Kept boring on purpose; the admin
+       * tooling dashboard is a later phase.
+       */}
+      <header
+        style={{
+          borderBottom: '1px solid #ddd',
+          padding: '0.75rem 1.5rem',
+          background: '#fafafa'
+        }}
+      >
+        <nav aria-label="Admin">
+          <a href="/admin" style={{ color: '#111', fontWeight: 600, textDecoration: 'none' }}>
+            ← Admin home
+          </a>
+        </nav>
+      </header>
       {children}
     </div>
   )
