@@ -31,8 +31,17 @@ async function readSetting(key: string): Promise<unknown | null> {
 /**
  * Cached read (60s) used by the storefront. revalidatePath('/') in the
  * admin save action busts it on change.
+ *
+ * Build-phase guard (spec §4): during `next build` the Docker builder can't
+ * resolve the DB host, and PromoBar (which reads this on every prerendered
+ * page) would throw ENOTFOUND. Return null immediately — no cache, no db.
+ * PromoBar already renders nothing for null; the first ISR regeneration fills
+ * it in at runtime. Mirrors the NEXT_PHASE idiom in src/lib/auth.ts.
  */
 export function getSetting(key: string): Promise<unknown | null> {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return Promise.resolve(null)
+  }
   const cached = unstable_cache(() => readSetting(key), ['site-settings', key], {
     revalidate: 60
   })
