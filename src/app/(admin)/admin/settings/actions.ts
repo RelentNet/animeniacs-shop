@@ -9,8 +9,10 @@ import { validatePromoBarInput } from './_components/validation'
 /**
  * Save the promo bar setting. updatedBy is null: the existing admin
  * actions (ip-nicknames) do not capture session identity and
- * site_settings.updated_by is nullable. Revalidates '/' to bust the
- * cached promo bar read so the storefront reflects the change immediately.
+ * site_settings.updated_by is nullable. Revalidates the whole layout subtree
+ * ('/', 'layout') to bust the cached promo bar everywhere: the bar lives in
+ * the root layout, so the now-ISR'd /artist + /category pages embed it in
+ * their cached HTML. '/' alone would only revalidate the home route (spec §5).
  *
  * Does not redirect — stays on the settings page and shows a saved banner,
  * so the operator can verify and keep editing.
@@ -25,7 +27,7 @@ export async function savePromoBarAction(
 
   await upsertSetting('promo_bar', validated.data, null)
 
-  revalidatePath('/')
+  revalidatePath('/', 'layout')
   revalidatePath('/admin/settings')
   return { saved: true }
 }
