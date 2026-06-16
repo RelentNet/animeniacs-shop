@@ -1,21 +1,13 @@
 import 'server-only'
 import { getCartBySquareOrderId, markCartCompleted } from '@/lib/db/queries/abandoned-carts'
 import { appendOrderLog, hasEventId } from '@/lib/db/queries/order-log'
-import {
-  getOrderBySquareOrderId,
-  setOrderFulfillmentState,
-  updateOrderStatus,
-  upsertOrder
-} from '@/lib/db/queries/orders'
+import { getOrderBySquareOrderId, upsertOrder } from '@/lib/db/queries/orders'
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
 import { sendOrderConfirmationEmail, sendRefundEmail } from '@/lib/notifications/email'
 import { notifyEnabledRecipients } from '@/lib/notifications/sms'
-import {
-  type OrderLineItem,
-  buildOrder,
-  mostAdvancedFulfillmentState
-} from '@/lib/orders/build-order'
+import { type OrderLineItem, buildOrder } from '@/lib/orders/build-order'
 import { getSquareClient } from '@/lib/square/client'
+import { reconcileFulfillmentFromSquare, reconcileRefundFromSquare } from '@/lib/webhooks/reconcile'
 
 export interface HandleEventArgs {
   // biome-ignore lint/suspicious/noExplicitAny: Square event payload
@@ -167,21 +159,10 @@ async function handlePaymentCreated(
  */
 async function handleRefund(squareOrderId: string): Promise<void> {
   try {
-    // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
-    const squareOrder = (await fetchSquareOrder(squareOrderId)) as any
-    if (!squareOrder) return
-
-    const totalCents = toCents(squareOrder.totalMoney?.amount)
-    const refunds: unknown[] = Array.isArray(squareOrder.refunds) ? squareOrder.refunds : []
-    const refundedCents = refunds.reduce<number>(
-      // biome-ignore lint/suspicious/noExplicitAny: Square refund shape is loose
-      (sum, r) => sum + toCents((r as any)?.amountMoney?.amount),
-      0
-    )
-    const status: 'refunded' | 'partially_refunded' =
-      refundedCents >= totalCents && totalCents > 0 ? 'refunded' : 'partially_refunded'
-
-    await updateOrderStatus(squareOrderId, status, refundedCents)
+    // Status + refundedCents recompute lives in the shared reconcile helper so
+    // the webhook and the admin refund action never fork the math.
+    const reconciled = await reconcileRefundFromSquare(squareOrderId)
+    if (!reconciled) return
 
     // Best-effort refund email to the buyer. The buyer email is identity, read
     // from our stored order row; amounts are the server-computed Square values.
@@ -191,8 +172,8 @@ async function handleRefund(squareOrderId: string): Promise<void> {
         await sendRefundEmail({
           to: stored.buyerEmail,
           orderId: squareOrderId,
-          refundedCents,
-          totalCents,
+          refundedCents: reconciled.refundedCents,
+          totalCents: stored.totalCents,
           shopUrl: shopUrl()
         })
       }
@@ -210,11 +191,7 @@ async function handleRefund(squareOrderId: string): Promise<void> {
  */
 async function handleFulfillmentUpdated(squareOrderId: string): Promise<void> {
   try {
-    // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
-    const squareOrder = (await fetchSquareOrder(squareOrderId)) as any
-    if (!squareOrder) return
-    const state = mostAdvancedFulfillmentState(squareOrder.fulfillments)
-    await setOrderFulfillmentState(squareOrderId, state)
+    await reconcileFulfillmentFromSquare(squareOrderId)
   } catch (err) {
     console.error('[webhook] fulfillment update failed:', err)
   }
