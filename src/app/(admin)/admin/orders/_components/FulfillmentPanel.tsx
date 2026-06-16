@@ -5,7 +5,7 @@ import {
   ADMIN_TARGET_STATES,
   type FulfillmentState,
   isAllowedTransition
-} from '@/lib/square/fulfillment'
+} from '@/lib/orders/fulfillment-states'
 import { useFormState } from 'react-dom'
 
 export interface FulfillmentPanelProps {
