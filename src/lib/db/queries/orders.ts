@@ -1,10 +1,75 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { type NewOrder, type Order, orders } from '@/lib/db/schema'
-import { and, desc, eq, isNull, sql } from 'drizzle-orm'
+import { type SQL, and, count, desc, eq, isNull, or, sql } from 'drizzle-orm'
 
 /** Refund-aware order status (matches the `orders_status_valid` CHECK). */
 export type OrderStatus = 'completed' | 'refunded' | 'partially_refunded'
+
+/** Largest page the admin list will fetch in a single query. */
+const MAX_LIST_LIMIT = 100
+
+/** Filters shared by the admin list + count queries. */
+export interface OrderFilter {
+  /** Exact-match on the refund-aware status. */
+  status?: OrderStatus
+  /** Exact-match on the raw Square fulfillment state. */
+  fulfillmentState?: string
+  /** Case-insensitive substring match on squareOrderId OR buyerEmail. */
+  q?: string
+}
+
+/**
+ * Build the combined WHERE predicate for the admin order filters, or undefined
+ * when no filter is active (so the caller can skip `.where()` entirely).
+ * `q` matches squareOrderId OR buyerEmail, case-insensitive substring.
+ */
+function buildOrderFilter(filter: OrderFilter): SQL | undefined {
+  const conditions: SQL[] = []
+  if (filter.status) conditions.push(eq(orders.status, filter.status))
+  if (filter.fulfillmentState) {
+    conditions.push(eq(orders.fulfillmentState, filter.fulfillmentState))
+  }
+  const q = filter.q?.trim()
+  if (q) {
+    const pattern = `%${q.toLowerCase()}%`
+    const search = or(
+      sql`lower(${orders.squareOrderId}) like ${pattern}`,
+      sql`lower(${orders.buyerEmail}) like ${pattern}`
+    )
+    if (search) conditions.push(search)
+  }
+  if (conditions.length === 0) return undefined
+  return conditions.length === 1 ? conditions[0] : and(...conditions)
+}
+
+/**
+ * Admin order list: newest first (`placedAt DESC NULLS LAST, createdAt DESC`),
+ * paginated, with optional status / fulfillment / search filters. `limit` is
+ * capped at {@link MAX_LIST_LIMIT}; a negative `offset` is floored at 0.
+ */
+export async function listOrders(
+  opts: { limit: number; offset: number } & OrderFilter
+): Promise<Order[]> {
+  const limit = Math.min(Math.max(1, Math.floor(opts.limit)), MAX_LIST_LIMIT)
+  const offset = Math.max(0, Math.floor(opts.offset))
+  const where = buildOrderFilter(opts)
+
+  const base = db.select().from(orders)
+  const filtered = where ? base.where(where) : base
+  return filtered
+    .orderBy(sql`${orders.placedAt} desc nulls last`, desc(orders.createdAt))
+    .limit(limit)
+    .offset(offset)
+}
+
+/** Total matching rows for the same filters as {@link listOrders} (pagination). */
+export async function countOrders(filter: OrderFilter): Promise<number> {
+  const where = buildOrderFilter(filter)
+  const base = db.select({ count: count() }).from(orders)
+  const rows = await (where ? base.where(where) : base)
+  return Number(rows[0]?.count ?? 0)
+}
 
 /**
  * Idempotent write of a completed order, keyed on `squareOrderId`. Replayed

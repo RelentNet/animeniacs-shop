@@ -6,6 +6,7 @@ const mockDb = {
   where: vi.fn(),
   orderBy: vi.fn(),
   limit: vi.fn(),
+  offset: vi.fn(),
   insert: vi.fn(),
   values: vi.fn(),
   onConflictDoUpdate: vi.fn(),
@@ -20,8 +21,9 @@ beforeEach(() => {
   mockDb.select.mockReset().mockReturnThis()
   mockDb.from.mockReset().mockReturnThis()
   mockDb.where.mockReset().mockReturnThis()
-  mockDb.orderBy.mockReset().mockResolvedValue([])
-  mockDb.limit.mockReset().mockResolvedValue([])
+  mockDb.orderBy.mockReset().mockReturnThis()
+  mockDb.limit.mockReset().mockReturnThis()
+  mockDb.offset.mockReset().mockResolvedValue([])
   mockDb.insert.mockReset().mockReturnThis()
   mockDb.values.mockReset().mockReturnThis()
   mockDb.onConflictDoUpdate.mockReset().mockResolvedValue(undefined)
@@ -173,6 +175,76 @@ describe('getOrderById', () => {
     const { getOrderById } = await import('@/lib/db/queries/orders')
     const result = await getOrderById('missing')
     expect(result).toBeUndefined()
+  })
+})
+
+describe('listOrders', () => {
+  it('orders by placedAt desc then createdAt desc, paginates with limit + offset', async () => {
+    const rows = [{ id: 'o1' }, { id: 'o2' }]
+    mockDb.offset.mockResolvedValue(rows)
+
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    const result = await listOrders({ limit: 25, offset: 50 })
+
+    expect(result).toBe(rows)
+    expect(mockDb.select).toHaveBeenCalled()
+    expect(mockDb.orderBy).toHaveBeenCalled()
+    expect(mockDb.limit).toHaveBeenCalledWith(25)
+    expect(mockDb.offset).toHaveBeenCalledWith(50)
+  })
+
+  it('caps limit at 100 and floors a negative offset at 0', async () => {
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    await listOrders({ limit: 9999, offset: -10 })
+    expect(mockDb.limit).toHaveBeenCalledWith(100)
+    expect(mockDb.offset).toHaveBeenCalledWith(0)
+  })
+
+  it('applies a where clause when status is given', async () => {
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    await listOrders({ limit: 25, offset: 0, status: 'refunded' })
+    expect(mockDb.where).toHaveBeenCalled()
+  })
+
+  it('applies a where clause when a search query is given', async () => {
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    await listOrders({ limit: 25, offset: 0, q: 'a@b.com' })
+    expect(mockDb.where).toHaveBeenCalled()
+  })
+
+  it('does not apply a where clause when there are no filters', async () => {
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    await listOrders({ limit: 25, offset: 0 })
+    expect(mockDb.where).not.toHaveBeenCalled()
+  })
+
+  it('returns an empty array when nothing matches', async () => {
+    mockDb.offset.mockResolvedValue([])
+    const { listOrders } = await import('@/lib/db/queries/orders')
+    expect(await listOrders({ limit: 25, offset: 0, q: 'nope' })).toEqual([])
+  })
+})
+
+describe('countOrders', () => {
+  it('returns the count from the aggregate row', async () => {
+    mockDb.from.mockResolvedValueOnce([{ count: 7 }])
+    const { countOrders } = await import('@/lib/db/queries/orders')
+    expect(await countOrders({})).toBe(7)
+    expect(mockDb.select).toHaveBeenCalled()
+  })
+
+  it('applies a where clause when filters are given', async () => {
+    mockDb.where.mockResolvedValueOnce([{ count: 3 }])
+    const { countOrders } = await import('@/lib/db/queries/orders')
+    const n = await countOrders({ status: 'completed', q: 'sq-1' })
+    expect(n).toBe(3)
+    expect(mockDb.where).toHaveBeenCalled()
+  })
+
+  it('returns 0 when the aggregate is missing', async () => {
+    mockDb.from.mockResolvedValueOnce([])
+    const { countOrders } = await import('@/lib/db/queries/orders')
+    expect(await countOrders({})).toBe(0)
   })
 })
 
