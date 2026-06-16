@@ -1,8 +1,13 @@
+import { getOrderDashboardStats } from '@/lib/db/queries/orders'
 import type { Route } from 'next'
 import Link from 'next/link'
 
 export const metadata = {
   title: 'Admin — Animeniacs'
+}
+
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`
 }
 
 /**
@@ -56,7 +61,9 @@ const SECTIONS: AdminSection[] = [
   }
 ]
 
-export default function AdminIndexPage(): JSX.Element {
+export default async function AdminIndexPage(): Promise<JSX.Element> {
+  const stats = await getOrderDashboardStats()
+
   return (
     <div
       style={{
@@ -73,6 +80,23 @@ export default function AdminIndexPage(): JSX.Element {
           Internal tools for managing the Animeniacs storefront.
         </p>
       </header>
+
+      <section
+        aria-label="Order dashboard"
+        style={{
+          display: 'grid',
+          gap: '0.75rem',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(10rem, 1fr))',
+          marginBottom: '1.5rem'
+        }}
+      >
+        <Stat label="Orders today" value={String(stats.ordersToday)} />
+        <Stat label="Orders (7d)" value={String(stats.orders7d)} />
+        <Stat label="Orders (30d)" value={String(stats.orders30d)} />
+        <Stat label="Revenue (30d)" value={formatCents(stats.revenue30dCents)} />
+        <Stat label="Refunded (total)" value={formatCents(stats.refundedTotalCents)} />
+        <Stat label="Needs fulfillment" value={String(stats.needsFulfillment)} />
+      </section>
 
       <nav aria-label="Admin sections">
         <ul
@@ -110,6 +134,23 @@ export default function AdminIndexPage(): JSX.Element {
           ))}
         </ul>
       </nav>
+    </div>
+  )
+}
+
+/** Single read-only metric tile in the dashboard strip. */
+function Stat({ label, value }: { label: string; value: string }): JSX.Element {
+  return (
+    <div
+      style={{
+        padding: '0.75rem 1rem',
+        border: '1px solid #ddd',
+        borderRadius: '0.5rem',
+        background: '#fafafa'
+      }}
+    >
+      <span style={{ display: 'block', color: '#555', fontSize: '0.85rem' }}>{label}</span>
+      <span style={{ display: 'block', fontWeight: 700, fontSize: '1.25rem' }}>{value}</span>
     </div>
   )
 }

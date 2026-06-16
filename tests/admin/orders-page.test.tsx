@@ -4,9 +4,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockListOrders = vi.fn()
 const mockCountOrders = vi.fn()
 
+const mockGetStats = vi.fn(async () => ({
+  ordersToday: 0,
+  revenueTodayCents: 0,
+  orders7d: 0,
+  revenue7dCents: 0,
+  orders30d: 0,
+  revenue30dCents: 0,
+  refundedTotalCents: 0,
+  needsFulfillment: 0
+}))
+
 vi.mock('@/lib/db/queries/orders', () => ({
   listOrders: mockListOrders,
-  countOrders: mockCountOrders
+  countOrders: mockCountOrders,
+  getOrderDashboardStats: mockGetStats
 }))
 
 function order(over: Record<string, unknown> = {}) {
