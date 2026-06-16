@@ -25,6 +25,11 @@ interface AdminSection {
 
 const SECTIONS: AdminSection[] = [
   {
+    href: '/admin/orders' as Route,
+    title: 'Orders',
+    description: 'View orders, issue refunds, and advance fulfillment.'
+  },
+  {
     href: '/admin/artists' as Route,
     title: 'Artists',
     description: 'Manage partner artists shown across the storefront.'
