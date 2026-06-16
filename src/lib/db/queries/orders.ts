@@ -71,6 +71,54 @@ export async function countOrders(filter: OrderFilter): Promise<number> {
   return Number(rows[0]?.count ?? 0)
 }
 
+/** Read-only counters for the admin dashboard strip. All amounts in cents. */
+export interface DashboardStats {
+  ordersToday: number
+  revenueTodayCents: number
+  orders7d: number
+  revenue7dCents: number
+  orders30d: number
+  revenue30dCents: number
+  /** Cumulative refunded amount across all orders. */
+  refundedTotalCents: number
+  /** Completed orders whose fulfillment is null/PROPOSED/RESERVED/PREPARED. */
+  needsFulfillment: number
+}
+
+/**
+ * One-round-trip aggregate for the admin dashboard. Window boundaries are
+ * computed relative to `now()` in SQL; counts/sums use FILTER aggregates so the
+ * three rolling windows + refund total + needs-fulfillment count come back in a
+ * single row. SUM-of-no-rows is NULL in postgres → coalesced to 0.
+ */
+export async function getOrderDashboardStats(): Promise<DashboardStats> {
+  const needsFulfillment = sql`${orders.status} = 'completed' and (${orders.fulfillmentState} is null or ${orders.fulfillmentState} in ('PROPOSED', 'RESERVED', 'PREPARED'))`
+  const rows = await db
+    .select({
+      ordersToday: sql<number>`count(*) filter (where ${orders.placedAt} >= now() - interval '1 day')`,
+      revenueToday: sql<number>`coalesce(sum(${orders.totalCents}) filter (where ${orders.placedAt} >= now() - interval '1 day'), 0)`,
+      orders7d: sql<number>`count(*) filter (where ${orders.placedAt} >= now() - interval '7 days')`,
+      revenue7d: sql<number>`coalesce(sum(${orders.totalCents}) filter (where ${orders.placedAt} >= now() - interval '7 days'), 0)`,
+      orders30d: sql<number>`count(*) filter (where ${orders.placedAt} >= now() - interval '30 days')`,
+      revenue30d: sql<number>`coalesce(sum(${orders.totalCents}) filter (where ${orders.placedAt} >= now() - interval '30 days'), 0)`,
+      refundedTotal: sql<number>`coalesce(sum(${orders.refundedCents}), 0)`,
+      needsFulfillment: sql<number>`count(*) filter (where ${needsFulfillment})`
+    })
+    .from(orders)
+
+  const r = rows[0]
+  return {
+    ordersToday: Number(r?.ordersToday ?? 0),
+    revenueTodayCents: Number(r?.revenueToday ?? 0),
+    orders7d: Number(r?.orders7d ?? 0),
+    revenue7dCents: Number(r?.revenue7d ?? 0),
+    orders30d: Number(r?.orders30d ?? 0),
+    revenue30dCents: Number(r?.revenue30d ?? 0),
+    refundedTotalCents: Number(r?.refundedTotal ?? 0),
+    needsFulfillment: Number(r?.needsFulfillment ?? 0)
+  }
+}
+
 /**
  * Idempotent write of a completed order, keyed on `squareOrderId`. Replayed
  * webhook deliveries DO UPDATE the same row (never duplicate).
