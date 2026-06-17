@@ -90,17 +90,27 @@ Everything below needs **you**; that's why the autonomous run stopped after
 Phase 16. Rough order = fastest → biggest.
 
 ### A. Config — Coolify (minutes)
-1. **Resend:** set `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (a verified sender).
-   Unblocks ALL email: receipts, password reset, abandoned-cart, lifecycle.
-2. **Wire the abandoned-cart cron** — the Coolify scheduled-task API is not
-   exposed on this version (404), so it's UI-only: app → **Scheduled Tasks** →
-   Add → cron `*/15 * * * *`, container = the app service, command:
+1. ~~**Resend:** set `RESEND_API_KEY` + `RESEND_FROM_EMAIL`.~~ **DONE 2026-06-17**
+   — both set in Coolify (from = `noreply@updates.animeniacs.shop`); password-reset
+   send triggered (`POST /api/auth/request-password-reset`, 200). **Operator to
+   confirm the reset email actually arrived** (verifies the `updates.animeniacs.shop`
+   domain in Resend). ⚠️ **GAP: the forgot-password UI does NOT exist** — no
+   "Forgot password?" link and no reset-password page (backend `sendResetPassword`
+   IS wired, `src/lib/auth.ts:47`). **Pre-launch build item:** add the request
+   form + reset-password landing page, else users can't reset passwords.
+2. **Wire the abandoned-cart cron** — endpoint VERIFIED 2026-06-17
+   (`POST /api/cron/abandoned-carts` with `x-cron-secret` → `{"processed":0}`,
+   200; secret authorizes). Still UI-only to schedule (API not exposed, 404):
+   app → **Scheduled Tasks** → Add → cron `*/15 * * * *`, container = app service,
+   command:
    ```
    node -e "fetch('http://localhost:3000/api/cron/abandoned-carts',{method:'POST',headers:{'x-cron-secret':process.env.CRON_SECRET}}).then(r=>r.json().then(j=>{console.log(r.status,JSON.stringify(j));if(!r.ok)process.exit(1)}))"
    ```
-   Manual test:
-   `curl -X POST -H "x-cron-secret: <CRON_SECRET from .env.local>" https://dev.animeniacs.shop/api/cron/abandoned-carts`
-   → expect `{"processed":N}`.
+4. ~~Tidy duplicate `${VAR:-}` empty env placeholders.~~ **DONE 2026-06-17** —
+   removed the 10 redundant *empty* twins via the Coolify API (each real value
+   preserved + verified; 48→38 entries; no redeploy). May regenerate on a future
+   build if the compose still has `${VAR:-}` defaults — durable fix is removing
+   those defaults in the compose.
 3. ~~Decommission the old Logto deployment at `auth.animeniacs.shop`.~~ **DONE
    2026-06-17** — Coolify service `logto` (`fwkok848g80gwo4w0ccgo44s`, Animeniacs
    team) **STOPPED** (status `exited`; FQDN now 503). Reversible. Permanent
