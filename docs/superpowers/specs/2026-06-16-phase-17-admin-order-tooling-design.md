@@ -1,7 +1,16 @@
 # Phase 17 — Admin Order Tooling — Design Spec
 
+> ⚠️ **RE-SCOPED 2026-06-16 (post-live-verification): SHIPPED AS READ-ONLY.**
+> The on-site refund issuance (§3, §4.1) and fulfillment push (§3, §4.2) below
+> were built but then **removed** — the operator centralized operations in
+> **Square + Shippo**, making the site a read-only order log that reflects
+> refund/fulfillment state via the existing webhooks. Live verification also
+> surfaced + fixed a BigInt order-recording bug. The rest of this doc is the
+> original design (kept for context); the **as-shipped** truth + verification
+> checklist is in `reference/phase-17-handoff.md`.
+
 **Date:** 2026-06-16
-**Status:** approved for planning (operator decisions captured §3)
+**Status:** superseded by read-only re-scope — see banner above + the handoff
 **Depends on:** Phase 16 (rendering/caching pass) — shipped, deployed, verified
 on dev. Order/webhook chain (Phases 7–9) — shipped.
 

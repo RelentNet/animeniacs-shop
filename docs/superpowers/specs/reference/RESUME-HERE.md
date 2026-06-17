@@ -11,18 +11,23 @@ machine. Read this first, then the linked phase handoff.
 
 ## Where we are right now
 
-- **Phase 17 (admin order tooling) is BUILT, gates green, deployed to dev, and
-  HTTP/route-probed — but its MONEY-PATH LIVE VERIFICATION IS PENDING.**
-  - `main` @ `5a6715e` (pushed + deployed to dev). **Tag is HELD** until a real
-    sandbox refund + fulfillment push pass (refunds move money — verify first).
-  - Adds `/admin/orders` (list) + `/admin/orders/[id]` (detail) + full-refund
-    issuance + fulfillment push-to-Square + a small dashboard. Decisions:
-    **refunds full-only**, **fulfillment pushes to Square**.
-  - Gates (Master re-ran): typecheck clean · **592 unit tests pass** ·
-    unreachable-DB build = Compiled + 41/41 static + 0 ENOTFOUND · canaries 0/0.
-  - Live probes: `/admin/orders` + `/admin/orders/[id]` → 307 anon (gated); ISR
-    intact. **Next gate = run P17-1…P17-6 on dev sandbox** (operator-assisted).
-  - Full detail + the verification checklist: [phase-17-handoff.md](./phase-17-handoff.md).
+- **Phase 17 (admin order tooling) shipped to dev as a READ-ONLY order log +
+  dashboard. Live verification (read-only) is PENDING; tag HELD.**
+  - `main` @ `c40b83e` (deployed to dev). Refunds + fulfillment/shipping are
+    handled in **Square + Shippo**; the site is a read-only log that reflects
+    their state via the existing webhooks. (Originally built with on-site refund
+    + fulfillment-push; operator re-scoped to read-only mid-verification.)
+  - Adds `/admin/orders` (list: search + status/fulfillment filters) +
+    `/admin/orders/[id]` (read-only detail) + dashboard strip on `/admin`.
+  - **Critical fix shipped (`d8b4844`): BigInt order-recording bug** — Square v44
+    Money is `bigint`; storing the raw order in jsonb threw on serialize, so
+    `payment.created` webhooks NEVER recorded orders (the whole order chain was
+    silently broken, not just Phase 17). Now fixed + regression-tested.
+  - Gates (Master re-ran): typecheck clean · **563 unit tests pass** ·
+    unreachable-DB build = Compiled + 41/41 + 0 ENOTFOUND · canaries 0/0.
+  - **Next gate (lighter, read-only) = order lists in `/admin/orders` + a
+    Square-dashboard refund/fulfillment reflects on the site.** Then lift the tag.
+  - Full detail + checklist: [phase-17-handoff.md](./phase-17-handoff.md).
 - **Phase 16 (rendering/caching pass + admin nav)** SHIPPED + deployed + verified.
   `main` was @ `406e6a8`; tag `phase-16-caching-activation`. Detail:
   [phase-16-handoff.md](./phase-16-handoff.md). Its V1–V7 live legs are still
@@ -85,24 +90,25 @@ Phase 16. Rough order = fastest → biggest.
   its 61-item category. The `/artist` empty state on dev is correct until then.
 
 ### C. Live verification — THE current priority (browser / sandbox)
-Now merged: **Phase 17's P17-1…P17-6 + the deferred Phase 16 V1–V7**, run together
-on dev. This is the gate that **lifts the held `phase-17` tag**.
-- P17 legs: order shows in `/admin/orders` after a sandbox purchase · inspect the
-  paid order's fulfillment `uid` · advance fulfillment (push to Square) · issue a
-  full refund · dashboard updates · guards. Detail:
-  [phase-17-handoff.md](./phase-17-handoff.md) §6.
-- V1–V7 legs: auth walkthrough · receipt email · review-with-photo persists ·
-  guest lookup · abandoned-cart cron end-to-end · promo-edit propagation.
-- Needs admin sign-in (`biz@animeniacs.shop`) + one sandbox purchase. Resend-
-  dependent legs are "partial: blocked on Resend" until Resend is set.
+Read-only now (refunds + fulfillment live in Square). Lifts the held `phase-17`
+tag. Detail: [phase-17-handoff.md](./phase-17-handoff.md) §5.
+- **P17 (read-only):** order records + lists in `/admin/orders` after a sandbox
+  purchase (the BigInt fix unblocked this) · refund a test order **in the Square
+  dashboard** → site shows `refunded` · advance fulfillment **in Square** → site
+  label updates · dashboard reflects it.
+- **Deferred Phase 16 V1–V7:** auth walkthrough · receipt email · review-with-
+  photo persists · guest lookup · abandoned-cart cron end-to-end · promo-edit.
+- Needs admin sign-in (`biz@animeniacs.shop`) + one sandbox purchase (use the
+  Square "Checkout API Sandbox Testing Panel": Next → Test Payment → complete; no
+  card). Resend-dependent email legs = "partial: blocked on Resend" until set.
 
-### D. Phase 17 = admin order tooling — BUILT + on dev (live-verify pending, §C)
-- Spec: `docs/superpowers/specs/2026-06-16-phase-17-admin-order-tooling-design.md`;
-  plan: `docs/superpowers/plans/2026-06-16-phase-17-admin-order-tooling.md`;
-  handoff: [phase-17-handoff.md](./phase-17-handoff.md).
-- Once §C passes: lift the tag (`phase-17-admin-order-tooling`), then pick Phase
-  18 from the handoff §8 (partial refunds / tracking+packing slips / bulk+CSV /
-  embedded Square Web Payments / tags / profile editing).
+### D. Phase 17 = admin order log — READ-ONLY, on dev (live-verify pending, §C)
+- Spec: `docs/superpowers/specs/2026-06-16-phase-17-admin-order-tooling-design.md`
+  (with read-only re-scope); handoff: [phase-17-handoff.md](./phase-17-handoff.md).
+- Once §C passes: lift the tag (`phase-17-admin-order-tooling` @ `c40b83e`), then
+  Phase 18. **Top Phase 18 candidate: checkout shipping-address collection** —
+  the Square payment link doesn't capture a ship-to address, so Square/Shippo
+  can't fulfill physical goods. Also: harden webhook idempotency (handoff §6).
 
 ### E. Production cutover — LAST, operator-gated
 - A live WooCommerce-site replacement at `animeniacs.shop`. **Never autonomous.**

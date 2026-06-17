@@ -1,144 +1,124 @@
 # Phase 17 → Phase 18 hand-off
 
-**Status:** Phase 17 (admin order tooling) **implemented, gates green, deployed
-to dev, and live-probed at the HTTP/route level.** The **money-path live
-verification (a real sandbox refund + fulfillment push) is the one remaining
-gate and is PENDING** — it needs the operator (admin sign-in + sandbox order).
-**The `phase-17-admin-order-tooling` tag is intentionally HELD** until that
-sandbox verification passes (more rigorous than Phase 16, because refunds move
-money). Code is on `main` @ `5a6715e`, pushed + deployed to dev.
+**Status:** Phase 17 shipped to dev as a **read-only admin order log + dashboard**.
+Refunds and fulfillment/shipping are handled in **Square + Shippo**; their state
+flows back into the log via the existing Square webhooks. **Plus a critical
+order-recording bug fix** (BigInt) surfaced by live verification — it had been
+silently killing ALL order recording, not just Phase 17. Code on `main`
+@ `c40b83e`, deployed to dev. **Tag `phase-17-admin-order-tooling` HELD** until
+the (now lighter, read-only) live verification passes.
 
 **Date:** 2026-06-16
 
-> Master planned the phase (spec+plan), launched a background execution session
-> for the code, **independently verified** its diff + gates, deployed to dev via
-> `./scripts/deploy.sh`, and probed live. No schema changes → no migrations.
-> `SQUARE_ENV` stays `sandbox`; goaffpro + logto canaries stay **0**.
+> Master planned + launched the build, verified it, deployed, then ran live
+> verification on dev sandbox WITH the operator — which surfaced both the BigInt
+> bug and an architecture course-correction (below). `SQUARE_ENV` stays
+> `sandbox`; goaffpro + logto canaries stay **0**. No DB migration.
 
 ---
 
-## 1. TL;DR
+## 1. TL;DR + what changed mid-flight
 
-A self-service admin order surface so the operator stops using the Square
-dashboard day-to-day: **order list + detail + full-refund issuance + fulfillment
-push + a small dashboard.** Both money/state actions call Square and let the
-**existing** webhook reconcile the DB — no forked math. Operator decisions:
-**refunds full-only**, **fulfillment pushes to Square**.
+Phase 17 was originally built with on-site **full-refund issuance** + **fulfillment
+push-to-Square**. Live verification on dev changed two things:
 
-**Live on dev:** `/admin/orders` + `/admin/orders/[id]` return 307 anon (route
-exists + gated); Phase 16 ISR intact (`/artist` still `s-maxage=300`, cache HIT).
+1. **Found + fixed a latent order-recording bug.** Square SDK v44 returns Money
+   as `bigint`; `buildOrder` stored the live Square order in the jsonb `raw`
+   column, and serialization threw *"Do not know how to serialize a BigInt"* —
+   so `payment.created` webhooks never recorded orders. `/admin/orders` (and the
+   whole order read-model) was always empty. Fixed by sanitizing bigints in
+   `raw`. The old unit test asserted `raw === squareOrder` (reference equality)
+   so it never serialized and never caught this; corrected + added a
+   serialization regression test. **This was the real blocker on the entire
+   order/webhook chain.**
 
-## 2. What shipped (commit-by-commit, all on `main`)
+2. **Operator re-scoped to read-only.** Decision: centralize operations in
+   **Square + Shippo** (processing, shipments, labels), with the site as a
+   **read-only order log**. Removed on-site refund issuance + fulfillment push
+   (dual money/state surfaces). Refund/fulfillment state still reflects on the
+   site via the existing `refund.*` / `order.fulfillment.updated` webhooks →
+   shared reconcile.
 
-| Commit | Task | Change |
-|---|---|---|
-| `ae11af3` | 1 | `listOrders` + `countOrders` (filters: status, fulfillment, `q` search on order#/email; pagination; limit capped 100). `q` is parameterized (Drizzle `sql` bind) — injection-safe. |
-| `28e57e0` | 2 | `getOrderDashboardStats` — one-round-trip aggregate (orders + revenue today/7d/30d, refunded total, needs-fulfillment count). |
-| `a8384ed` | 3 | Order list page `/admin/orders` + filters + pager + "Orders" entry on the admin index. |
-| `5785a39` | 4 | Order detail page `/admin/orders/[id]` (read-only view; reuses `labels.ts`). |
-| `1e3a587` | 5 | `src/lib/square/refunds.ts` (`issueFullRefund`) + `src/lib/square/fulfillment.ts` (`advanceFulfillment`), pinned to SDK v44. |
-| `ace2325` | 6 | Refund action + `RefundPanel`; **extracted the webhook recompute into `src/lib/webhooks/reconcile.ts`** so the action + webhook share one source of math. |
-| `c58966d` | 7 | `FulfillmentPanel` (push state to Square). |
-| `e069dd9` | 8 | Dashboard stats strip on `/admin`. |
-| `5a6715e` | — | Build-gate fix: split pure transition logic into `src/lib/orders/fulfillment-states.ts` (no `server-only`) so the client `FulfillmentPanel` can import it; `square/fulfillment.ts` re-exports. |
+**Net Phase 17 deliverable:** `/admin/orders` (list: paginated, search, status/
+fulfillment filters) + `/admin/orders/[id]` (read-only detail) + dashboard strip
+on `/admin` + the "Orders" nav entry. No on-site money movement.
 
-**Architecture note (load-bearing):** `src/lib/webhooks/reconcile.ts`
-(`reconcileRefundFromSquare`, `reconcileFulfillmentFromSquare`) is now the single
-source of refund/fulfillment math, called by BOTH `handle-event.ts` (webhooks)
-and the admin actions. Admin actions call Square, then optimistically reconcile
-via this shared path for immediate feedback; the webhook reconciles again
-(idempotent) and **owns the buyer email** (so an admin-issued refund does not
-double-send). Audit rows go to `order_log` with synthetic `eventType`
-(`admin.refund.issued` / `admin.fulfillment.advanced`) + `eventId: null`.
+## 2. Final state of the code
 
-## 3. Verification state
+**Kept / shipped:**
+- `src/lib/db/queries/orders.ts` — `listOrders`, `countOrders` (filters + `q`
+  search, parameterized/injection-safe, limit capped 100), `getOrderDashboardStats`.
+- `src/app/(admin)/admin/orders/{page.tsx, [id]/page.tsx, _components/OrdersTable.tsx, _components/OrderDetail.tsx}` — list + read-only detail.
+- Dashboard strip + "Orders" entry in `src/app/(admin)/admin/page.tsx`.
+- `src/lib/webhooks/reconcile.ts` (`reconcileRefundFromSquare`,
+  `reconcileFulfillmentFromSquare`) — extracted from `handle-event.ts`; now the
+  ONLY refund/fulfillment reconcile path (webhook-driven). Single source of math.
+- **`src/lib/orders/build-order.ts` BigInt fix** (`toJsonSafe` on `raw`) — essential.
 
-- **Gates (independently re-run by Master):** typecheck clean · **592 unit tests
-  pass** (98 files; +53 from baseline 539) · unreachable-DB build = Compiled +
-  **41/41** static pages + **0** ENOTFOUND/ECONNREFUSED, exit 0; new routes
-  listed dynamic `ƒ /admin/orders`, `ƒ /admin/orders/[id]`. Canaries: logto 0,
-  goaffpro 0.
-- **Deploy:** `./scripts/deploy.sh` → deployment `y8s4cwcogowsw8kc800wc4ow`
-  `finished`. Live probes: `/api/health`,`/`,`/shop`,`/artist`,`/sign-in`,
-  `/orders/lookup` → 200; `/account`,`/admin`,`/admin/orders`,
-  `/admin/orders/[id]` → 307 anon.
-- **Sandbox de-risk (done at build time by the execution session):** a Square
-  Checkout payment-link order **DOES carry a fulfillment** —
-  `{ uid, type:'DIGITAL', state:'PROPOSED' }`, order `version:1`. So the
-  "update existing fulfillment by uid" path is the real one. (That probe order
-  was unpaid/DRAFT — P17-2 below re-confirms on a *paid* order.)
-- **⚠️ PENDING — money-path live verification (operator):** see §6.
+**Removed in the read-only re-scope:** `src/lib/square/refunds.ts`,
+`src/lib/square/fulfillment.ts`, `src/lib/orders/fulfillment-states.ts`,
+`src/app/(admin)/admin/orders/[id]/actions.ts`, `RefundPanel`, `FulfillmentPanel`
+(+ their tests).
 
-## 4. Plan deviations (all benign, documented)
+## 3. Commit trail (on `main`)
 
-1. **Extra commit `5a6715e`** — `server-only` import leaked into a client
-   component via `square/fulfillment.ts`; fixed by extracting pure logic to
-   `orders/fulfillment-states.ts`. No behavior change.
-2. **`formatCents` not centralized** — the repo only has per-file copies; matched
-   that convention with small local helpers rather than introducing a shared
-   module. `statusLabel`/`fulfillmentLabel` ARE reused from `labels.ts`.
-3. **Shared reconcile module** — instead of the action hand-writing the refund
-   math, extracted the webhook's recompute into `reconcile.ts` and pointed both
-   at it (strengthens "single source of math"). 21 existing webhook tests pass.
+`ae11af3`→`5a6715e` Phase 17 build (list/detail/refund/fulfillment/dashboard) ·
+`7635e66` interim handoff · `d8b4844` **BigInt order-recording fix** ·
+`636dc1a` read-only re-scope (removals) · `c40b83e` fix: stage the read-only
+page/test that `636dc1a` left unstaged (transient broken intermediate — see §6).
 
-**Minor non-blockers (note for Phase 18):**
-- In `issueRefundAction`, if the optimistic `reconcileRefundFromSquare` throws
-  *after* Square's refund succeeds, the admin sees "Refund failed" though the
-  money moved. The `refund.*` webhook still reconciles the DB, and the stable
-  idempotency key (`refund_<squareOrderId>`) blocks a double-refund on retry —
-  so it's a cosmetic/audit-gap only. Could treat post-refund reconcile failure
-  as a soft success later.
+## 4. Verification state
 
-## 5. Files added/changed (24 files, +2419/−43)
+- **Gates (re-run by Master after every change):** typecheck clean ·
+  **563 unit tests pass** (95 files; down from 593 — 30 tests removed with the
+  refund/fulfillment features) · unreachable-DB build = Compiled + 41/41 static +
+  0 ENOTFOUND, exit 0; `/admin/orders` + `/admin/orders/[id]` dynamic (`ƒ`).
+  Canaries logto 0, goaffpro 0.
+- **Live (dev sandbox, with operator):**
+  - Order recording: a sandbox purchase (`jWeyBdtqis0VLLc75KWCl2dJKdLZY`, $75,
+    payment COMPLETED) confirmed at Square; pre-fix it failed with the BigInt
+    error, post-fix recording works. **Operator to confirm it now lists in
+    `/admin/orders`** (DB side).
+  - Fulfillment shape: real paid orders DO carry a fulfillment `uid`
+    (`DIGITAL:PROPOSED`) — confirmed via Square API.
+- **⚠️ PENDING (lighter, read-only) — lifts the tag:** see §5.
 
-New: `src/lib/square/refunds.ts`, `src/lib/square/fulfillment.ts`,
-`src/lib/orders/fulfillment-states.ts`, `src/lib/webhooks/reconcile.ts`,
-`src/app/(admin)/admin/orders/{page.tsx,[id]/page.tsx,[id]/actions.ts,
-_components/*}`, plus tests. Changed: `src/lib/db/queries/orders.ts` (list/count/
-stats), `src/lib/webhooks/handle-event.ts` (delegates to reconcile),
-`src/app/(admin)/admin/page.tsx` (nav entry + dashboard strip).
+## 5. Operator-pending — read-only live verification (lifts the tag)
 
-## 6. ⚠️ Operator-pending — live verification (THE gate to lift the tag)
+1. **Order log:** confirm the `jWey…` order (and a fresh one) appears in
+   `/admin/orders` with correct total/status; detail renders. (P17-1)
+2. **Refund reflection:** issue a refund **in the Square dashboard** for a test
+   order → confirm the site shows status `refunded` + refunded amount (the
+   `refund.*` webhook → reconcile). This is the existing chain, now unblocked by
+   the BigInt fix — never verified live before.
+3. **Fulfillment reflection:** advance fulfillment **in Square** → confirm the
+   site's label updates (`order.fulfillment.updated` webhook).
+4. **Dashboard** reflects orders/refunds.
 
-Run on dev (sandbox). Requires admin sign-in (`biz@animeniacs.shop`) + one
-sandbox purchase. Records: Resend-dependent legs noted "partial: blocked on
-Resend" if Resend unset.
+Then lift `phase-17-admin-order-tooling` @ `c40b83e`.
 
-| # | Flow | Pass criteria |
-|---|---|---|
-| P17-1 | Order shows in `/admin/orders` after a sandbox purchase | correct total/status; detail page renders |
-| P17-2 | Inspect the **paid** order's fulfillment on detail | confirm a fulfillment `uid` exists (validates the §4.2 update path on a real paid order) |
-| P17-3 | Advance fulfillment in admin | Square reflects it → `order.fulfillment.updated` webhook → DB + customer label update; backward moves rejected |
-| P17-4 | Issue full refund in admin | Square shows refund → `refund.created` webhook → status `refunded`, `refundedCents=total`; buyer refund email (Resend-gated) |
-| P17-5 | Dashboard reflects the test order/refund | numbers update |
-| P17-6 | Guards | refund hidden/disabled when already refunded or no `squarePaymentId` |
+**Other operator-pending (unchanged):** Resend (`RESEND_API_KEY` +
+`RESEND_FROM_EMAIL` still EMPTY → receipt/refund emails) · cron scheduled task
+(secret matches; UI step only) · retire standalone Logto · duplicate empty
+`${VAR:-}` Coolify placeholders (tidy before prod).
 
-**Plus the still-deferred Phase 16 V1–V7** (auth walkthrough; receipt email;
-review-with-photo persist; guest lookup; abandoned-cart cron end-to-end;
-promo-edit propagation) — P17-1/4 overlap V2/V4 and are easier now via the admin
-UI.
+## 6. Notes / deviations
 
-**Other operator-pending (unchanged from Phase 16):**
-1. **Resend** — `RESEND_API_KEY` + `RESEND_FROM_EMAIL` still EMPTY in Coolify
-   (verified via API 2026-06-16). Unblocks P17-4 + V2/V4/V6 + password reset.
-2. **Cron scheduled task** — `CRON_SECRET` confirmed set in Coolify and matches
-   `.env.local`; route works; only the Coolify-UI scheduled task is unwired
-   (phase-16-handoff §4).
-3. **Logto** — app env clean (no `LOGTO_*` in Coolify); retire the standalone
-   `auth.animeniacs.shop` service.
-4. *(minor)* Every Coolify key has a duplicate empty `${VAR:-}` placeholder —
-   benign on dev; tidy before prod cutover.
+- **BigInt webhook idempotency caveat:** `handleSquareEvent` logs the event_id to
+  `order_log` (marking it "seen") BEFORE the handler runs, and a handler failure
+  doesn't un-mark it. So the orders that failed pre-fix won't auto-recover on a
+  webhook retry — use a fresh purchase. Worth hardening in Phase 18 (mark seen
+  only after successful processing, or make recording retry-safe).
+- **Staging slip (`636dc1a`→`c40b83e`):** `636dc1a` committed the panel deletions
+  but the page-simplification edit was unstaged, so that one commit didn't build;
+  `c40b83e` corrected it (HEAD verified: typecheck + build green). Left as two
+  commits rather than a force-push (deploy.sh non-force-pushes).
 
-## 7. Tag
+## 7. Phase 18 candidates
 
-`phase-17-admin-order-tooling` **HELD** at `5a6715e` until P17-1…P17-6 pass on
-dev sandbox. Lift it once a real refund + fulfillment push are confirmed.
-
-## 8. Phase 18+ candidates
-
-- Partial/multi refunds; carrier/tracking + packing slips; bulk actions / CSV
-  export; date-range reporting.
-- Embedded Square Web Payments checkout; tags; profile editing; email
-  verification ON.
-- **LAST:** production cutover — live WooCommerce replacement; operator-gated,
-  never autonomous.
+- **Checkout shipping address (likely next):** the Square payment-link checkout
+  doesn't collect a shipping name/address, so Square/Shippo have nothing to ship
+  to for physical goods. Enable shipping-address collection on the payment link.
+- Harden webhook idempotency (§6). Email verification of receipts/refunds once
+  Resend is set. Order-log filters/export if the log grows.
+- **LAST:** production cutover — live WooCommerce replacement; operator-gated.
