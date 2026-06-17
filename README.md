@@ -1,115 +1,103 @@
 # Animeniacs Shop
 
-Custom Next.js e-commerce site replacing the current `animeniacs.shop` WordPress/WooCommerce site.
+Custom **Next.js 14** e-commerce storefront for Animeniacs — an anime / art-print
+merch shop — built to replace the live WooCommerce site at `animeniacs.shop`.
 
-## Tech Stack
+> **Contributors / agents:** read [`CLAUDE.md`](./CLAUDE.md) for conventions,
+> the gate suite, and gotchas, and
+> [`docs/superpowers/specs/reference/RESUME-HERE.md`](./docs/superpowers/specs/reference/RESUME-HERE.md)
+> for current project state and what's next.
 
-- Next.js 14 (App Router)
-- TypeScript
-- Square (catalog, payments, orders)
-- GoAffPro (affiliate / artist management)
-- Logto (self-hosted auth)
-- Plausible (self-hosted analytics)
-- Resend (newsletter + transactional email)
-- PostgreSQL (shared instance for Logto, Plausible metadata, app data)
-- Hosted on Coolify
+## Tech stack
+
+- **Next.js 14** (App Router) + **TypeScript**
+- **Square** — catalog, payments, orders (`SQUARE_ENV=sandbox` until production cutover)
+- **better-auth** — email + password auth, sessions in Postgres (admin via an `ADMIN_EMAILS` allowlist)
+- **Drizzle ORM** over **PostgreSQL**
+- **Resend** — transactional + lifecycle email (receipts, refunds, password reset, abandoned-cart)
+- **Tailwind CSS** — dark "Street Gallery" theme
+- Hosted on **Coolify** (dev: `dev.animeniacs.shop`)
+- Optional: Plausible analytics, Discord/SMS order notifications. (GoAffPro affiliate is deferred / unused.)
 
 ## Local development
 
 ### Prerequisites
 
 - Node.js 20+
-- pnpm 10+ (the repo pins `pnpm@10.33.2` via `package.json#packageManager`; corepack will activate it automatically)
+- pnpm 10+ (`package.json#packageManager` pins it; `corepack` activates it — prefix commands with `corepack`)
 - Docker 24+ with Compose v2.20+
-- macOS / Linux
 
 ### First-time setup
 
 ```bash
-# 1. Install Node deps
-pnpm install
+corepack pnpm install
 
-# 2. Create .env.local from template
 cp .env.example .env.local
-# Then edit .env.local to fill in:
-#   LOGTO_COOKIE_SECRET   (run: openssl rand -base64 48)
-#   PLAUSIBLE_SECRET_KEY_BASE  (run: openssl rand -base64 64)
-#   PLAUSIBLE_TOTP_VAULT_KEY   (run: openssl rand -base64 32)
-# If the default ports (3000 / 3001 / 3002 / 5432 / 8000) clash with other
-# services on your machine, also set in .env.local:
-#   APP_PORT, LOGTO_PORT, LOGTO_ADMIN_PORT, POSTGRES_PORT, PLAUSIBLE_PORT
-#   (and adjust the matching DATABASE_URL / LOGTO_ENDPOINT / LOGTO_ADMIN_ENDPOINT URLs).
+# Fill in at minimum:
+#   BETTER_AUTH_SECRET        (openssl rand -hex 32)
+#   SQUARE_ACCESS_TOKEN / SQUARE_LOCATION_ID   (Square sandbox app)
+#   ADMIN_EMAILS              (comma-separated; grants admin to those emails)
+#   DATABASE_URL              (matches POSTGRES_* + POSTGRES_PORT below)
+# Optional: RESEND_API_KEY + RESEND_FROM_EMAIL (email), CRON_SECRET, SMSEDGE_*, DISCORD_*
 
-# 3. Build content manifest
-pnpm content:build
+corepack pnpm content:build          # build the static-content manifest
 
-# 4. Bring up the local stack
 docker compose --env-file .env.local up -d
+# Brings up: postgres → migrate (runs db:migrate once) → app.
+# Migrations apply automatically via the `migrate` service.
 
-# 5. Apply DB migrations (once Postgres is healthy)
-pnpm db:migrate
-
-# 6. Visit the services (use your chosen ports if non-default)
-open http://localhost:3000   # Next.js app
-open http://localhost:3001   # Logto tenant API (the SDK uses this)
-open http://localhost:3002   # Logto admin console (create owner here on first visit)
-open http://localhost:8000   # Plausible (create admin here on first visit)
+open http://localhost:3000
 ```
+
+To make yourself an admin: add your email to `ADMIN_EMAILS` in `.env.local`
+(restart the app), then sign up / sign in at `/sign-up`. `/admin` is gated to
+allowlisted emails.
 
 ### Daily development
 
 ```bash
-# Run the dev server (auto-reload) outside of Docker.
-# Docker still runs Postgres, Logto, Plausible. Only the app runs natively
-# for fastest reload cycles.
-docker compose --env-file .env.local up -d postgres logto plausible plausible-clickhouse
-pnpm dev
+docker compose --env-file .env.local up -d postgres   # DB only
+corepack pnpm dev                                      # native dev server (fast reload)
 ```
 
-### Tests
+### Tests & checks
 
 ```bash
-pnpm test              # all tests once (vitest auto-loads .env.local)
-pnpm test:watch        # watch mode
-pnpm typecheck         # tsc --noEmit
-pnpm lint              # biome check
+corepack pnpm typecheck     # tsc --noEmit
+corepack pnpm test          # vitest (auto-loads .env.local; no live DB needed)
+corepack pnpm exec biome check <files>   # lint (scope to touched files)
 ```
 
-The DB integration test (`tests/db.integration.test.ts`) needs Postgres running. The other tests don't.
+Before any deploy, the full **gate suite** must pass — including the
+unreachable-DB production build. See [`CLAUDE.md`](./CLAUDE.md#definition-of-done--the-gate-suite-run-all-before-deploy).
 
-### Common ops
+## Deploy
+
+Deploy **only** via the canonical script:
 
 ```bash
-# Tail logs
-docker compose logs -f app
-
-# Reset everything (DESTRUCTIVE — wipes ALL local data including Logto/Plausible accounts)
-docker compose down -v
-rm -rf .next src/lib/generated drizzle/migrations
-pnpm db:generate
-docker compose --env-file .env.local up -d
-pnpm db:migrate
-
-# Drizzle Studio (DB GUI at http://local.drizzle.studio)
-pnpm db:studio
+./scripts/deploy.sh        # git push main → force a Coolify deploy of the dev app
 ```
 
-### First-run manual setup
+It reads `COOLIFY_API_TOKEN_ANIMANIACS_TEAM` from `.env.local`. The script returns
+once the deploy is queued; the build runs on Coolify (dev FQDN
+`dev.animeniacs.shop`). **Production cutover is operator-gated and never
+automated.**
 
-The Phase 1 stack runs but Logto and Plausible need a one-time admin account created in their UI:
+## Project structure
 
-- **Logto**: visit the admin endpoint (default `http://localhost:3002`), create owner account, then create an Application (Next.js / Traditional Web) named `Animeniacs Shop`. Copy the App ID and Secret into `.env.local` as `LOGTO_APP_ID` and `LOGTO_APP_SECRET`. Set redirect URI to `http://localhost:3000/callback` and post-sign-out URI to `http://localhost:3000/`. (Detailed steps in `docker/logto/README.md`.) Logto SDK integration in the app happens in Phase 7.
-
-- **Plausible**: visit `http://localhost:8000`, register the admin account, add `animeniacs.shop` as a tracked site (timezone America/Chicago). Plausible tracking-script integration in the app happens in Phase 10.
-
-## Production deploy (Coolify)
-
-The same `compose.yml` deploys to Coolify. Set the production env vars in Coolify's UI (TLS-protected). Coolify adds `SERVICE_FQDN_*` vars automatically; the app reads them via `NEXT_PUBLIC_SITE_URL`.
+```
+src/app/            routes — storefront, (account), (admin), api (checkout, square webhook, cron)
+src/lib/            domain logic — db (Drizzle + queries), square, webhooks, orders, auth, cart, notifications
+src/components/     layout / product / cart / orders / auth UI
+scripts/            deploy.sh, content-build.ts, auth/grant-admin.ts, square-cleanup/*
+docs/superpowers/   designs (specs/), plans/, phase handoffs + RESUME-HERE (specs/reference/)
+compose.yml         local stack: postgres + migrate + app
+```
 
 ## Documentation
 
-- [Design Spec](./docs/superpowers/specs/2025-05-13-animeniacs-shop-design.md) — full system design
-- [Phase 1: Foundation Plan](./docs/superpowers/plans/2025-05-13-phase-01-foundation.md)
-- [Static Content Sources](./docs/superpowers/specs/static-content-source/) — migrated content from current WordPress site
-- [Reference: Mockup Gallery Original](./docs/superpowers/specs/reference/mockup-gallery-original.html) — current site's product mockup viewer (preserved aesthetic)
-- [Logto first-run notes](./docker/logto/README.md)
+- [CLAUDE.md](./CLAUDE.md) — architecture, conventions, gate suite, constraints, gotchas
+- [RESUME-HERE](./docs/superpowers/specs/reference/RESUME-HERE.md) — current state + what's next
+- [Phase handoffs](./docs/superpowers/specs/reference/) — per-phase detail (latest: order tooling, order-log fidelity, password reset)
+- [Design specs & plans](./docs/superpowers/) — full system design and implementation plans
