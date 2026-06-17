@@ -13,15 +13,19 @@ interface MockupGalleryProps {
 }
 
 /**
- * Downres caps (Decision 2). The print-resolution original is never sent at
- * full size: the clean "Artwork" view is bounded to ~1100px on its longest
- * edge at q70, scene overlays to ~900px, thumbnails to ~96px. Square image
- * URLs are remote-pattern-allowed in next.config, so `next/image` optimizes
- * and downscales them.
+ * Downres caps (Decision 2; halved 2026-06-17 for stronger theft protection).
+ * The print-resolution original is never sent at full size: the clean "Artwork"
+ * view is bounded to ~550px on its longest edge at q70 (the box upscales it, so
+ * it reads soft but is far below print resolution), thumbnails to ~48px. The
+ * `sizes` hints below are likewise halved so the browser fetches the smaller
+ * srcset entry. Square image URLs are remote-pattern-allowed in next.config, so
+ * `next/image` optimizes + downscales them. (NOTE: the original Square URL is
+ * still exposed in the /_next/image `url=` param — a server-side proxy is the
+ * real wall; tracked separately.)
  */
-const DISPLAY_W = 1100
-const DISPLAY_H = 1375 // 4/5 frame
-const THUMB_W = 96
+const DISPLAY_W = 550
+const DISPLAY_H = 688 // 4/5 frame
+const THUMB_W = 48
 
 /** Block right-click / drag image-save as a mild deterrent (Decision 2). */
 function blockSave(e: React.SyntheticEvent): void {
@@ -178,7 +182,7 @@ export function MockupGallery({
               width={DISPLAY_W}
               height={DISPLAY_H}
               quality={70}
-              sizes="(max-width: 640px) 90vw, 580px"
+              sizes="(max-width: 640px) 45vw, 290px"
               priority
               draggable={false}
               onContextMenu={blockSave}
@@ -204,7 +208,7 @@ export function MockupGallery({
               alt={productName}
               fill
               quality={70}
-              sizes="(max-width: 640px) 60vw, 320px"
+              sizes="(max-width: 640px) 30vw, 160px"
               draggable={false}
               onContextMenu={blockSave}
               onDragStart={blockSave}
