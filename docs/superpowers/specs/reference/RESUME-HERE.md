@@ -11,9 +11,9 @@ machine. Read this first, then the linked phase handoff.
 
 ## Where we are right now
 
-- **Phase 17 (admin order tooling) shipped to dev as a READ-ONLY order log +
-  dashboard. Live verification (read-only) is PENDING; tag HELD.**
-  - `main` @ `7957794` (deployed to dev). Refunds + fulfillment/shipping are
+- **Phase 17 (admin order tooling) — SHIPPED, deployed, VERIFIED live on dev,
+  and TAGGED `phase-17-admin-order-tooling`.** Read-only order log + dashboard.
+  - `main` @ `7957794` (deployed to dev; tag at `45b8f1a`). Refunds + fulfillment/shipping are
     handled in **Square + Shippo**; the site is a read-only log that reflects
     their state via the existing webhooks. (Originally built with on-site refund
     + fulfillment-push; operator re-scoped to read-only mid-verification.)
@@ -26,11 +26,13 @@ machine. Read this first, then the linked phase handoff.
     Money is `bigint`; storing the raw order in jsonb threw on serialize, so
     `payment.created` webhooks NEVER recorded orders (the whole order chain was
     silently broken, not just Phase 17). Now fixed + regression-tested.
-  - Gates (Master re-ran): typecheck clean · **563 unit tests pass** ·
-    unreachable-DB build = Compiled + 41/41 + 0 ENOTFOUND · canaries 0/0.
-  - **Next gate (lighter, read-only) = order lists in `/admin/orders` + a
-    Square-dashboard refund/fulfillment reflects on the site.** Then lift the tag.
-  - Full detail + checklist: [phase-17-handoff.md](./phase-17-handoff.md).
+  - Gates: typecheck clean · **564 unit tests pass** · unreachable-DB build =
+    Compiled + 41/41 + 0 ENOTFOUND · canaries 0/0.
+  - **Live-verified 2026-06-17:** 3 sandbox orders record + list in
+    `/admin/orders`; a sandbox API refund reflected as **Refunded**; a pushed
+    fulfillment shows ("Being prepared"). (Sandbox dashboard can't issue refunds
+    — Square limitation; we used the Refunds API. Production dashboard is fine.)
+  - Full detail: [phase-17-handoff.md](./phase-17-handoff.md).
 - **Phase 16 (rendering/caching pass + admin nav)** SHIPPED + deployed + verified.
   `main` was @ `406e6a8`; tag `phase-16-caching-activation`. Detail:
   [phase-16-handoff.md](./phase-16-handoff.md). Its V1–V7 live legs are still
@@ -92,18 +94,16 @@ Phase 16. Rough order = fastest → biggest.
 - Create the ~15 remaining artist records via `/admin/artists`; repoint merc to
   its 61-item category. The `/artist` empty state on dev is correct until then.
 
-### C. Live verification — THE current priority (browser / sandbox)
-Read-only now (refunds + fulfillment live in Square). Lifts the held `phase-17`
-tag. Detail: [phase-17-handoff.md](./phase-17-handoff.md) §5.
-- **P17 (read-only):** order records + lists in `/admin/orders` after a sandbox
-  purchase (the BigInt fix unblocked this) · refund a test order **in the Square
-  dashboard** → site shows `refunded` · advance fulfillment **in Square** → site
-  label updates · dashboard reflects it.
-- **Deferred Phase 16 V1–V7:** auth walkthrough · receipt email · review-with-
-  photo persists · guest lookup · abandoned-cart cron end-to-end · promo-edit.
-- Needs admin sign-in (`biz@animeniacs.shop`) + one sandbox purchase (use the
-  Square "Checkout API Sandbox Testing Panel": Next → Test Payment → complete; no
-  card). Resend-dependent email legs = "partial: blocked on Resend" until set.
+### C. Live verification — Phase 17 read-only legs DONE ✅ (2026-06-17)
+Verified on dev sandbox: order recording + listing, refund reflection (via
+Refunds API — sandbox dashboard can't refund), fulfillment reflection. Tag lifted.
+- **Still deferred (Phase 16 V1–V7, not blocking):** auth walkthrough · receipt
+  email (needs Resend) · review-with-photo persists · guest lookup · abandoned-
+  cart cron end-to-end · promo-edit propagation.
+- **Known artifact:** order `jWey…` shows "Completed" not "Refunded" — its refund
+  ran under the pre-fix code (event_id already "seen", won't replay). New orders
+  reflect correctly. Harmless; the webhook-idempotency hardening (handoff §6)
+  would prevent this class.
 
 ### D. Phase 17 = admin order log — READ-ONLY, on dev (live-verify pending, §C)
 - Spec: `docs/superpowers/specs/2026-06-16-phase-17-admin-order-tooling-design.md`

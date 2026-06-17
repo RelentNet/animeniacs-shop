@@ -1,12 +1,13 @@
 # Phase 17 → Phase 18 hand-off
 
-**Status:** Phase 17 shipped to dev as a **read-only admin order log + dashboard**.
-Refunds and fulfillment/shipping are handled in **Square + Shippo**; their state
-flows back into the log via the existing Square webhooks. **Plus a critical
-order-recording bug fix** (BigInt) surfaced by live verification — it had been
-silently killing ALL order recording, not just Phase 17. Code on `main`
-@ `c40b83e`, deployed to dev. **Tag `phase-17-admin-order-tooling` HELD** until
-the (now lighter, read-only) live verification passes.
+**Status:** Phase 17 SHIPPED + deployed + **VERIFIED live on dev** + **TAGGED
+`phase-17-admin-order-tooling`** (at `45b8f1a`; code @ `7957794`). A read-only
+admin order log + dashboard; refunds and fulfillment/shipping are handled in
+**Square + Shippo**, reflected into the log via the existing webhooks. **Plus two
+critical bug fixes** surfaced by live verification: order-recording (BigInt) and
+refund reconcile-by-payment-id — both had been silently broken. Verified
+2026-06-17: 3 sandbox orders record + list; a Refunds-API refund reflected as
+Refunded (`H2Zye…`); a pushed fulfillment reflected.
 
 **Date:** 2026-06-16
 
@@ -82,7 +83,9 @@ page/test that `636dc1a` left unstaged (transient broken intermediate — see §
     `/admin/orders`** (DB side).
   - Fulfillment shape: real paid orders DO carry a fulfillment `uid`
     (`DIGITAL:PROPOSED`) — confirmed via Square API.
-- **⚠️ PENDING (lighter, read-only) — lifts the tag:** see §5.
+  - **✅ Read-only legs verified 2026-06-17:** 3 orders record + list in
+    `/admin/orders`; refund on `H2Zye…` reflects as "Refunded"; pushed
+    fulfillment reflects ("Being prepared"). **Tag lifted.**
 
 ## 5. Operator-pending — read-only live verification (lifts the tag)
 
@@ -111,12 +114,12 @@ Then lift `phase-17-admin-order-tooling` @ `c40b83e`.
   the synthetic order has `total=0`). The old `handleRefund` matched on
   `refund.order_id` → `updateOrderStatus` hit 0 rows → refunds never reflected.
   Fixed: `reconcileRefundFromSquare(paymentId)` resolves the sale order via
-  `payment.orderId` and uses the payment's cumulative `refundedMoney`. Proven in
-  sandbox (payment `RYu36c…`/order `jWey…` vs refund order `L2mvf…`). **Live
-  end-to-end still PENDING** — `jWey…`'s refund event was processed by the old
-  code (event_id now "seen", won't replay) and `jWey…` is fully refunded; needs a
-  FRESH purchase + API refund to confirm reflection on dev (sandbox dashboard
-  can't issue refunds — known Square limitation, production dashboard is fine).
+  `payment.orderId` and uses the payment's cumulative `refundedMoney`. **Verified
+  live 2026-06-17:** a Refunds-API refund on fresh order `H2Zye…` reflected as
+  "Refunded" in `/admin/orders`. (Pre-fix order `jWey…` still shows "Completed" —
+  its refund ran under the old code, event_id already "seen", won't replay; a
+  harmless data artifact. Sandbox dashboard can't issue refunds — Square
+  limitation; production dashboard is fine.)
 - **BigInt webhook idempotency caveat:** `handleSquareEvent` logs the event_id to
   `order_log` (marking it "seen") BEFORE the handler runs, and a handler failure
   doesn't un-mark it. So the orders that failed pre-fix won't auto-recover on a
