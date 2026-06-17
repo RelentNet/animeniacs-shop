@@ -49,7 +49,25 @@ describe('buildOrder', () => {
     expect(order.status).toBe('completed')
     expect(order.totalCents).toBe(2599)
     expect(order.currency).toBe('USD')
-    expect(order.raw).toBe(squareOrder)
+    // raw is a JSON-safe snapshot of the Square order (NOT the live object — it
+    // must be storable in the jsonb column; see the BigInt regression below).
+    expect((order.raw as { id: string }).id).toBe('sq-order-1')
+  })
+
+  it('stores a JSON-serializable raw snapshot (no BigInt leaks into jsonb)', () => {
+    // Regression: Square Money amounts are bigint; storing the live object in the
+    // jsonb `raw` column threw "Do not know how to serialize a BigInt", which
+    // killed ALL order recording on the webhook path. raw must be serializable.
+    const order = buildOrder(squareOrder, bridge)
+    expect(() => JSON.stringify(order.raw)).not.toThrow()
+    const raw = order.raw as {
+      totalMoney: { amount: unknown }
+      lineItems: Array<{ basePriceMoney: { amount: unknown } }>
+    }
+    expect(typeof raw.totalMoney.amount).toBe('number')
+    expect(raw.totalMoney.amount).toBe(2599)
+    expect(typeof raw.lineItems[0].basePriceMoney.amount).toBe('number')
+    expect(raw.lineItems[0].basePriceMoney.amount).toBe(1000)
   })
 
   it('converts bigint totalMoney.amount to a number', () => {

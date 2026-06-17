@@ -24,6 +24,17 @@ function toCents(amount: unknown): number {
   return 0
 }
 
+/**
+ * Square Money amounts come back as `bigint`. The `raw` snapshot is persisted to
+ * a jsonb column, and JSON serialization throws "Do not know how to serialize a
+ * BigInt". Deep-convert bigints to numbers (currency amounts are well within
+ * Number's safe range) so the snapshot is storable. Null/undefined pass through.
+ */
+function toJsonSafe<T>(value: T): T {
+  if (value === null || value === undefined) return value
+  return JSON.parse(JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? Number(v) : v)))
+}
+
 function toDate(value: unknown): Date | null {
   if (typeof value === 'string' && value.length > 0) {
     const d = new Date(value)
@@ -106,6 +117,6 @@ export function buildOrder(
     lineItems,
     fulfillmentState: mostAdvancedFulfillmentState(squareOrder?.fulfillments),
     placedAt,
-    raw: squareOrder
+    raw: toJsonSafe(squareOrder)
   }
 }
