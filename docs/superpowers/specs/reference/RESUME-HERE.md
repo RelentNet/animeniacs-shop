@@ -13,10 +13,13 @@ machine. Read this first, then the linked phase handoff.
 
 - **Phase 17 (admin order tooling) shipped to dev as a READ-ONLY order log +
   dashboard. Live verification (read-only) is PENDING; tag HELD.**
-  - `main` @ `c40b83e` (deployed to dev). Refunds + fulfillment/shipping are
+  - `main` @ `7957794` (deployed to dev). Refunds + fulfillment/shipping are
     handled in **Square + Shippo**; the site is a read-only log that reflects
     their state via the existing webhooks. (Originally built with on-site refund
     + fulfillment-push; operator re-scoped to read-only mid-verification.)
+  - **Also fixed (`7957794`): refund reconcile keyed by payment id** — Square
+    books refunds on a separate $0 "refund order", so the old order-id match
+    never reflected refunds. Now resolves the sale order via the payment.
   - Adds `/admin/orders` (list: search + status/fulfillment filters) +
     `/admin/orders/[id]` (read-only detail) + dashboard strip on `/admin`.
   - **Critical fix shipped (`d8b4844`): BigInt order-recording bug** — Square v44

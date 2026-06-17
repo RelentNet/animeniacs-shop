@@ -65,7 +65,8 @@ on `/admin` + the "Orders" nav entry. No on-site money movement.
 `ae11af3`→`5a6715e` Phase 17 build (list/detail/refund/fulfillment/dashboard) ·
 `7635e66` interim handoff · `d8b4844` **BigInt order-recording fix** ·
 `636dc1a` read-only re-scope (removals) · `c40b83e` fix: stage the read-only
-page/test that `636dc1a` left unstaged (transient broken intermediate — see §6).
+page/test that `636dc1a` left unstaged (transient broken intermediate — see §6) ·
+`a5c33dc` docs · `7957794` **refund reconcile-by-payment-id fix** (see §6).
 
 ## 4. Verification state
 
@@ -104,6 +105,18 @@ Then lift `phase-17-admin-order-tooling` @ `c40b83e`.
 
 ## 6. Notes / deviations
 
+- **Refund reconcile keyed by payment, not order (`7957794`):** live verification
+  showed Square books a refund onto a SEPARATE $0 "refund order"
+  (`refund.order_id` ≠ the sale order; the sale order's `refunds[]` stays empty;
+  the synthetic order has `total=0`). The old `handleRefund` matched on
+  `refund.order_id` → `updateOrderStatus` hit 0 rows → refunds never reflected.
+  Fixed: `reconcileRefundFromSquare(paymentId)` resolves the sale order via
+  `payment.orderId` and uses the payment's cumulative `refundedMoney`. Proven in
+  sandbox (payment `RYu36c…`/order `jWey…` vs refund order `L2mvf…`). **Live
+  end-to-end still PENDING** — `jWey…`'s refund event was processed by the old
+  code (event_id now "seen", won't replay) and `jWey…` is fully refunded; needs a
+  FRESH purchase + API refund to confirm reflection on dev (sandbox dashboard
+  can't issue refunds — known Square limitation, production dashboard is fine).
 - **BigInt webhook idempotency caveat:** `handleSquareEvent` logs the event_id to
   `order_log` (marking it "seen") BEFORE the handler runs, and a handler failure
   doesn't un-mark it. So the orders that failed pre-fix won't auto-recover on a
@@ -114,11 +127,27 @@ Then lift `phase-17-admin-order-tooling` @ `c40b83e`.
   `c40b83e` corrected it (HEAD verified: typecheck + build green). Left as two
   commits rather than a force-push (deploy.sh non-force-pushes).
 
-## 7. Phase 18 candidates
+## 7. Phase 18 — order-log fidelity + shipping (operator-requested 2026-06-17)
 
-- **Checkout shipping address (likely next):** the Square payment-link checkout
-  doesn't collect a shipping name/address, so Square/Shippo have nothing to ship
-  to for physical goods. Enable shipping-address collection on the payment link.
-- Harden webhook idempotency (§6). Email verification of receipts/refunds once
-  Resend is set. Order-log filters/export if the log grows.
+Operator wants the read-only log to mirror Square more fully:
+1. **Mirror Square order state** (`DRAFT/OPEN/COMPLETED/CANCELED`) in the admin
+   log, ALONGSIDE (not replacing) our derived `status` (which stays customer-
+   facing + powers review-verification). Today the admin shows "Completed" while
+   Square says "OPEN" — confusing. `raw.state` is already captured at recording
+   but goes STALE (refund/fulfillment webhooks don't refresh `raw`); a faithful
+   mirror needs the state refreshed on the relevant webhooks (or an `order.updated`
+   subscription) + a column/extraction + display.
+2. **Reflect shipment details** — recipient (name/address/phone), carrier,
+   tracking number + URL from Square fulfillment `shipmentDetails`. **Production
+   orders already carry shipping details** (matters for cutover); sandbox orders
+   are DIGITAL with none, so testing needs the checkout-address piece below or a
+   manually-created SHIPMENT fulfillment. Capture on recording + fulfillment
+   webhooks; display in the order detail (tracking as a link).
+   - **Prerequisite for NEW orders:** the Square payment-link checkout doesn't
+     collect a ship-to name/address, so Square/Shippo have nothing to ship to.
+     Enable shipping-address collection on the payment link
+     (`checkoutOptions.askForShippingAddress`).
+- Also queued: harden webhook idempotency (mark event seen only after successful
+  processing — §6); receipt/refund email verification once Resend is set;
+  order-log filters/export if it grows.
 - **LAST:** production cutover — live WooCommerce replacement; operator-gated.
