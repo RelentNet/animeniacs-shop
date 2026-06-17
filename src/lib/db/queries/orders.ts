@@ -220,6 +220,24 @@ export async function updateOrderStatus(
     .where(eq(orders.squareOrderId, squareOrderId))
 }
 
+/**
+ * Refresh the stored Square order snapshot, keyed on `squareOrderId`. Written by
+ * the reconcile path on refund/fulfillment webhooks so `raw` (which carries the
+ * authoritative order `state` + `fulfillments[].shipmentDetails` surfaced in the
+ * admin log) does not go stale. The caller MUST pass a BigInt-safe value
+ * (sanitized via `toJsonSafe`) — persisting raw bigints throws on serialization.
+ */
+export async function updateOrderRaw(
+  squareOrderId: string,
+  // biome-ignore lint/suspicious/noExplicitAny: Square order snapshot shape is loose
+  raw: any
+): Promise<void> {
+  await db
+    .update(orders)
+    .set({ raw, updatedAt: new Date() })
+    .where(eq(orders.squareOrderId, squareOrderId))
+}
+
 /** Record the latest fulfillment state, keyed on `squareOrderId`. */
 export async function setOrderFulfillmentState(
   squareOrderId: string,

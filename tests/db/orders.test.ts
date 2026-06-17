@@ -126,6 +126,18 @@ describe('setOrderFulfillmentState', () => {
   })
 })
 
+describe('updateOrderRaw', () => {
+  it('sets raw + updatedAt keyed on squareOrderId', async () => {
+    const raw = { id: 'sq1', state: 'COMPLETED' }
+    const { updateOrderRaw } = await import('@/lib/db/queries/orders')
+    await updateOrderRaw('sq1', raw)
+    expect(mockDb.update).toHaveBeenCalled()
+    const setArg = mockDb.set.mock.calls[0][0]
+    expect(setArg).toEqual(expect.objectContaining({ raw, updatedAt: expect.any(Date) }))
+    expect(mockDb.where).toHaveBeenCalled()
+  })
+})
+
 describe('claimGuestOrders', () => {
   it('assigns the user id, scoped to null-userId rows, and returns the claim count', async () => {
     mockDb.returning.mockResolvedValue([{ id: 'o1' }, { id: 'o2' }])

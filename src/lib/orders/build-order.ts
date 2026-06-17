@@ -1,4 +1,7 @@
 import type { NewOrder } from '@/lib/db/schema'
+import { toJsonSafe } from '@/lib/orders/json-safe'
+
+export { toJsonSafe }
 
 /** One denormalized line item stored in `orders.lineItems` (jsonb). */
 export interface OrderLineItem {
@@ -22,17 +25,6 @@ function toCents(amount: unknown): number {
   if (typeof amount === 'bigint') return Number(amount)
   if (typeof amount === 'number') return amount
   return 0
-}
-
-/**
- * Square Money amounts come back as `bigint`. The `raw` snapshot is persisted to
- * a jsonb column, and JSON serialization throws "Do not know how to serialize a
- * BigInt". Deep-convert bigints to numbers (currency amounts are well within
- * Number's safe range) so the snapshot is storable. Null/undefined pass through.
- */
-function toJsonSafe<T>(value: T): T {
-  if (value === null || value === undefined) return value
-  return JSON.parse(JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? Number(v) : v)))
 }
 
 function toDate(value: unknown): Date | null {
