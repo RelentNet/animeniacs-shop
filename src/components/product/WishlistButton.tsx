@@ -39,9 +39,9 @@ export function WishlistButton({
       onClick={handleClick}
       disabled={isPending}
       aria-pressed={inWishlist}
-      className="inline-flex items-center gap-2 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-900 transition hover:border-gray-900 disabled:opacity-50"
+      className="inline-flex items-center gap-2 rounded-md border border-line bg-wall-2 px-4 py-2 text-sm font-medium text-bone transition hover:border-neon hover:text-neon disabled:opacity-50"
     >
-      <span aria-hidden="true" className={inWishlist ? 'text-red-500' : 'text-gray-400'}>
+      <span aria-hidden="true" className={inWishlist ? 'text-neon' : 'text-faint'}>
         {inWishlist ? '♥' : '♡'}
       </span>
       {inWishlist ? 'In your wishlist' : 'Add to wishlist'}

@@ -19,18 +19,18 @@ function formatDate(date: Date): string {
 
 function ReviewCard({ review }: { review: Review }): JSX.Element {
   return (
-    <li className="border-t border-gray-200 py-5">
+    <li className="border-t border-line py-5">
       <div className="flex flex-wrap items-center gap-2">
         <StarRating value={review.rating} />
-        {review.title ? <span className="font-semibold text-gray-900">{review.title}</span> : null}
+        {review.title ? <span className="font-semibold text-bone">{review.title}</span> : null}
         {review.isVerifiedPurchase ? (
-          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+          <span className="rounded-full border border-neon/40 bg-neon/10 px-2 py-0.5 text-xs font-medium text-neon">
             Verified Purchase
           </span>
         ) : null}
       </div>
 
-      <p className="mt-2 whitespace-pre-line text-sm text-gray-700">{review.body}</p>
+      <p className="mt-2 whitespace-pre-line text-sm text-muted">{review.body}</p>
 
       {review.photoUrls.length > 0 ? (
         <ul className="mt-3 flex flex-wrap gap-2">
@@ -48,8 +48,8 @@ function ReviewCard({ review }: { review: Review }): JSX.Element {
         </ul>
       ) : null}
 
-      <p className="mt-2 text-xs text-gray-500">
-        <span className="font-medium text-gray-700">{review.authorName ?? 'Anonymous'}</span>
+      <p className="mt-2 text-xs text-faint">
+        <span className="font-medium text-muted">{review.authorName ?? 'Anonymous'}</span>
         {' · '}
         {formatDate(review.createdAt)}
       </p>
@@ -78,9 +78,9 @@ export async function ProductReviews({ productId }: { productId: string }): Prom
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-semibold">Reviews</h2>
+        <h2 className="font-display text-2xl tracking-wide text-bone">Reviews</h2>
         {summary.count > 0 ? (
-          <span className="flex items-center gap-2 text-sm text-gray-600">
+          <span className="flex items-center gap-2 text-sm text-muted">
             <StarRating value={summary.average} count={summary.count} />
             <span>
               {summary.average.toFixed(1)} · {summary.count} review
@@ -92,14 +92,14 @@ export async function ProductReviews({ productId }: { productId: string }): Prom
 
       <div className="mt-6">
         {!user.isAuthenticated ? (
-          <p className="text-sm text-gray-600">
-            <a href="/sign-in" className="font-medium underline hover:no-underline">
+          <p className="text-sm text-muted">
+            <a href="/sign-in" className="link-neon font-medium text-neon-soft">
               Sign in
             </a>{' '}
             to write a review.
           </p>
         ) : existingReview ? (
-          <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
+          <p className="rounded-md border border-line bg-wall-2 px-3 py-2 text-sm text-muted">
             You reviewed this product.
           </p>
         ) : (
@@ -114,7 +114,7 @@ export async function ProductReviews({ productId }: { productId: string }): Prom
           ))}
         </ul>
       ) : (
-        <p className="mt-6 text-sm text-gray-500">
+        <p className="mt-6 text-sm text-faint">
           No reviews yet. Be the first to review this product.
         </p>
       )}

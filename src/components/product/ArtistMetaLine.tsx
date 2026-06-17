@@ -48,10 +48,10 @@ export async function ArtistMetaLine({ categoryIds }: Props): Promise<JSX.Elemen
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      <span className="text-gray-500">Designed by</span>
+      <span className="text-muted">Designed by</span>
       <Link
         href={`/artist/${artist.slug}` as Route}
-        className="flex items-center gap-2 font-medium hover:underline"
+        className="flex items-center gap-2 font-medium text-bone transition-colors hover:text-purple-soft hover:no-underline"
       >
         <Avatar artist={artist} />
         <span>{artist.displayName}</span>
@@ -62,7 +62,7 @@ export async function ArtistMetaLine({ categoryIds }: Props): Promise<JSX.Elemen
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`${artist.displayName} on Instagram`}
-          className="text-gray-500 hover:text-gray-900"
+          className="text-muted transition-colors hover:text-neon"
         >
           <InstagramIcon />
         </a>
@@ -91,7 +91,7 @@ function Avatar({ artist }: { artist: Artist }): JSX.Element {
   return (
     <span
       aria-hidden="true"
-      className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-200 text-xs font-bold text-gray-500"
+      className="flex h-8 w-8 items-center justify-center rounded-full bg-wall-2 text-xs font-bold text-purple-soft"
     >
       {initials || '?'}
     </span>

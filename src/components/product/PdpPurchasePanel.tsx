@@ -38,22 +38,28 @@ export function PdpPurchasePanel({
     openDrawer()
   }
 
+  const stepperBtn =
+    'flex h-9 w-9 items-center justify-center rounded-md border border-line bg-wall-2 text-lg text-bone transition hover:border-neon hover:text-neon'
+
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
-      <div style={{ fontSize: '1.5rem', fontWeight: 600 }}>
+    <div className="grid gap-4">
+      <div className="font-mono text-3xl font-bold text-neon neon-text">
         {selected ? formatPrice(selected) : <span>Combination unavailable</span>}
       </div>
-      <p style={{ color: '#666', fontSize: '0.9rem' }}>{productionTimeText}</p>
+      <p className="text-sm text-muted">{productionTimeText}</p>
 
-      <VariantPicker variations={variations} itemOptions={itemOptions} onChange={setSelected} />
+      <div className="text-bone [&_label]:mb-1 [&_label]:block [&_label]:text-xs [&_label]:font-medium [&_label]:uppercase [&_label]:tracking-wide [&_label]:text-muted [&_select]:w-full [&_select]:rounded-md [&_select]:border [&_select]:border-line [&_select]:bg-wall-2 [&_select]:px-3 [&_select]:py-2 [&_select]:text-bone">
+        <VariantPicker variations={variations} itemOptions={itemOptions} onChange={setSelected} />
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <label htmlFor="qty" style={{ fontWeight: 600 }}>
+      <div className="flex items-center gap-3">
+        <label htmlFor="qty" className="text-xs font-medium uppercase tracking-wide text-muted">
           Quantity
         </label>
         <button
           type="button"
           aria-label="Decrease quantity"
+          className={stepperBtn}
           onClick={() => setQty((q) => Math.max(1, q - 1))}
         >
           −
@@ -64,10 +70,15 @@ export function PdpPurchasePanel({
           min={1}
           value={qty}
           onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-          style={{ width: '4rem', textAlign: 'center' }}
+          className="w-14 rounded-md border border-line bg-wall-2 py-1.5 text-center font-mono text-bone"
           readOnly
         />
-        <button type="button" aria-label="Increase quantity" onClick={() => setQty((q) => q + 1)}>
+        <button
+          type="button"
+          aria-label="Increase quantity"
+          className={stepperBtn}
+          onClick={() => setQty((q) => q + 1)}
+        >
           +
         </button>
       </div>
@@ -76,15 +87,7 @@ export function PdpPurchasePanel({
         type="button"
         onClick={handleAddToCart}
         disabled={!selected}
-        style={{
-          padding: '0.75rem 1.5rem',
-          background: selected ? '#222' : '#ddd',
-          color: selected ? 'white' : '#555',
-          border: 'none',
-          borderRadius: '0.25rem',
-          cursor: selected ? 'pointer' : 'not-allowed',
-          fontWeight: 600
-        }}
+        className="btn-neon w-full justify-center text-base disabled:cursor-not-allowed disabled:opacity-50"
       >
         Add to Cart
       </button>
