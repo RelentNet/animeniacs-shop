@@ -86,8 +86,13 @@ machine. Read this first, then the linked phase handoff.
 
 ## Resuming on a new machine (Mac)
 
-1. `git fetch --tags && git pull` — you want `main` @ `f0017c3` (or later).
-   Tags through `phase-18-order-log-fidelity`. Tests now ~594.
+0. **Repo moved 2026-06-17 → `git@github.com:RelentNet/animeniacs-shop.git`**
+   (was `itkujo/animeniacs-shop`; GitHub redirects the old path). ⚠️ **Coolify's
+   git source still says `itkujo/animeniacs-shop`** — works for now via the
+   redirect (repo is public), but update it to `RelentNet/animeniacs-shop` in the
+   Coolify UI before relying on it / before prod.
+1. `git fetch --tags && git pull` — you want `main` @ `312157a` (or later).
+   Tags through `phase-18-order-log-fidelity`. Tests ~596.
 2. **`.env.local` is gitignored — it will NOT arrive via git.** Copy it across
    from the Windows machine (or rebuild from your secrets manager). Full key list
    is in `.env.example`. Two notes that bite if missed:
