@@ -1,6 +1,14 @@
 import type { Order } from '@/lib/db/schema'
 import type { OrderLineItem } from '@/lib/orders/build-order'
 import { fulfillmentLabel, statusLabel } from '@/lib/orders/labels'
+import { parseShipment } from '@/lib/orders/shipment'
+
+/** Square's literal order state (DRAFT/OPEN/COMPLETED/CANCELED) from raw, or null. */
+function squareState(raw: unknown): string | null {
+  // biome-ignore lint/suspicious/noExplicitAny: stored Square order snapshot is loose
+  const state = (raw as any)?.state
+  return typeof state === 'string' && state.length > 0 ? state : null
+}
 
 /** $X.XX from integer cents. Mirrors the per-file helper used across order views. */
 function formatCents(cents: number): string {
@@ -44,6 +52,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }):
 export function OrderDetail({ order }: { order: Order }): JSX.Element {
   const lineItems = (order.lineItems as OrderLineItem[]) ?? []
   const refundedCents = order.refundedCents ?? 0
+  const sqState = squareState(order.raw)
+  const shipment = parseShipment(order.raw)
 
   return (
     <section>
@@ -55,6 +65,7 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
       <div style={{ marginTop: '1rem', maxWidth: '40rem' }}>
         <Row label="Placed">{formatDateTime(order.placedAt)}</Row>
         <Row label="Status">{statusLabel(order.status)}</Row>
+        <Row label="Square state">{sqState ? <code>{sqState}</code> : '—'}</Row>
         <Row label="Fulfillment">
           {fulfillmentLabel(order.fulfillmentState)}
           {order.fulfillmentState ? <code> ({order.fulfillmentState})</code> : <code> (none)</code>}
@@ -74,6 +85,38 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
           {order.squarePaymentId ? <code>{order.squarePaymentId}</code> : '— (no payment id)'}
         </Row>
       </div>
+
+      <h2 style={{ marginTop: '1.5rem' }}>Shipment</h2>
+      {shipment ? (
+        <div style={{ maxWidth: '40rem' }}>
+          {shipment.recipientName && <Row label="Recipient">{shipment.recipientName}</Row>}
+          {shipment.addressLines.length > 0 && (
+            <Row label="Address">
+              {shipment.addressLines.map((line) => (
+                <div key={line}>{line}</div>
+              ))}
+            </Row>
+          )}
+          {shipment.carrier && <Row label="Carrier">{shipment.carrier}</Row>}
+          {shipment.shippingType && <Row label="Shipping type">{shipment.shippingType}</Row>}
+          {shipment.trackingNumber && (
+            <Row label="Tracking">
+              {shipment.trackingUrl ? (
+                <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer">
+                  <code>{shipment.trackingNumber}</code>
+                </a>
+              ) : (
+                <code>{shipment.trackingNumber}</code>
+              )}
+            </Row>
+          )}
+          {shipment.shippedAt && (
+            <Row label="Shipped">{formatDateTime(new Date(shipment.shippedAt))}</Row>
+          )}
+        </div>
+      ) : (
+        <p style={{ color: '#555' }}>No shipment details.</p>
+      )}
 
       <h2 style={{ marginTop: '1.5rem' }}>Items</h2>
       <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: '40rem' }}>
