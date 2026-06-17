@@ -101,8 +101,11 @@ Phase 16. Rough order = fastest → biggest.
    Manual test:
    `curl -X POST -H "x-cron-secret: <CRON_SECRET from .env.local>" https://dev.animeniacs.shop/api/cron/abandoned-carts`
    → expect `{"processed":N}`.
-3. **Decommission** the old Logto deployment at `auth.animeniacs.shop` (its env
-   vars are already removed from the app).
+3. ~~Decommission the old Logto deployment at `auth.animeniacs.shop`.~~ **DONE
+   2026-06-17** — Coolify service `logto` (`fwkok848g80gwo4w0ccgo44s`, Animeniacs
+   team) **STOPPED** (status `exited`; FQDN now 503). Reversible. Permanent
+   **Delete** (destroys Logto's DB) left to the operator in the Coolify UI if
+   desired.
 
 ### B. Data entry
 - Create the ~15 remaining artist records via `/admin/artists`; repoint merc to
