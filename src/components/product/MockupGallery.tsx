@@ -1,6 +1,7 @@
 'use client'
 
 import type { MockupScene } from '@/lib/mockup-scenes'
+import Image from 'next/image'
 import { useEffect, useId, useRef, useState } from 'react'
 import styles from './MockupGallery.module.css'
 
@@ -11,12 +12,30 @@ interface MockupGalleryProps {
   productName: string
 }
 
+/**
+ * Downres caps (Decision 2). The print-resolution original is never sent at
+ * full size: the clean "Artwork" view is bounded to ~1100px on its longest
+ * edge at q70, scene overlays to ~900px, thumbnails to ~96px. Square image
+ * URLs are remote-pattern-allowed in next.config, so `next/image` optimizes
+ * and downscales them.
+ */
+const DISPLAY_W = 1100
+const DISPLAY_H = 1375 // 4/5 frame
+const THUMB_W = 96
+
+/** Block right-click / drag image-save as a mild deterrent (Decision 2). */
+function blockSave(e: React.SyntheticEvent): void {
+  e.preventDefault()
+}
+
 export function MockupGallery({
   scenes,
   productImages,
   productName
 }: MockupGalleryProps): JSX.Element {
-  const [sceneIdx, setSceneIdx] = useState(0)
+  // -1 = clean "Artwork" view (the default primary view, Decision 3).
+  // 0..n = a room scene.
+  const [sceneIdx, setSceneIdx] = useState(-1)
   const [productImageIdx, setProductImageIdx] = useState(0)
   const [reducedMotion, setReducedMotion] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -31,18 +50,26 @@ export function MockupGallery({
     return () => mq.removeEventListener?.('change', onChange)
   }, [])
 
-  const activeScene = scenes[sceneIdx]
+  const isArtwork = sceneIdx < 0
+  const activeScene = isArtwork ? null : scenes[sceneIdx]
   const activeImage = productImages[productImageIdx] ?? null
 
+  // Arrow keys cycle the full ordered list: Artwork (-1) → scene 0 → … → last.
   const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
     if (e.key === 'ArrowRight') {
-      setSceneIdx((i) => (i + 1) % scenes.length)
+      setSceneIdx((i) => (i + 1 > scenes.length - 1 ? -1 : i + 1))
       e.preventDefault()
     } else if (e.key === 'ArrowLeft') {
-      setSceneIdx((i) => (i - 1 + scenes.length) % scenes.length)
+      setSceneIdx((i) => (i - 1 < -1 ? scenes.length - 1 : i - 1))
       e.preventDefault()
     }
   }
+
+  const displayLabel = activeImage
+    ? isArtwork
+      ? `${productName} — artwork`
+      : `${productName} on ${activeScene?.name}`
+    : 'No product image available'
 
   return (
     <div
@@ -60,7 +87,29 @@ export function MockupGallery({
       </span>
 
       <div className={styles.thumbStrip}>
-        <p className={styles.groupLabel}>Scenes</p>
+        <p className={styles.groupLabel}>View</p>
+        <button
+          type="button"
+          className={`${styles.thumb} ${styles.thumbArtwork}`}
+          aria-label="Artwork (clean view)"
+          aria-pressed={isArtwork}
+          onClick={() => setSceneIdx(-1)}
+        >
+          {activeImage && (
+            <Image
+              src={activeImage}
+              alt=""
+              width={THUMB_W}
+              height={THUMB_W}
+              quality={60}
+              draggable={false}
+              onContextMenu={blockSave}
+              onDragStart={blockSave}
+            />
+          )}
+        </button>
+
+        <p className={styles.groupLabel}>In a room</p>
         {scenes.map((s, i) => (
           <button
             key={s.id}
@@ -70,7 +119,7 @@ export function MockupGallery({
             aria-pressed={i === sceneIdx}
             onClick={() => setSceneIdx(i)}
           >
-            <img src={s.backgroundImage} alt="" />
+            <img src={s.backgroundImage} alt="" draggable={false} />
           </button>
         ))}
 
@@ -81,12 +130,21 @@ export function MockupGallery({
               <button
                 key={src}
                 type="button"
-                className={styles.thumb}
+                className={`${styles.thumb} ${styles.thumbArtwork}`}
                 aria-label={`Product image ${i + 1} of ${productImages.length}`}
                 aria-pressed={i === productImageIdx}
                 onClick={() => setProductImageIdx(i)}
               >
-                <img src={src} alt="" />
+                <Image
+                  src={src}
+                  alt=""
+                  width={THUMB_W}
+                  height={THUMB_W}
+                  quality={60}
+                  draggable={false}
+                  onContextMenu={blockSave}
+                  onDragStart={blockSave}
+                />
               </button>
             ))}
           </>
@@ -96,25 +154,43 @@ export function MockupGallery({
       <div
         className={styles.display}
         data-reduced-motion={reducedMotion ? 'true' : 'false'}
+        data-view={isArtwork ? 'artwork' : 'scene'}
         role="img"
-        aria-label={
-          activeImage ? `${productName} on ${activeScene.name}` : 'No product image available'
-        }
+        aria-label={displayLabel}
       >
+        {/* Room scenes: only mounted/visible when a scene is active. */}
         {scenes.map((s, i) => (
           <img
             key={s.id}
             src={s.backgroundImage}
             alt=""
             className={styles.bg}
-            data-active={i === sceneIdx}
+            data-active={!isArtwork && i === sceneIdx}
+            draggable={false}
           />
         ))}
-        {activeImage && (
-          <img
-            src={activeImage}
-            alt={productName}
-            className={styles.overlay}
+
+        {activeImage && isArtwork && (
+          <div className={styles.artwork}>
+            <Image
+              src={activeImage}
+              alt={productName}
+              width={DISPLAY_W}
+              height={DISPLAY_H}
+              quality={70}
+              sizes="(max-width: 640px) 90vw, 580px"
+              priority
+              draggable={false}
+              onContextMenu={blockSave}
+              onDragStart={blockSave}
+              style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
+            />
+          </div>
+        )}
+
+        {activeImage && !isArtwork && activeScene && (
+          <div
+            className={styles.overlayWrap}
             style={{
               top: activeScene.productPosition.top,
               left: activeScene.productPosition.left,
@@ -122,8 +198,30 @@ export function MockupGallery({
               height: activeScene.productPosition.height,
               transform: activeScene.productPosition.transform
             }}
-          />
+          >
+            <Image
+              src={activeImage}
+              alt={productName}
+              fill
+              quality={70}
+              sizes="(max-width: 640px) 60vw, 320px"
+              draggable={false}
+              onContextMenu={blockSave}
+              onDragStart={blockSave}
+            />
+          </div>
         )}
+
+        {/* Transparent shield blocks right-click / drag-save over the whole frame. */}
+        <button
+          type="button"
+          className={styles.saveShield}
+          aria-hidden="true"
+          tabIndex={-1}
+          onContextMenu={blockSave}
+          onDragStart={blockSave}
+          draggable={false}
+        />
       </div>
     </div>
   )

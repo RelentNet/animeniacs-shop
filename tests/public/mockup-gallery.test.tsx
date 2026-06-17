@@ -4,6 +4,24 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
+// The gallery now renders the clean artwork + scene overlays + thumbnails via
+// `next/image` (downres). Stub it as a pass-through <img> that forwards every
+// prop, so `src`, `alt`, `draggable`, and the block-save handlers stay
+// inspectable in jsdom.
+vi.mock('next/image', () => ({
+  __esModule: true,
+  default: ({
+    fill: _fill,
+    priority: _priority,
+    quality: _quality,
+    sizes: _sizes,
+    ...props
+  }: Record<string, unknown>) => {
+    // biome-ignore lint/a11y/useAltText: test stub passes alt via props
+    return <img {...props} />
+  }
+}))
+
 const SCENES: MockupScene[] = [
   {
     id: 's1',
@@ -20,19 +38,50 @@ const SCENES: MockupScene[] = [
 ]
 
 describe('<MockupGallery>', () => {
-  it('renders scene thumbnails with aria-pressed reflecting active scene', () => {
+  it('defaults to the clean "Artwork" view (no scene active)', () => {
     render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
-    const sceneOne = screen.getByRole('button', { name: /scene: scene one/i })
-    const sceneTwo = screen.getByRole('button', { name: /scene: scene two/i })
-    expect(sceneOne).toHaveAttribute('aria-pressed', 'true')
-    expect(sceneTwo).toHaveAttribute('aria-pressed', 'false')
+    // Artwork toggle is pressed; neither scene is.
+    expect(screen.getByRole('button', { name: /artwork \(clean view\)/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: /scene: scene one/i })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
+    // The display announces the artwork view, and shows the product image.
+    expect(screen.getByRole('img', { name: /test — artwork/i })).toBeInTheDocument()
+    expect(screen.getByAltText('Test')).toHaveAttribute('src', expect.stringContaining('/img1.jpg'))
   })
 
-  it('switching scenes flips aria-pressed', () => {
+  it('clicking a scene switches off the artwork view and flips aria-pressed', () => {
     render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
     const sceneTwo = screen.getByRole('button', { name: /scene: scene two/i })
     fireEvent.click(sceneTwo)
     expect(sceneTwo).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: /artwork \(clean view\)/i })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
+    // Display label reflects the scene composite.
+    expect(screen.getByRole('img', { name: /test on scene two/i })).toBeInTheDocument()
+  })
+
+  it('can return to the artwork view from a scene', () => {
+    render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
+    fireEvent.click(screen.getByRole('button', { name: /scene: scene one/i }))
+    fireEvent.click(screen.getByRole('button', { name: /artwork \(clean view\)/i }))
+    expect(screen.getByRole('img', { name: /test — artwork/i })).toBeInTheDocument()
+  })
+
+  it('the displayed product image blocks right-click / drag saves', () => {
+    render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
+    const img = screen.getByAltText('Test')
+    // The block-save deterrent: not draggable + handlers wired.
+    expect(img).toHaveAttribute('draggable', 'false')
+    const ctx = fireEvent.contextMenu(img)
+    // contextMenu handler calls preventDefault → event reports as cancelled.
+    expect(ctx).toBe(false)
   })
 
   it('renders product image thumbnails only when more than one image', () => {
@@ -41,52 +90,61 @@ describe('<MockupGallery>', () => {
     )
     expect(screen.queryByRole('button', { name: /product image 1 of/i })).toBeNull()
     rerender(
-      <MockupGallery
-        scenes={SCENES}
-        productImages={['/img1.jpg', '/img2.jpg']}
-        productName="Test"
-      />
+      <MockupGallery scenes={SCENES} productImages={['/img1.jpg', '/img2.jpg']} productName="Test" />
     )
     expect(screen.getByRole('button', { name: /product image 1 of 2/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /product image 2 of 2/i })).toBeInTheDocument()
   })
 
-  it('clicking a product image thumbnail swaps the overlay src', () => {
+  it('clicking a product image thumbnail swaps the displayed src', () => {
     render(
-      <MockupGallery
-        scenes={SCENES}
-        productImages={['/img1.jpg', '/img2.jpg']}
-        productName="Test"
-      />
+      <MockupGallery scenes={SCENES} productImages={['/img1.jpg', '/img2.jpg']} productName="Test" />
     )
-    const overlay = screen.getByAltText(/test/i)
-    expect(overlay).toHaveAttribute('src', expect.stringContaining('/img1.jpg'))
+    const displayed = screen.getByAltText('Test')
+    expect(displayed).toHaveAttribute('src', expect.stringContaining('/img1.jpg'))
     fireEvent.click(screen.getByRole('button', { name: /product image 2 of 2/i }))
-    expect(overlay).toHaveAttribute('src', expect.stringContaining('/img2.jpg'))
+    expect(screen.getByAltText('Test')).toHaveAttribute(
+      'src',
+      expect.stringContaining('/img2.jpg')
+    )
   })
 
-  it('arrow keys cycle scenes when the container has focus', () => {
+  it('arrow keys cycle artwork → scenes → back to artwork when focused', () => {
     render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
     const container = screen.getByRole('group', { name: /mockup gallery/i })
     container.focus()
+    // Start on artwork. Right → scene one.
+    fireEvent.keyDown(container, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: /scene: scene one/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    // Right → scene two.
     fireEvent.keyDown(container, { key: 'ArrowRight' })
     expect(screen.getByRole('button', { name: /scene: scene two/i })).toHaveAttribute(
       'aria-pressed',
       'true'
     )
+    // Right wraps back to artwork.
+    fireEvent.keyDown(container, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: /artwork \(clean view\)/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    // Left from artwork wraps to the last scene.
     fireEvent.keyDown(container, { key: 'ArrowLeft' })
-    expect(screen.getByRole('button', { name: /scene: scene one/i })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /scene: scene two/i })).toHaveAttribute(
       'aria-pressed',
       'true'
     )
   })
 
-  it('empty productImages still renders the active scene without crash', () => {
+  it('empty productImages still renders without crash', () => {
     render(<MockupGallery scenes={SCENES} productImages={[]} productName="Test" />)
     expect(screen.getByLabelText(/no product image available/i)).toBeInTheDocument()
   })
 
-  it('respects prefers-reduced-motion (no transition class applied)', () => {
+  it('respects prefers-reduced-motion (data flag set)', () => {
     // jsdom does not implement matchMedia by default; supply a stub.
     Object.defineProperty(window, 'matchMedia', {
       writable: true,
@@ -102,9 +160,7 @@ describe('<MockupGallery>', () => {
       }))
     })
     render(<MockupGallery scenes={SCENES} productImages={['/img1.jpg']} productName="Test" />)
-    const display = screen.getByRole('img', { name: /test on scene one/i })
-    // The component sets a data-reduced-motion="true" attribute when the
-    // media query matches; we assert that signal rather than CSS specifics.
+    const display = screen.getByRole('img', { name: /test — artwork/i })
     expect(display).toHaveAttribute('data-reduced-motion', 'true')
   })
 })
