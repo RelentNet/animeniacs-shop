@@ -11,6 +11,19 @@ machine. Read this first, then the linked phase handoff.
 
 ## Where we are right now
 
+> **2026-06-17 session summary — DEV IS FEATURE-COMPLETE & VERIFIED.** `main` @
+> `f0017c3`. This session: fixed the BigInt order-recording bug + refund-by-payment
+> (the order/webhook chain now works end-to-end), shipped Phases 17/18/19, created
+> 16 artists, and finished the config (Resend live, Logto decommissioned, env
+> cleaned, cron endpoint verified). **NEXT = production cutover** (operator-gated,
+> never autonomous — §E) + wire the abandoned-cart cron UI task. Operator is doing
+> site theming in a separate session and will return here for the cutover.
+
+- **Phase 19 (password-reset UI) — SHIPPED + deployed + verified on dev.**
+  `/forgot-password` + `/reset-password` pages + a "Forgot password?" link on
+  `/sign-in`, wired to better-auth `requestPasswordReset`/`resetPassword`
+  (`f8013a5`/`641fb26`/`506381b`). Closes the password-reset UI gap. Resend
+  confirmed working (operator received the reset email).
 - **Phase 18 (order-log fidelity) — SHIPPED, deployed, VERIFIED live, TAGGED
   `phase-18-order-log-fidelity`.** `main` @ `41e4923`.
   - Admin list/detail mirror Square **order state** (OPEN/COMPLETED) next to our
@@ -63,7 +76,8 @@ machine. Read this first, then the linked phase handoff.
 
 ## Resuming on a new machine (Mac)
 
-1. `git fetch --tags && git pull` — you want `main` @ `406e6a8` (or later).
+1. `git fetch --tags && git pull` — you want `main` @ `f0017c3` (or later).
+   Tags through `phase-18-order-log-fidelity`. Tests now ~594.
 2. **`.env.local` is gitignored — it will NOT arrive via git.** Copy it across
    from the Windows machine (or rebuild from your secrets manager). Full key list
    is in `.env.example`. Two notes that bite if missed:
