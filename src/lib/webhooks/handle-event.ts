@@ -48,6 +48,12 @@ function extractPaymentId(event: { data?: { object?: unknown } }): string | null
   return typeof id === 'string' && id.length > 0 ? id : null
 }
 
+function extractRefundPaymentId(event: { data?: { object?: unknown } }): string | null {
+  // biome-ignore lint/suspicious/noExplicitAny: walking payload
+  const id = (event.data?.object as any)?.refund?.payment_id
+  return typeof id === 'string' && id.length > 0 ? id : null
+}
+
 function countItemsInSnapshot(snapshot: unknown): number {
   // biome-ignore lint/suspicious/noExplicitAny: snapshot is jsonb
   const items: any[] | undefined = (snapshot as any)?.items
@@ -152,26 +158,29 @@ async function handlePaymentCreated(
 }
 
 /**
- * `refund.created` / `refund.updated`: refund status, refundedCents, and the
- * full-vs-partial decision are SERVER-COMPUTED from the authoritative Square
- * order (`orders.get`) — never from the raw webhook payload. Best-effort
- * throughout; failures log and continue.
+ * `refund.created` / `refund.updated`: refund status + refundedCents are
+ * SERVER-COMPUTED from the authoritative Square PAYMENT — keyed by the refund's
+ * `payment_id`, NOT its `order_id` (Square books refunds onto a separate $0
+ * "refund order", so refund.order_id ≠ the sale order). The reconcile helper
+ * resolves the sale order via the payment. Best-effort; failures log + continue.
  */
-async function handleRefund(squareOrderId: string): Promise<void> {
+async function handleRefund(paymentId: string | null): Promise<void> {
+  if (!paymentId) return
   try {
     // Status + refundedCents recompute lives in the shared reconcile helper so
-    // the webhook and the admin refund action never fork the math.
-    const reconciled = await reconcileRefundFromSquare(squareOrderId)
+    // the webhook and any caller never fork the math.
+    const reconciled = await reconcileRefundFromSquare(paymentId)
     if (!reconciled) return
 
     // Best-effort refund email to the buyer. The buyer email is identity, read
-    // from our stored order row; amounts are the server-computed Square values.
+    // from our stored order row (the sale order resolved from the payment);
+    // amounts are the server-computed Square values.
     try {
-      const stored = await getOrderBySquareOrderId(squareOrderId)
+      const stored = await getOrderBySquareOrderId(reconciled.orderId)
       if (stored?.buyerEmail) {
         await sendRefundEmail({
           to: stored.buyerEmail,
-          orderId: squareOrderId,
+          orderId: reconciled.orderId,
           refundedCents: reconciled.refundedCents,
           totalCents: stored.totalCents,
           shopUrl: shopUrl()
@@ -220,7 +229,7 @@ export async function handleSquareEvent(args: HandleEventArgs): Promise<void> {
   if (event.type === 'payment.created') {
     await handlePaymentCreated(event, squareOrderId)
   } else if (event.type.startsWith('refund.')) {
-    await handleRefund(squareOrderId)
+    await handleRefund(extractRefundPaymentId(event))
   } else if (event.type === 'order.fulfillment.updated') {
     await handleFulfillmentUpdated(squareOrderId)
   }

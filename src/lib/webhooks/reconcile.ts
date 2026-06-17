@@ -17,31 +17,32 @@ async function fetchSquareOrder(squareOrderId: string): Promise<unknown | null> 
 }
 
 /**
- * Re-derive refund status + refundedCents from the AUTHORITATIVE Square order
- * and write them via updateOrderStatus. This is the single source of the refund
- * math, shared by the refund.* webhook handler and the admin refund action so
- * neither forks the computation. Returns the values written (or null if the
- * order could not be fetched). Does NOT send email — the webhook owns that.
+ * Re-derive refund status + refundedCents for the ORIGINAL sale order from the
+ * authoritative Square PAYMENT — keyed by paymentId, NOT the refund's order_id.
+ * Square books a refund onto a separate $0 "refund order", so `refund.order_id`
+ * is NOT the sale order and the sale order's own `refunds[]` stays empty; the
+ * cumulative refunded amount lives on the PAYMENT (`refundedMoney`), whose
+ * `orderId` is the sale order we stored as `squareOrderId`. Full-vs-partial is
+ * decided against the sale order's total. Returns the values written + the sale
+ * orderId (or null if unresolvable). Does NOT send email — the webhook owns that.
  */
 export async function reconcileRefundFromSquare(
-  squareOrderId: string
-): Promise<{ status: 'refunded' | 'partially_refunded'; refundedCents: number } | null> {
-  // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
-  const squareOrder = (await fetchSquareOrder(squareOrderId)) as any
-  if (!squareOrder) return null
+  paymentId: string
+): Promise<{ status: 'refunded' | 'partially_refunded'; refundedCents: number; orderId: string } | null> {
+  // biome-ignore lint/suspicious/noExplicitAny: Square payment shape is loose
+  const payment = (await getSquareClient().payments.get({ paymentId })).payment as any
+  const orderId: string | undefined = payment?.orderId
+  if (!orderId) return null
 
-  const totalCents = toCents(squareOrder.totalMoney?.amount)
-  const refunds: unknown[] = Array.isArray(squareOrder.refunds) ? squareOrder.refunds : []
-  const refundedCents = refunds.reduce<number>(
-    // biome-ignore lint/suspicious/noExplicitAny: Square refund shape is loose
-    (sum, r) => sum + toCents((r as any)?.amountMoney?.amount),
-    0
-  )
+  const refundedCents = toCents(payment?.refundedMoney?.amount)
+  // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
+  const order = (await fetchSquareOrder(orderId)) as any
+  const totalCents = toCents(order?.totalMoney?.amount)
   const status: 'refunded' | 'partially_refunded' =
     refundedCents >= totalCents && totalCents > 0 ? 'refunded' : 'partially_refunded'
 
-  await updateOrderStatus(squareOrderId, status, refundedCents)
-  return { status, refundedCents }
+  await updateOrderStatus(orderId, status, refundedCents)
+  return { status, refundedCents, orderId }
 }
 
 /**

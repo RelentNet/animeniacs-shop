@@ -8,6 +8,7 @@ const {
   mockDiscord,
   mockSmsNotify,
   mockOrdersGet,
+  mockPaymentsGet,
   mockUpsertOrder,
   mockUpdateOrderStatus,
   mockSetFulfillmentState,
@@ -22,6 +23,7 @@ const {
   mockDiscord: vi.fn(),
   mockSmsNotify: vi.fn(),
   mockOrdersGet: vi.fn(),
+  mockPaymentsGet: vi.fn(),
   mockUpsertOrder: vi.fn(),
   mockUpdateOrderStatus: vi.fn(),
   mockSetFulfillmentState: vi.fn(),
@@ -45,7 +47,10 @@ vi.mock('@/lib/notifications/sms', () => ({
   notifyEnabledRecipients: mockSmsNotify
 }))
 vi.mock('@/lib/square/client', () => ({
-  getSquareClient: () => ({ orders: { get: mockOrdersGet } })
+  getSquareClient: () => ({
+    orders: { get: mockOrdersGet },
+    payments: { get: mockPaymentsGet }
+  })
 }))
 vi.mock('@/lib/db/queries/orders', () => ({
   upsertOrder: mockUpsertOrder,
@@ -75,6 +80,10 @@ beforeEach(() => {
       createdAt: '2026-06-10T12:00:00Z'
     }
   })
+  // Refunds reconcile from the PAYMENT (refundedMoney + orderId), not the order.
+  mockPaymentsGet.mockReset().mockResolvedValue({
+    payment: { orderId: 'ORDER_X', refundedMoney: { amount: BigInt(500), currency: 'USD' } }
+  })
   mockUpsertOrder.mockReset().mockResolvedValue(undefined)
   mockUpdateOrderStatus.mockReset().mockResolvedValue(undefined)
   mockSetFulfillmentState.mockReset().mockResolvedValue(undefined)
@@ -91,7 +100,10 @@ function refundEvent(over: Record<string, unknown> = {}) {
   return {
     event_id: 'EVT_REFUND_1',
     type: 'refund.created',
-    data: { object: { refund: { order_id: 'ORDER_X' } } },
+    // Square books the refund onto a SEPARATE $0 "refund order" — refund.order_id
+    // (REFUND_ORDER) is NOT the sale order. The handler must key off payment_id;
+    // the payment resolves back to the sale order (ORDER_X).
+    data: { object: { refund: { payment_id: 'PAY_X', order_id: 'REFUND_ORDER' } } },
     ...over
   }
 }
@@ -274,44 +286,28 @@ describe('handleSquareEvent', () => {
 
   // --- Phase 13: refund handling ---
 
-  it('refund.created with refunds summing below the total → partially_refunded + refund email', async () => {
-    mockOrdersGet.mockResolvedValue({
-      order: {
-        id: 'ORDER_X',
-        totalMoney: { amount: BigInt(4500), currency: 'USD' },
-        refunds: [{ amountMoney: { amount: BigInt(500) } }]
-      }
+  it('refund below the total → partially_refunded + refund email (keyed by payment, not refund.order_id)', async () => {
+    // payment.refundedMoney=500, sale order total=4500 (default mockOrdersGet)
+    mockPaymentsGet.mockResolvedValue({
+      payment: { orderId: 'ORDER_X', refundedMoney: { amount: BigInt(500), currency: 'USD' } }
     })
     await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    // Updates the SALE order (ORDER_X from payment.orderId), NOT refund.order_id (REFUND_ORDER).
     expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'partially_refunded', 500)
     expect(mockSendRefund).toHaveBeenCalledWith(
       expect.objectContaining({ to: 'buyer@example.com', orderId: 'ORDER_X', refundedCents: 500 })
     )
   })
 
-  it('refund.created with refunds summing to/over the total → refunded', async () => {
-    mockOrdersGet.mockResolvedValue({
-      order: {
-        id: 'ORDER_X',
-        totalMoney: { amount: BigInt(4500), currency: 'USD' },
-        refunds: [
-          { amountMoney: { amount: BigInt(4000) } },
-          { amountMoney: { amount: BigInt(500) } }
-        ]
-      }
+  it('payment refundedMoney to/over the total → refunded', async () => {
+    mockPaymentsGet.mockResolvedValue({
+      payment: { orderId: 'ORDER_X', refundedMoney: { amount: BigInt(4500), currency: 'USD' } }
     })
     await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
     expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'refunded', 4500)
   })
 
-  it('refund.created with no known buyer email → status updates but no email', async () => {
-    mockOrdersGet.mockResolvedValue({
-      order: {
-        id: 'ORDER_X',
-        totalMoney: { amount: BigInt(4500), currency: 'USD' },
-        refunds: [{ amountMoney: { amount: BigInt(500) } }]
-      }
-    })
+  it('refund with no known buyer email → status updates but no email', async () => {
     mockGetOrderBySquareOrderId.mockResolvedValue({
       squareOrderId: 'ORDER_X',
       buyerEmail: null,
@@ -322,30 +318,27 @@ describe('handleSquareEvent', () => {
     expect(mockSendRefund).not.toHaveBeenCalled()
   })
 
-  it('refund status/amount come from the Square order, not the webhook payload', async () => {
-    // Payload claims a huge refund; the authoritative Square order says 500.
-    mockOrdersGet.mockResolvedValue({
-      order: {
-        id: 'ORDER_X',
-        totalMoney: { amount: BigInt(4500), currency: 'USD' },
-        refunds: [{ amountMoney: { amount: BigInt(500) } }]
-      }
+  it('refund amount comes from the Square payment, not the webhook payload', async () => {
+    // Payload claims a huge refund; the authoritative payment.refundedMoney says 500.
+    mockPaymentsGet.mockResolvedValue({
+      payment: { orderId: 'ORDER_X', refundedMoney: { amount: BigInt(500), currency: 'USD' } }
     })
     const evt = refundEvent({
-      data: { object: { refund: { order_id: 'ORDER_X', amount_money: { amount: 999999 } } } }
+      data: { object: { refund: { payment_id: 'PAY_X', order_id: 'REFUND_ORDER', amount_money: { amount: 999999 } } } }
     })
     await handleSquareEvent({ event: evt, webhookUrl: 'x', signatureKey: 'k' })
     expect(mockUpdateOrderStatus).toHaveBeenCalledWith('ORDER_X', 'partially_refunded', 500)
   })
 
+  it('a refund with no resolvable payment id → no status update, no throw', async () => {
+    const evt = refundEvent({ data: { object: { refund: { order_id: 'REFUND_ORDER' } } } })
+    await expect(
+      handleSquareEvent({ event: evt, webhookUrl: 'x', signatureKey: 'k' })
+    ).resolves.not.toThrow()
+    expect(mockUpdateOrderStatus).not.toHaveBeenCalled()
+  })
+
   it('a throwing refund email does not throw out of the webhook', async () => {
-    mockOrdersGet.mockResolvedValue({
-      order: {
-        id: 'ORDER_X',
-        totalMoney: { amount: BigInt(4500), currency: 'USD' },
-        refunds: [{ amountMoney: { amount: BigInt(500) } }]
-      }
-    })
     mockSendRefund.mockRejectedValue(new Error('resend down'))
     await expect(
       handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
