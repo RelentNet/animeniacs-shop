@@ -1,6 +1,11 @@
 import 'server-only'
-import { setOrderFulfillmentState, updateOrderStatus } from '@/lib/db/queries/orders'
+import {
+  setOrderFulfillmentState,
+  updateOrderRaw,
+  updateOrderStatus
+} from '@/lib/db/queries/orders'
 import { mostAdvancedFulfillmentState } from '@/lib/orders/build-order'
+import { toJsonSafe } from '@/lib/orders/json-safe'
 import { getSquareClient } from '@/lib/square/client'
 
 function toCents(amount: unknown): number {
@@ -42,6 +47,10 @@ export async function reconcileRefundFromSquare(
     refundedCents >= totalCents && totalCents > 0 ? 'refunded' : 'partially_refunded'
 
   await updateOrderStatus(orderId, status, refundedCents)
+  // Refresh the SALE order's raw snapshot (orderId resolved via payment.orderId,
+  // NOT the synthetic $0 refund order) so the admin log mirrors Square's current
+  // order state. BigInt-safe via the shared sanitizer (raw Money is bigint).
+  if (order) await updateOrderRaw(orderId, toJsonSafe(order))
   return { status, refundedCents, orderId }
 }
 
@@ -59,5 +68,8 @@ export async function reconcileFulfillmentFromSquare(
   if (!squareOrder) return null
   const state = mostAdvancedFulfillmentState(squareOrder.fulfillments)
   await setOrderFulfillmentState(squareOrderId, state)
+  // Refresh raw so the admin log reflects the current Square order state +
+  // shipment details. BigInt-safe via the shared sanitizer (raw Money is bigint).
+  await updateOrderRaw(squareOrderId, toJsonSafe(squareOrder))
   return state
 }

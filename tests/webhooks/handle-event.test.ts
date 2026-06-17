@@ -12,6 +12,7 @@ const {
   mockUpsertOrder,
   mockUpdateOrderStatus,
   mockSetFulfillmentState,
+  mockUpdateOrderRaw,
   mockGetOrderBySquareOrderId,
   mockSendConfirmation,
   mockSendRefund
@@ -27,6 +28,7 @@ const {
   mockUpsertOrder: vi.fn(),
   mockUpdateOrderStatus: vi.fn(),
   mockSetFulfillmentState: vi.fn(),
+  mockUpdateOrderRaw: vi.fn(),
   mockGetOrderBySquareOrderId: vi.fn(),
   mockSendConfirmation: vi.fn(),
   mockSendRefund: vi.fn()
@@ -56,6 +58,7 @@ vi.mock('@/lib/db/queries/orders', () => ({
   upsertOrder: mockUpsertOrder,
   updateOrderStatus: mockUpdateOrderStatus,
   setOrderFulfillmentState: mockSetFulfillmentState,
+  updateOrderRaw: mockUpdateOrderRaw,
   getOrderBySquareOrderId: mockGetOrderBySquareOrderId
 }))
 vi.mock('@/lib/notifications/email', () => ({
@@ -87,6 +90,7 @@ beforeEach(() => {
   mockUpsertOrder.mockReset().mockResolvedValue(undefined)
   mockUpdateOrderStatus.mockReset().mockResolvedValue(undefined)
   mockSetFulfillmentState.mockReset().mockResolvedValue(undefined)
+  mockUpdateOrderRaw.mockReset().mockResolvedValue(undefined)
   mockGetOrderBySquareOrderId.mockReset().mockResolvedValue({
     squareOrderId: 'ORDER_X',
     buyerEmail: 'buyer@example.com',
@@ -132,6 +136,14 @@ function paymentEvent(over: Record<string, unknown> = {}) {
     },
     ...over
   }
+}
+
+/** True if the value (deeply) contains a bigint anywhere — what would crash jsonb. */
+function hasBigInt(value: unknown): boolean {
+  if (typeof value === 'bigint') return true
+  if (Array.isArray(value)) return value.some(hasBigInt)
+  if (value && typeof value === 'object') return Object.values(value).some(hasBigInt)
+  return false
 }
 
 describe('handleSquareEvent', () => {
@@ -377,5 +389,47 @@ describe('handleSquareEvent', () => {
       handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
     ).resolves.not.toThrow()
     expect(mockSetFulfillmentState).not.toHaveBeenCalled()
+  })
+
+  // --- Phase 18: raw refresh on reconcile (keeps Square state + shipment fresh) ---
+
+  it('order.fulfillment.updated refreshes the order raw snapshot (BigInt-safe)', async () => {
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        state: 'COMPLETED',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        fulfillments: [{ uid: 'f1', state: 'COMPLETED', type: 'SHIPMENT' }]
+      }
+    })
+    await handleSquareEvent({ event: fulfillmentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderRaw).toHaveBeenCalledTimes(1)
+    const [orderId, raw] = mockUpdateOrderRaw.mock.calls[0]
+    expect(orderId).toBe('ORDER_X')
+    expect(raw).toEqual(expect.objectContaining({ id: 'ORDER_X', state: 'COMPLETED' }))
+    // The raw bigint Money MUST be sanitized before persistence (Phase 17 crash).
+    expect(hasBigInt(raw)).toBe(false)
+    expect(raw.totalMoney.amount).toBe(4500)
+  })
+
+  it('refund.* refreshes the SALE order raw (resolved via payment), BigInt-safe', async () => {
+    mockPaymentsGet.mockResolvedValue({
+      payment: { orderId: 'ORDER_X', refundedMoney: { amount: BigInt(500), currency: 'USD' } }
+    })
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        state: 'OPEN',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        lineItems: []
+      }
+    })
+    await handleSquareEvent({ event: refundEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpdateOrderRaw).toHaveBeenCalledTimes(1)
+    const [orderId, raw] = mockUpdateOrderRaw.mock.calls[0]
+    // The SALE order (ORDER_X from payment.orderId), NOT refund.order_id (REFUND_ORDER).
+    expect(orderId).toBe('ORDER_X')
+    expect(hasBigInt(raw)).toBe(false)
+    expect(raw.totalMoney.amount).toBe(4500)
   })
 })
