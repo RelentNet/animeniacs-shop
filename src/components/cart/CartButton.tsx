@@ -52,13 +52,15 @@ export function CartButton(): JSX.Element {
             position: 'absolute',
             top: 0,
             right: 0,
-            background: '#a33',
-            color: 'white',
+            background: '#39ff14',
+            color: '#0d0a14',
+            fontWeight: 700,
             borderRadius: '999px',
             fontSize: '0.7em',
             minWidth: '1.25rem',
             padding: '0 0.25rem',
-            textAlign: 'center'
+            textAlign: 'center',
+            boxShadow: '0 0 10px rgba(57, 255, 20, 0.6)'
           }}
         >
           {displayCount}

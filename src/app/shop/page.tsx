@@ -66,16 +66,17 @@ export default async function ShopPage({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-12">
       <header className="mb-8">
-        <h1 className="text-3xl font-bold">Shop</h1>
-        <p className="mt-2 text-gray-700">Browse the full collection.</p>
+        <p className="eyebrow">The full catalog</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Shop</h1>
+        <p className="mt-2 text-muted">Browse the full collection.</p>
       </header>
 
       <ShopFilters categories={categoryOptions} artists={artistOptions} query={query} />
 
       {total === 0 ? (
-        <section className="rounded-lg bg-gray-50 p-8 text-center">
+        <section className="rounded-lg border border-line bg-wall p-10 text-center text-muted">
           <p>
             {products.length === 0
               ? 'No products available yet — check back soon.'
@@ -85,10 +86,10 @@ export default async function ShopPage({
       ) : (
         <section>
           <h2 className="sr-only">Products</h2>
-          <p className="mb-4 text-sm text-gray-500">
+          <p className="mb-5 font-mono text-sm text-faint">
             {total} product{total === 1 ? '' : 's'}
           </p>
-          <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
             {pageItems.map((p) => (
               <li key={p.id}>
                 <ProductCard product={p} rating={summaries.get(p.id)} />

@@ -20,12 +20,20 @@ export type PromoBarValue = z.infer<typeof PromoBarValueSchema>
  * key is absent. Callers validate the shape with the appropriate schema.
  */
 async function readSetting(key: string): Promise<unknown | null> {
-  const rows = await db
-    .select({ value: siteSettings.value })
-    .from(siteSettings)
-    .where(eq(siteSettings.key, key))
-    .limit(1)
-  return rows[0]?.value ?? null
+  try {
+    const rows = await db
+      .select({ value: siteSettings.value })
+      .from(siteSettings)
+      .where(eq(siteSettings.key, key))
+      .limit(1)
+    return rows[0]?.value ?? null
+  } catch {
+    // A transient DB outage must not 500 the whole storefront over an optional
+    // cosmetic setting (e.g. the promo bar). Degrade to "unset" — callers
+    // already treat null as "render nothing". Also lets pages that only depend
+    // on settings render standalone when the DB is down (e.g. local previews).
+    return null
+  }
 }
 
 /**

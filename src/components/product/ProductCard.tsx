@@ -18,37 +18,46 @@ export function ProductCard({
   product: ArtistProduct
   rating?: { count: number; average: number }
 }): JSX.Element {
+  const price = product.priceCents !== null ? `$${(product.priceCents / 100).toFixed(2)}` : '—'
+
   return (
-    <Link
-      href={`/product/${product.id}` as Route}
-      className="block rounded-lg transition hover:opacity-90"
-    >
-      {product.imageUrl ? (
-        <Image
-          src={product.imageUrl}
-          alt={product.name}
-          width={600}
-          height={900}
-          className="aspect-[2/3] w-full rounded-md object-cover"
-        />
-      ) : (
-        <div
-          aria-hidden="true"
-          className="flex aspect-[2/3] w-full items-center justify-center rounded-md bg-gray-200 text-sm text-gray-500"
-        >
-          No image
+    <Link href={`/product/${product.id}` as Route} className="group block hover:no-underline">
+      <article className="card-street overflow-hidden">
+        {/* Art frame — HUD brackets + scanline grit, like a backlit gallery panel */}
+        <div className="hud scanlines relative aspect-[2/3] w-full overflow-hidden bg-wall-2">
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              width={600}
+              height={900}
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="flex h-full w-full items-center justify-center text-sm text-faint"
+            >
+              No image
+            </div>
+          )}
         </div>
-      )}
-      <div className="mt-2 text-sm font-medium">{product.name}</div>
-      <div className="text-sm text-gray-600">
-        {product.priceCents !== null ? `$${(product.priceCents / 100).toFixed(2)}` : '—'}
-      </div>
-      {rating && rating.count > 0 && (
-        <div className="mt-1 flex items-center gap-1 text-sm">
-          <StarRating value={rating.average} count={rating.count} />
-          <span className="text-gray-500">({rating.count})</span>
+
+        <div className="flex items-start justify-between gap-3 px-3 py-3">
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-medium text-bone group-hover:text-purple-soft">
+              {product.name}
+            </h3>
+            {rating && rating.count > 0 && (
+              <div className="mt-1.5 flex items-center gap-1 text-xs">
+                <StarRating value={rating.average} count={rating.count} />
+                <span className="text-faint">({rating.count})</span>
+              </div>
+            )}
+          </div>
+          <span className="shrink-0 font-mono text-sm font-bold text-neon">{price}</span>
         </div>
-      )}
+      </article>
     </Link>
   )
 }

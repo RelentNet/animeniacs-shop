@@ -3,7 +3,29 @@ import { Footer } from '@/components/layout/Footer'
 import { Header } from '@/components/layout/Header'
 import { PromoBar } from '@/components/layout/PromoBar'
 import type { Metadata } from 'next'
+import { Bebas_Neue, Space_Grotesk, Space_Mono } from 'next/font/google'
 import './globals.css'
+
+// Street-poster display face for headlines, a clean grotesk for body/UI, and
+// a mono "HUD" face for eyebrows/tech labels. Exposed as CSS vars and consumed
+// by the @theme tokens in globals.css.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-grotesk'
+})
+const bebas = Bebas_Neue({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-bebas'
+})
+const spaceMono = Space_Mono({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-space-mono'
+})
 
 export const metadata: Metadata = {
   title: 'Animeniacs',
@@ -21,8 +43,8 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="flex min-h-screen flex-col">
+    <html lang="en" className={`${spaceGrotesk.variable} ${bebas.variable} ${spaceMono.variable}`}>
+      <body className="flex min-h-screen flex-col bg-ink text-bone">
         <CartProvider>
           <PromoBar />
           <Header />

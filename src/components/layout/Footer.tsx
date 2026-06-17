@@ -1,112 +1,106 @@
 import Link from 'next/link'
 import { NewsletterSignupStub } from './NewsletterSignupStub'
 
+const SECTIONS = [
+  {
+    id: 'footer-help',
+    title: 'Need help',
+    links: [
+      { href: '/how-to-display-our-art', label: 'How to display your art' },
+      { href: '/faqs', label: 'FAQs' },
+      { href: '/contact-us', label: 'Contact us' }
+    ]
+  },
+  {
+    id: 'footer-follow',
+    title: 'Follow us',
+    links: [
+      { href: 'https://instagram.com/animeniacs.shop', label: 'Instagram', external: true },
+      { href: 'https://facebook.com/Animeniacs.shop', label: 'Facebook', external: true },
+      { href: '/twitch', label: 'Twitch' },
+      { href: 'https://discord.gg/VAwd8sJp', label: 'Discord', external: true }
+    ]
+  },
+  {
+    id: 'footer-partner',
+    title: 'Partner with us',
+    links: [
+      { href: '/partner-with-us', label: 'Partner with us' },
+      { href: 'https://affiliates.animeniacs.shop', label: 'Become an artist', external: true },
+      { href: '/b2b', label: 'B2B' },
+      { href: '/brand', label: 'Brand kit' },
+      {
+        href: 'https://affiliates.animeniacs.shop/program-legal/terms',
+        label: 'Artist agreement',
+        external: true
+      },
+      { href: '/careers', label: 'Careers' }
+    ]
+  },
+  {
+    id: 'footer-info',
+    title: 'Info',
+    links: [
+      { href: '/about-us', label: 'About us' },
+      { href: '/terms-of-service', label: 'Terms of service' },
+      { href: '/privacy-policy', label: 'Privacy policy' },
+      { href: '/shipping-policy', label: 'Shipping policy' },
+      { href: '/refund-return-policy', label: 'Refund & return policy' }
+    ]
+  }
+] as const
+
 export function Footer() {
   return (
-    <footer className="mt-16 border-t border-gray-200 bg-gray-50 text-gray-700">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-4">
-        <section aria-labelledby="footer-help">
-          <h2 id="footer-help" className="text-sm font-semibold uppercase text-gray-900">
-            Need Help
-          </h2>
-          <ul className="mt-3 space-y-1 text-sm">
-            <li>
-              <Link href="/how-to-display-our-art">How to Display Your Art</Link>
-            </li>
-            <li>
-              <Link href="/faqs">FAQs</Link>
-            </li>
-            <li>
-              <Link href="/contact-us">Contact Us</Link>
-            </li>
-          </ul>
-        </section>
-
-        <section aria-labelledby="footer-follow">
-          <h2 id="footer-follow" className="text-sm font-semibold uppercase text-gray-900">
-            Follow Us
-          </h2>
-          <ul className="mt-3 space-y-1 text-sm">
-            <li>
-              <a href="https://instagram.com/animeniacs.shop" target="_blank" rel="noreferrer">
-                Instagram
-              </a>
-            </li>
-            <li>
-              <a href="https://facebook.com/Animeniacs.shop" target="_blank" rel="noreferrer">
-                Facebook
-              </a>
-            </li>
-            <li>
-              <Link href="/twitch">Twitch</Link>
-            </li>
-            <li>
-              <a href="https://discord.gg/VAwd8sJp" target="_blank" rel="noreferrer">
-                Discord
-              </a>
-            </li>
-          </ul>
-        </section>
-
-        <section aria-labelledby="footer-partner">
-          <h2 id="footer-partner" className="text-sm font-semibold uppercase text-gray-900">
-            Partner with Us
-          </h2>
-          <ul className="mt-3 space-y-1 text-sm">
-            <li>
-              <Link href="/partner-with-us">Partner with Us</Link>
-            </li>
-            <li>
-              <a href="https://affiliates.animeniacs.shop" target="_blank" rel="noreferrer">
-                Become an Artist
-              </a>
-            </li>
-            <li>
-              <Link href="/b2b">B2B</Link>
-            </li>
-            <li>
-              <a
-                href="https://affiliates.animeniacs.shop/program-legal/terms"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Artist Agreement
-              </a>
-            </li>
-            <li>
-              <Link href="/careers">Careers</Link>
-            </li>
-          </ul>
-        </section>
-
-        <section aria-labelledby="footer-info">
-          <h2 id="footer-info" className="text-sm font-semibold uppercase text-gray-900">
-            Info
-          </h2>
-          <ul className="mt-3 space-y-1 text-sm">
-            <li>
-              <Link href="/about-us">About Us</Link>
-            </li>
-            <li>
-              <Link href="/terms-of-service">Terms of Service</Link>
-            </li>
-            <li>
-              <Link href="/privacy-policy">Privacy Policy</Link>
-            </li>
-            <li>
-              <Link href="/shipping-policy">Shipping Policy</Link>
-            </li>
-            <li>
-              <Link href="/refund-return-policy">Refund & Return Policy</Link>
-            </li>
-          </ul>
-        </section>
+    <footer className="mt-24 border-t border-line bg-ink-2 text-muted">
+      {/* Newsletter band */}
+      <div className="speed-lines border-b border-line">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-5 px-4 py-8 md:flex-row md:items-center">
+          <div>
+            <p className="eyebrow">Join the crew</p>
+            <p className="mt-2 max-w-md text-sm text-muted">
+              New drops, artist collabs, and street-team perks — straight to your inbox.
+            </p>
+          </div>
+          <NewsletterSignupStub />
+        </div>
       </div>
 
-      <div className="border-t border-gray-200">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-4 py-6 text-sm md:flex-row md:items-center">
-          <NewsletterSignupStub />
-          <p>© {new Date().getFullYear()} Animeniacs</p>
+      {/* Link columns */}
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:grid-cols-2 md:grid-cols-4">
+        {SECTIONS.map((section) => (
+          <section key={section.id} aria-labelledby={section.id}>
+            <h2 id={section.id} className="eyebrow text-purple-soft">
+              {section.title}
+            </h2>
+            <ul className="mt-4 space-y-2.5 text-sm">
+              {section.links.map((link) => (
+                <li key={link.href}>
+                  {'external' in link && link.external ? (
+                    <a href={link.href} target="_blank" rel="noreferrer" className="link-neon">
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link href={link.href} className="link-neon">
+                      {link.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      {/* Bottom bar */}
+      <div className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-4 px-4 py-6 text-xs md:flex-row md:items-center">
+          <span className="font-display text-xl tracking-wide text-bone">
+            ANIM<span className="neon-text">É</span>NIACS
+          </span>
+          <p className="text-faint">
+            © {new Date().getFullYear()} Animeniacs — fandom at its best.
+          </p>
         </div>
       </div>
     </footer>

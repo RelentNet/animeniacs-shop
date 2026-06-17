@@ -14,12 +14,14 @@ export function NewsletterSignupStub() {
 
   if (submitted) {
     return (
-      <output className="text-sm text-gray-700">Thanks — newsletter signup launching soon.</output>
+      <output className="text-sm text-neon-soft">
+        You're in. Watch your inbox for the next drop.
+      </output>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-sm gap-2">
       <label htmlFor="newsletter-email" className="sr-only">
         Email
       </label>
@@ -28,12 +30,9 @@ export function NewsletterSignupStub() {
         type="email"
         required
         placeholder="you@example.com"
-        className="rounded border border-gray-300 px-3 py-1 text-sm"
+        className="min-w-0 flex-1 rounded-md border border-line-strong bg-wall px-3 py-2 text-sm text-bone placeholder:text-faint focus:border-neon focus:outline-none"
       />
-      <button
-        type="submit"
-        className="rounded border border-gray-300 bg-gray-100 px-3 py-1 text-sm"
-      >
+      <button type="submit" className="btn-neon !px-4 !py-2 text-sm">
         Subscribe
       </button>
     </form>

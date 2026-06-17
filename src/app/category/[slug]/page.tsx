@@ -31,31 +31,34 @@ export default async function CategoryPage({ params }: PageProps): Promise<JSX.E
   const summaries = await getReviewSummariesForProducts(products.map((p) => p.id))
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-12">
       <header
-        className="mb-8 flex h-48 items-center justify-center rounded-lg"
+        className="hud scanlines mb-8 flex h-56 items-end overflow-hidden rounded-xl border border-line-strong p-8"
         style={{
-          // Brand-neutral CSS gradient until per-IP cover image uploads land.
-          background: 'linear-gradient(135deg, #1f2937 0%, #4b5563 100%)'
+          // Brand night-drive gradient until per-IP cover image uploads land.
+          background: 'radial-gradient(120% 140% at 0% 0%, #2a1248 0%, #120b1f 55%, #0d0a14 100%)'
         }}
       >
-        <h1 className="text-4xl font-bold text-white">{nickname.nickname}</h1>
+        <div>
+          <p className="eyebrow">Series</p>
+          <h1 className="font-display mt-1 text-6xl text-bone">{nickname.nickname}</h1>
+        </div>
       </header>
 
       {nickname.description && (
-        <p data-testid="ip-description" className="mb-8 text-gray-700">
+        <p data-testid="ip-description" className="mb-10 max-w-2xl text-muted">
           {nickname.description}
         </p>
       )}
 
       {products.length === 0 ? (
-        <section className="rounded-lg bg-gray-50 p-8 text-center">
+        <section className="rounded-lg border border-line bg-wall p-10 text-center text-muted">
           <p>No drops featuring {nickname.nickname} just yet.</p>
         </section>
       ) : (
         <section>
           <h2 className="sr-only">Drops</h2>
-          <ul className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
             {products.map((p) => (
               <li key={p.id}>
                 <ProductCard product={p} rating={summaries.get(p.id)} />

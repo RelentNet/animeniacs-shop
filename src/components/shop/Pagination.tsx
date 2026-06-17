@@ -39,7 +39,7 @@ export function Pagination({
         <Link
           href={buildHref(params, page - 1) as Route}
           rel="prev"
-          className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+          className="rounded-md px-3 py-2 text-sm font-medium text-muted transition hover:bg-wall-2 hover:text-bone"
         >
           ‹ Previous
         </Link>
@@ -50,7 +50,7 @@ export function Pagination({
           <span
             key={n}
             aria-current="page"
-            className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white"
+            className="rounded-md bg-neon px-3 py-2 text-sm font-bold text-ink"
           >
             {n}
           </span>
@@ -58,7 +58,7 @@ export function Pagination({
           <Link
             key={n}
             href={buildHref(params, n) as Route}
-            className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+            className="rounded-md border border-line px-3 py-2 text-sm font-medium text-muted transition hover:border-line-strong hover:text-neon"
           >
             {n}
           </Link>
@@ -69,7 +69,7 @@ export function Pagination({
         <Link
           href={buildHref(params, page + 1) as Route}
           rel="next"
-          className="rounded-md px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+          className="rounded-md px-3 py-2 text-sm font-medium text-muted transition hover:bg-wall-2 hover:text-bone"
         >
           Next ›
         </Link>

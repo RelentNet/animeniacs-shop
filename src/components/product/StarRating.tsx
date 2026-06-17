@@ -23,7 +23,7 @@ export function StarRating({
         <span
           key={star}
           aria-hidden="true"
-          className={star <= rounded ? 'text-amber-500' : 'text-gray-300'}
+          className={star <= rounded ? 'text-amber-400' : 'text-white/20'}
         >
           ★
         </span>

@@ -1,11 +1,47 @@
 @import "tailwindcss";
 
+/* ===========================================================================
+   Animeniacs "Street Gallery" theme
+   Dark purple night-drive base + neon-green spray accents. Energy borrowed
+   from JDM / Initial D street culture and a cyberpunk neon edge. Purple is
+   the surface (≈90% of the canvas); neon green is the accent only — CTAs,
+   prices, focus, hover glow, stickers. Never neon-green body text at length.
+   =========================================================================== */
+
+@theme {
+  /* Surfaces — deep violet "night" stack */
+  --color-ink: #0d0a14; /* page base */
+  --color-ink-2: #120b1f; /* raised base */
+  --color-wall: #1a0f2e; /* card / section surface */
+  --color-wall-2: #221536; /* raised card / hover surface */
+
+  /* Brand purple ramp */
+  --color-purple: #8b3dff; /* primary brand */
+  --color-purple-bright: #a855f7;
+  --color-purple-deep: #5b21b6;
+  --color-purple-soft: #c4a5ff; /* light accent / secondary text */
+
+  /* Neon accent */
+  --color-neon: #39ff14; /* spray-paint green — accents only */
+  --color-neon-soft: #7cff66; /* legible green for small text/links */
+
+  /* Ink-on-dark text */
+  --color-bone: #f3eeff; /* primary text */
+  --color-muted: #a99bc9; /* secondary text */
+  --color-faint: #6f6390; /* tertiary / hints */
+
+  /* Hairline */
+  --color-line: rgba(139, 61, 255, 0.22);
+  --color-line-strong: rgba(139, 61, 255, 0.45);
+
+  /* Type */
+  --font-sans: var(--font-space-grotesk), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-bebas), "Arial Narrow", system-ui, sans-serif;
+  --font-mono: var(--font-space-mono), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
 :root {
-  /* Force light-mode rendering site-wide for v1. A proper light/dark
-     theme is a future styling phase. Without this, browsers in OS
-     dark mode flip default text color to white, which makes our
-     light-background layouts (header, footer, drawer, etc.) unreadable. */
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html,
@@ -15,20 +51,254 @@ body {
 }
 
 body {
-  /* Explicit base text color + background so nothing renders white-on-white
-     even before component-level classes apply. */
-  color: #111827; /* tailwind gray-900 */
-  background: #ffffff;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--color-bone);
+  background-color: var(--color-ink);
+  /* Night-drive vignette: a purple haze up top, a faint neon glow off the
+     top-right, like a streetlight catching the windshield. */
+  background-image: radial-gradient(
+      1200px 620px at 50% -12%,
+      rgba(139, 61, 255, 0.2),
+      transparent 62%
+    ), radial-gradient(760px 420px at 102% -4%, rgba(57, 255, 20, 0.07), transparent 60%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Default link styling: visible, underlined on hover. Components can
-   still override (e.g. nav links that should look like plain text). */
+/* Links default to bone; components opt into neon where it reads. */
 a {
   color: inherit;
   text-decoration: none;
 }
-a:hover {
-  text-decoration: underline;
+
+/* Visible keyboard focus everywhere — neon ring. */
+:focus-visible {
+  outline: 2px solid var(--color-neon);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-neon);
+  color: var(--color-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Component utilities, in the components layer so single-class color/spacing
+   utilities (e.g. `eyebrow text-purple-soft`) still override them.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* Display headings — condensed street-poster face, slight optical tracking. */
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: 0.01em;
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+
+  /* Mono "HUD" eyebrow / tech label. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.28em;
+    font-size: 0.72rem;
+    color: var(--color-neon);
+  }
+
+  /* Neon text with a soft glow halo. */
+  .neon-text {
+    color: var(--color-neon);
+    text-shadow: 0 0 8px rgba(57, 255, 20, 0.55), 0 0 22px rgba(57, 255, 20, 0.28);
+  }
+  .purple-text {
+    color: var(--color-purple-soft);
+    text-shadow: 0 0 12px rgba(139, 61, 255, 0.45);
+  }
+
+  /* Primary CTA — neon fill, dark ink text, angular cut corner, hover glow. */
+  .btn-neon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--color-neon);
+    color: var(--color-ink);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    padding: 0.7rem 1.4rem;
+    border: none;
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% 72%, calc(100% - 0.7rem) 100%, 0 100%);
+    transition: box-shadow 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  }
+  .btn-neon:hover {
+    background: #5cff3d;
+    box-shadow: 0 0 0 1px rgba(57, 255, 20, 0.6), 0 0 26px rgba(57, 255, 20, 0.5);
+    transform: translateY(-1px);
+    text-decoration: none;
+  }
+  .btn-neon:active {
+    transform: translateY(0);
+  }
+
+  /* Secondary CTA — ghost with purple hairline, neon on hover. */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: var(--color-bone);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    padding: 0.7rem 1.4rem;
+    border: 1px solid var(--color-line-strong);
+    cursor: pointer;
+    clip-path: polygon(0 0, 100% 0, 100% 72%, calc(100% - 0.7rem) 100%, 0 100%);
+    transition: border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  }
+  .btn-ghost:hover {
+    border-color: var(--color-neon);
+    color: var(--color-neon);
+    box-shadow: 0 0 22px rgba(57, 255, 20, 0.18);
+    text-decoration: none;
+  }
+
+  /* Street card — wall surface, purple hairline, lift + glow on hover. */
+  .card-street {
+    position: relative;
+    background: var(--color-wall);
+    border: 1px solid var(--color-line);
+    border-radius: 0.6rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+  .card-street:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-line-strong);
+    box-shadow: 0 14px 40px -12px rgba(139, 61, 255, 0.55), 0 0 0 1px rgba(57, 255, 20, 0.12);
+  }
+
+  /* Cyberpunk HUD corner brackets (top-left + bottom-right). Apply to a
+   position:relative element. */
+  .hud::before,
+  .hud::after {
+    content: "";
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    z-index: 2;
+  }
+  .hud::before {
+    top: 7px;
+    left: 7px;
+    border-top: 2px solid var(--color-neon);
+    border-left: 2px solid var(--color-neon);
+  }
+  .hud::after {
+    bottom: 7px;
+    right: 7px;
+    border-bottom: 2px solid var(--color-neon);
+    border-right: 2px solid var(--color-neon);
+  }
+
+  /* Rotated "sticker" badge — like a slapped-on tag. */
+  .sticker {
+    display: inline-block;
+    background: var(--color-neon);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    transform: rotate(-6deg);
+    box-shadow: 0 4px 14px rgba(57, 255, 20, 0.3);
+  }
+
+  /* Glows. */
+  .glow-purple {
+    box-shadow: 0 0 0 1px var(--color-line-strong), 0 0 40px -6px rgba(139, 61, 255, 0.5);
+  }
+  .glow-neon {
+    box-shadow: 0 0 0 1px rgba(57, 255, 20, 0.5), 0 0 30px -4px rgba(57, 255, 20, 0.45);
+  }
+
+  /* Neon hover-underline for nav/links. */
+  .link-neon {
+    position: relative;
+    color: var(--color-muted);
+    transition: color 0.16s ease;
+  }
+  .link-neon::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    height: 2px;
+    width: 0;
+    background: var(--color-neon);
+    box-shadow: 0 0 8px rgba(57, 255, 20, 0.7);
+    transition: width 0.2s ease;
+  }
+  .link-neon:hover {
+    color: var(--color-bone);
+    text-decoration: none;
+  }
+  .link-neon:hover::after {
+    width: 100%;
+  }
+
+  /* Diagonal speed-line band — a JDM motion streak for dividers/hero. */
+  .speed-lines {
+    background-image: repeating-linear-gradient(
+      115deg,
+      transparent 0,
+      transparent 12px,
+      rgba(139, 61, 255, 0.16) 12px,
+      rgba(139, 61, 255, 0.16) 14px
+    );
+  }
+
+  /* CRT scanlines — opt-in overlay for hero / feature panels. */
+  .scanlines {
+    position: relative;
+  }
+  .scanlines::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 3px,
+      rgba(0, 0, 0, 0.22) 3px,
+      rgba(0, 0, 0, 0.22) 4px
+    );
+    opacity: 0.5;
+    mix-blend-mode: overlay;
+    z-index: 1;
+  }
+
+  /* Thin neon divider. */
+  .rule-neon {
+    height: 1px;
+    border: 0;
+    background: linear-gradient(90deg, transparent, var(--color-neon), transparent);
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-street,
+  .btn-neon,
+  .btn-ghost,
+  .link-neon::after {
+    transition: none;
+  }
 }

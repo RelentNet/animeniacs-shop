@@ -2,46 +2,46 @@ import { CartButton } from '@/components/cart/CartButton'
 import type { Route } from 'next'
 import Link from 'next/link'
 
+/**
+ * Compact nav wordmark. The full graffiti logo is too detailed to read at nav
+ * size, so it headlines the hero instead; here we use a crisp text lockup with
+ * the neon-accented "É" matching the mark.
+ */
+function Wordmark() {
+  return (
+    <Link
+      href="/"
+      aria-label="Animeniacs home"
+      className="font-display text-3xl tracking-wide text-bone transition-colors hover:text-neon hover:no-underline"
+    >
+      ANIM<span className="neon-text">É</span>NIACS
+    </Link>
+  )
+}
+
+const NAV: { href: Route; label: string }[] = [
+  { href: '/shop' as Route, label: 'Shop' },
+  { href: '/artist' as Route, label: 'Artists' },
+  { href: '/custom/acrylic' as Route, label: 'Custom Acrylic' },
+  { href: '/custom/stickers' as Route, label: 'Custom Stickers' },
+  { href: '/account' as Route, label: 'Account' }
+]
+
 export function Header() {
   return (
-    <header className="border-b border-gray-200 bg-white text-gray-900">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link href="/" className="text-xl font-bold text-gray-900 hover:no-underline">
-          Animeniacs
-        </Link>
+    <header className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-md">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3">
+        <Wordmark />
         <nav aria-label="Primary">
-          <ul className="flex items-center gap-4 text-sm text-gray-700">
-            <li>
-              <Link href="/" className="hover:text-gray-900">
-                Home
-              </Link>
-            </li>
-            <li>
-              <Link href="/shop" className="hover:text-gray-900">
-                Shop
-              </Link>
-            </li>
-            <li>
-              <Link href={'/artist' as Route} className="hover:text-gray-900">
-                Artists
-              </Link>
-            </li>
-            <li>
-              <Link href={'/custom/acrylic' as Route} className="hover:text-gray-900">
-                Custom Acrylic
-              </Link>
-            </li>
-            <li>
-              <Link href={'/custom/stickers' as Route} className="hover:text-gray-900">
-                Custom Stickers
-              </Link>
-            </li>
-            <li>
-              <Link href={'/account' as Route} className="hover:text-gray-900">
-                Account
-              </Link>
-            </li>
-            <li>
+          <ul className="flex items-center gap-6 text-sm font-medium">
+            {NAV.map((item) => (
+              <li key={item.href} className="hidden md:block">
+                <Link href={item.href} className="link-neon">
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+            <li className="text-bone">
               <CartButton />
             </li>
           </ul>
