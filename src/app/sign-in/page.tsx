@@ -83,6 +83,15 @@ export default function SignInPage(): JSX.Element {
         >
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <p className="text-sm text-gray-600">
+          <Link
+            href={'/forgot-password' as Route}
+            className="text-gray-600 underline hover:text-gray-900"
+          >
+            Forgot password?
+          </Link>
+        </p>
       </form>
 
       <p className="mt-6 text-sm text-gray-600">

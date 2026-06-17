@@ -33,4 +33,13 @@ describe('sign-in page', () => {
     await fillAndSubmit()
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid credentials/i)
   })
+
+  it('links to /forgot-password', async () => {
+    const { default: SignInPage } = await import('@/app/sign-in/page')
+    render(<SignInPage />)
+    expect(screen.getByRole('link', { name: /forgot password/i })).toHaveAttribute(
+      'href',
+      '/forgot-password'
+    )
+  })
 })
