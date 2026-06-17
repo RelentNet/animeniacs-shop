@@ -11,6 +11,20 @@ machine. Read this first, then the linked phase handoff.
 
 ## Where we are right now
 
+- **Phase 18 (order-log fidelity) — SHIPPED, deployed, VERIFIED live, TAGGED
+  `phase-18-order-log-fidelity`.** `main` @ `41e4923`.
+  - Admin list/detail mirror Square **order state** (OPEN/COMPLETED) next to our
+    status; detail shows a **Shipment** section (recipient/address/carrier/
+    tracking) from the Square snapshot, refreshed on webhooks. Checkout now sets
+    **askForShippingAddress** (collects ship-to address).
+  - Migration-free; gates green (583 tests, 41/41 build, canaries 0/0).
+  - **Live-verified 2026-06-17:** Square-state mirror shown; shipment display
+    proven end-to-end (injected a sandbox SHIPMENT via API → webhook → renders).
+  - **Sandbox caveat:** the sandbox checkout *simulator* doesn't render the
+    address prompt (Square limitation) — `askForShippingAddress` is correctly set
+    (API-confirmed); the prompt appears on the **production** checkout. Re-confirm
+    P18-1 + real shipment details at cutover. Detail:
+    [phase-18-handoff.md](./phase-18-handoff.md).
 - **Phase 17 (admin order tooling) — SHIPPED, deployed, VERIFIED live on dev,
   and TAGGED `phase-17-admin-order-tooling`.** Read-only order log + dashboard.
   - `main` @ `7957794` (deployed to dev; tag at `45b8f1a`). Refunds + fulfillment/shipping are
