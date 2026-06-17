@@ -94,10 +94,10 @@ Phase 16. Rough order = fastest → biggest.
    — both set in Coolify (from = `noreply@updates.animeniacs.shop`); password-reset
    send triggered (`POST /api/auth/request-password-reset`, 200). **Operator to
    confirm the reset email actually arrived** (verifies the `updates.animeniacs.shop`
-   domain in Resend). ⚠️ **GAP: the forgot-password UI does NOT exist** — no
-   "Forgot password?" link and no reset-password page (backend `sendResetPassword`
-   IS wired, `src/lib/auth.ts:47`). **Pre-launch build item:** add the request
-   form + reset-password landing page, else users can't reset passwords.
+   domain in Resend — operator confirmed Resend works 2026-06-17). ✅ **Forgot-
+   password UI BUILT + shipped** (`f8013a5`/`641fb26`/`506381b`): `/forgot-password`
+   + `/reset-password` pages + a "Forgot password?" link on `/sign-in`, wired to
+   better-auth `requestPasswordReset`/`resetPassword`. (Phase 19.)
 2. **Wire the abandoned-cart cron** — endpoint VERIFIED 2026-06-17
    (`POST /api/cron/abandoned-carts` with `x-cron-secret` → `{"processed":0}`,
    200; secret authorizes). Still UI-only to schedule (API not exposed, 404):
@@ -117,9 +117,11 @@ Phase 16. Rough order = fastest → biggest.
    **Delete** (destroys Logto's DB) left to the operator in the Coolify UI if
    desired.
 
-### B. Data entry
-- Create the ~15 remaining artist records via `/admin/artists`; repoint merc to
-  its 61-item category. The `/artist` empty state on dev is correct until then.
+### B. Data entry — DONE ✅ (2026-06-17)
+- **16 artist records created** + linked to their Square "Artist > *" sub-categories
+  via `/admin/artists` (driven through the admin UI), all `active`, showing on the
+  public `/artist`. Avatars/social links left blank for the operator to edit.
+  (`Bxnny.Arts` + `Merc Da Artist` pre-existed; 14 added this session.)
 
 ### C. Live verification — Phase 17 read-only legs DONE ✅ (2026-06-17)
 Verified on dev sandbox: order recording + listing, refund reflection (via
