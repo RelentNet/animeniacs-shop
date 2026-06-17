@@ -16,7 +16,7 @@ describe('NewsletterSignupStub', () => {
     const form = input.closest('form')
     if (!form) throw new Error('expected form to exist')
     fireEvent.submit(form)
-    expect(screen.getByText(/newsletter signup launching soon/i)).toBeInTheDocument()
+    expect(screen.getByText(/watch your inbox for the next drop/i)).toBeInTheDocument()
     // Original form is gone after submit.
     expect(screen.queryByRole('button', { name: 'Subscribe' })).not.toBeInTheDocument()
   })

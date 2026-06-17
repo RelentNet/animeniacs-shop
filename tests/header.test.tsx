@@ -4,9 +4,11 @@ import { describe, expect, it } from 'vitest'
 import { renderWithCart } from './cart/helpers'
 
 describe('Header', () => {
-  it('renders the brand name', () => {
+  it('renders the brand logo linking home', () => {
     renderWithCart(<Header />)
-    expect(screen.getByText('Animeniacs')).toBeInTheDocument()
+    // The redesign replaced the text wordmark with an SVG Logo inside a
+    // home link labelled "Animeniacs home".
+    expect(screen.getByRole('link', { name: /animeniacs home/i })).toHaveAttribute('href', '/')
   })
 
   it('includes primary navigation links', () => {

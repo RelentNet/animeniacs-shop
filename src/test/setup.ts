@@ -1,4 +1,17 @@
 import '@testing-library/jest-dom/vitest'
+import { vi } from 'vitest'
+
+/**
+ * Mock `next/font/google` globally. The "Street Gallery" redesign loads fonts
+ * (Bebas Neue / Space Grotesk / Space Mono) in `src/app/layout.tsx`; under
+ * jsdom the real loader isn't available (`Space_Grotesk is not a function`), so
+ * any test importing the layout (e.g. segment-config) crashes. Each named font
+ * factory returns the minimal shape components read (`className` / `variable`).
+ */
+vi.mock('next/font/google', () => {
+  const font = () => ({ className: '', variable: '', style: { fontFamily: '' } })
+  return { __esModule: true, Bebas_Neue: font, Space_Grotesk: font, Space_Mono: font }
+})
 
 /**
  * Polyfill `window.localStorage` for jsdom tests.
