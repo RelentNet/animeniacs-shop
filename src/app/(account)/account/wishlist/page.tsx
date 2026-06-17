@@ -22,33 +22,42 @@ export default async function WishlistPage(): Promise<JSX.Element> {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">Wishlist</h1>
+      <p className="eyebrow">Account</p>
+      <h1 className="mt-2 font-display text-4xl tracking-wide text-bone sm:text-5xl">Wishlist</h1>
 
       {products.length === 0 ? (
-        <p className="mt-4 text-sm text-gray-600">Your wishlist is empty.</p>
+        <p className="mt-4 text-sm text-muted">Your wishlist is empty.</p>
       ) : (
         <ul className="mt-6 grid grid-cols-2 gap-6 sm:grid-cols-3">
           {products.map((product) => (
             <li key={product.id} className="flex flex-col">
-              <Link href={`/product/${product.id}` as Route} className="block">
+              <Link
+                href={`/product/${product.id}` as Route}
+                className="group block hover:no-underline"
+              >
                 {product.images[0] ? (
                   <Image
                     src={product.images[0]}
                     alt={product.name}
                     width={300}
                     height={450}
-                    className="aspect-[2/3] w-full rounded object-cover"
+                    className="aspect-[2/3] w-full rounded-md border border-line object-cover transition group-hover:border-neon"
                   />
                 ) : (
-                  <div className="aspect-[2/3] w-full rounded bg-gray-200" aria-hidden="true" />
+                  <div
+                    className="aspect-[2/3] w-full rounded-md border border-line bg-wall-2"
+                    aria-hidden="true"
+                  />
                 )}
-                <span className="mt-2 block text-sm font-medium text-gray-900">{product.name}</span>
+                <span className="mt-2 block text-sm font-medium text-bone group-hover:text-purple-soft">
+                  {product.name}
+                </span>
               </Link>
               <form action={removeWishlistItemAction} className="mt-2">
                 <input type="hidden" name="productId" value={product.id} />
                 <button
                   type="submit"
-                  className="text-sm text-gray-500 underline hover:text-gray-900"
+                  className="text-sm text-muted transition-colors hover:text-neon hover:no-underline"
                 >
                   Remove
                 </button>

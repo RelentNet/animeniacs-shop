@@ -22,7 +22,7 @@ export function SignOutButton({ className }: { className?: string }): JSX.Elemen
       type="button"
       onClick={onClick}
       disabled={loading}
-      className={className ?? 'text-gray-700 hover:underline disabled:opacity-60'}
+      className={className ?? 'text-muted transition-colors hover:text-neon disabled:opacity-60'}
     >
       {loading ? 'Signing out…' : 'Sign out'}
     </button>

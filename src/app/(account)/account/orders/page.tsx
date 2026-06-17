@@ -28,29 +28,37 @@ export default async function OrdersPage(): Promise<JSX.Element> {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Order history</h1>
+      <p className="eyebrow">Account</p>
+      <h1 className="mt-2 font-display text-4xl tracking-wide text-bone sm:text-5xl">
+        Order history
+      </h1>
 
       {orders.length === 0 ? (
-        <p className="mt-6 text-gray-700">You have no orders yet.</p>
+        <p className="mt-6 text-muted">You have no orders yet.</p>
       ) : (
         <ul className="mt-6 space-y-3">
           {orders.map((order) => (
             <li
               key={order.id}
-              className="rounded-lg border border-gray-200 p-4 transition hover:border-gray-400"
+              className="rounded-lg border border-line bg-wall transition hover:border-line-strong"
             >
               <Link
                 href={`/account/orders/${order.id}` as Route}
                 aria-label={`View order from ${formatDate(order.placedAt)}`}
-                className="flex items-center justify-between gap-4"
+                className="group flex items-center justify-between gap-4 p-4 hover:no-underline"
               >
-                <span className="text-sm text-gray-700">{formatDate(order.placedAt)}</span>
-                <span className="font-semibold text-gray-900">{formatCents(order.totalCents)}</span>
-                <span className="text-sm text-gray-500">{statusLabel(order.status)}</span>
-                <span className="text-sm text-gray-500">
+                <span className="text-sm text-muted">{formatDate(order.placedAt)}</span>
+                <span className="font-mono font-semibold text-bone">
+                  {formatCents(order.totalCents)}
+                </span>
+                <span className="text-sm text-muted">{statusLabel(order.status)}</span>
+                <span className="text-sm text-muted">
                   {fulfillmentLabel(order.fulfillmentState)}
                 </span>
-                <span aria-hidden className="text-gray-400">
+                <span
+                  aria-hidden
+                  className="text-sm text-neon-soft transition-colors group-hover:text-neon"
+                >
                   View &rarr;
                 </span>
               </Link>

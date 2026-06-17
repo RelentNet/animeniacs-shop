@@ -24,7 +24,10 @@ export default async function OrderDetailPage({
 
   return (
     <div>
-      <Link href={'/account/orders' as Route} className="text-sm text-gray-600 hover:underline">
+      <Link
+        href={'/account/orders' as Route}
+        className="text-sm text-neon-soft transition-colors hover:text-neon hover:no-underline"
+      >
         &larr; Back to order history
       </Link>
 

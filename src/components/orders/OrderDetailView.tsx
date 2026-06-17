@@ -27,45 +27,48 @@ export function OrderDetailView({ order }: { order: Order }): JSX.Element {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Order</h1>
-      <p className="mt-1 text-sm text-gray-500">
-        Order number: <code>{order.squareOrderId}</code>
+      <p className="eyebrow">Receipt</p>
+      <h1 className="mt-2 font-display text-4xl tracking-wide text-bone sm:text-5xl">Order</h1>
+      <p className="mt-1 text-sm text-muted">
+        Order number: <code className="font-mono text-purple-soft">{order.squareOrderId}</code>
       </p>
 
-      <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:max-w-md">
-        <dt className="text-gray-500">Placed</dt>
-        <dd className="text-gray-900">{formatDate(order.placedAt)}</dd>
-        <dt className="text-gray-500">Status</dt>
-        <dd className="text-gray-900">{statusLabel(order.status)}</dd>
-        <dt className="text-gray-500">Fulfillment</dt>
-        <dd className="text-gray-900">{fulfillmentLabel(order.fulfillmentState)}</dd>
-        <dt className="text-gray-500">Total</dt>
-        <dd className="font-semibold text-gray-900">{formatCents(order.totalCents)}</dd>
+      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:max-w-md">
+        <dt className="text-muted">Placed</dt>
+        <dd className="text-bone">{formatDate(order.placedAt)}</dd>
+        <dt className="text-muted">Status</dt>
+        <dd className="text-bone">{statusLabel(order.status)}</dd>
+        <dt className="text-muted">Fulfillment</dt>
+        <dd className="text-bone">{fulfillmentLabel(order.fulfillmentState)}</dd>
+        <dt className="text-muted">Total</dt>
+        <dd className="font-mono font-semibold text-neon neon-text">
+          {formatCents(order.totalCents)}
+        </dd>
         {refundedCents > 0 && (
           <>
-            <dt className="text-gray-500">Refunded</dt>
-            <dd className="font-semibold text-gray-900">
+            <dt className="text-muted">Refunded</dt>
+            <dd className="font-semibold text-bone">
               {formatCents(refundedCents)} of {formatCents(order.totalCents)}
             </dd>
           </>
         )}
       </dl>
 
-      <h2 className="mt-8 text-xl font-semibold">Items</h2>
-      <ul className="mt-3 divide-y divide-gray-200 border-y border-gray-200">
+      <h2 className="eyebrow mt-8 text-purple-soft">Items</h2>
+      <ul className="mt-3 divide-y divide-line border-y border-line">
         {lineItems.map((item, i) => (
           <li
             key={`${item.catalogObjectId ?? item.name}-${i}`}
             className="flex justify-between py-3"
           >
             <div>
-              <p className="font-medium text-gray-900">{item.name}</p>
-              <p className="text-sm text-gray-500">
+              <p className="font-medium text-bone">{item.name}</p>
+              <p className="text-sm text-muted">
                 {item.quantity} &times; {formatCents(item.unitPriceCents)}
                 {item.variationName ? ` · ${item.variationName}` : ''}
               </p>
             </div>
-            <p className="font-medium text-gray-900">{formatCents(item.totalCents)}</p>
+            <p className="font-mono font-medium text-bone">{formatCents(item.totalCents)}</p>
           </li>
         ))}
       </ul>

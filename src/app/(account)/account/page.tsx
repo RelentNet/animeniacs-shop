@@ -25,23 +25,23 @@ export default async function AccountPage(): Promise<JSX.Element> {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold">Welcome, {greetingName}</h1>
-      <p className="mt-2 text-gray-700">Manage your orders and shipping details.</p>
+      <p className="eyebrow">My account</p>
+      <h1 className="mt-2 font-display text-4xl tracking-wide text-bone sm:text-5xl">
+        Welcome, {greetingName}
+      </h1>
+      <p className="mt-2 text-muted">Manage your orders and shipping details.</p>
 
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold">Order history</h2>
-        <p className="mt-1 text-gray-700">View your past orders and their details.</p>
-        <Link
-          href={'/account/orders' as Route}
-          className="mt-3 inline-block rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
-        >
+      <section className="mt-8 rounded-lg border border-line bg-wall p-6">
+        <h2 className="font-display text-2xl tracking-wide text-bone">Order history</h2>
+        <p className="mt-1 text-sm text-muted">View your past orders and their details.</p>
+        <Link href={'/account/orders' as Route} className="btn-neon mt-4">
           View order history
         </Link>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-xl font-semibold">Saved shipping addresses</h2>
-        <p className="mt-1 text-gray-700">
+      <section className="mt-6 rounded-lg border border-line bg-wall p-6">
+        <h2 className="font-display text-2xl tracking-wide text-bone">Saved shipping addresses</h2>
+        <p className="mt-1 text-sm text-muted">
           Save addresses to speed up checkout. Your default address is prefilled at checkout.
         </p>
         <SavedAddresses addresses={addresses} />

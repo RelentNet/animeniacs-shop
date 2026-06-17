@@ -1,6 +1,6 @@
-import { SignOutButton } from '@/components/auth/SignOutButton'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { redirect } from 'next/navigation'
+import { AccountNav } from './account/_components/AccountNav'
 
 // Account routes read the auth session + DB at request time. Forcing dynamic
 // stops Next.js from attempting build-time prerender (which would try to reach
@@ -26,29 +26,8 @@ export default async function AccountLayout({
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <nav aria-label="Account" className="mb-6 border-b border-gray-200 pb-4">
-        <ul className="flex flex-wrap gap-4 text-sm">
-          <li>
-            <a href="/account" className="font-medium text-gray-900 hover:underline">
-              Account
-            </a>
-          </li>
-          <li>
-            <a href="/account/orders" className="text-gray-700 hover:underline">
-              Order history
-            </a>
-          </li>
-          <li>
-            <a href="/account/wishlist" className="text-gray-700 hover:underline">
-              Wishlist
-            </a>
-          </li>
-          <li className="ml-auto">
-            <SignOutButton />
-          </li>
-        </ul>
-      </nav>
+    <div className="mx-auto max-w-4xl px-4 py-10">
+      <AccountNav />
       {children}
     </div>
   )
