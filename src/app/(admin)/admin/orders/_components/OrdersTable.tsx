@@ -19,6 +19,13 @@ function formatDate(date: Date | null): string {
 
 const cellStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', verticalAlign: 'top' }
 
+/** Square's literal order state (DRAFT/OPEN/COMPLETED/CANCELED) from raw, or null. */
+function squareState(raw: unknown): string | null {
+  // biome-ignore lint/suspicious/noExplicitAny: stored Square order snapshot is loose
+  const state = (raw as any)?.state
+  return typeof state === 'string' && state.length > 0 ? state : null
+}
+
 /**
  * Server-rendered admin order list. Each row links to the detail page by the
  * internal order id. Reuses statusLabel/fulfillmentLabel so admin + customer
@@ -34,6 +41,7 @@ export function OrdersTable({ orders }: { orders: Order[] }): JSX.Element {
           <th style={cellStyle}>Buyer</th>
           <th style={cellStyle}>Total</th>
           <th style={cellStyle}>Status</th>
+          <th style={cellStyle}>Square</th>
           <th style={cellStyle}>Fulfillment</th>
         </tr>
       </thead>
@@ -49,6 +57,9 @@ export function OrdersTable({ orders }: { orders: Order[] }): JSX.Element {
             <td style={cellStyle}>{o.buyerEmail ?? '—'}</td>
             <td style={cellStyle}>{formatCents(o.totalCents)}</td>
             <td style={cellStyle}>{statusLabel(o.status)}</td>
+            <td style={cellStyle}>
+              {squareState(o.raw) ? <code>{squareState(o.raw)}</code> : '—'}
+            </td>
             <td style={cellStyle}>{fulfillmentLabel(o.fulfillmentState)}</td>
           </tr>
         ))}

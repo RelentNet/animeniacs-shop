@@ -66,6 +66,23 @@ describe('/admin/orders list page', () => {
     expect(link).toHaveAttribute('href', '/admin/orders/11111111-1111-1111-1111-111111111111')
   })
 
+  it("shows a Square column with each order's literal raw.state (em dash when absent)", async () => {
+    mockListOrders.mockResolvedValue([
+      order({ id: '1', squareOrderId: 'sq-open', raw: { id: 'sq-open', state: 'OPEN' } }),
+      order({ id: '2', squareOrderId: 'sq-none', raw: null })
+    ])
+    mockCountOrders.mockResolvedValue(2)
+    const { default: OrdersListPage } = await import('@/app/(admin)/admin/orders/page')
+    render(await OrdersListPage({ searchParams: {} }))
+
+    expect(screen.getByRole('columnheader', { name: /square/i })).toBeInTheDocument()
+    // The order with raw.state shows the literal Square value.
+    expect(screen.getByText('OPEN')).toBeInTheDocument()
+    // The order without raw shows an em dash in its Square cell.
+    const noneRow = screen.getByText('sq-none').closest('tr') as HTMLElement
+    expect(within(noneRow).getByText('—')).toBeInTheDocument()
+  })
+
   it('passes searchParams through to listOrders / countOrders as filters + pagination', async () => {
     const { default: OrdersListPage } = await import('@/app/(admin)/admin/orders/page')
     await OrdersListPage({
