@@ -38,7 +38,7 @@ export async function createPaymentLink(
       })),
       metadata: { cart_id: args.cartId }
     },
-    checkoutOptions: { redirectUrl: args.redirectUrl }
+    checkoutOptions: { redirectUrl: args.redirectUrl, askForShippingAddress: true }
   })
   // biome-ignore lint/suspicious/noExplicitAny: SDK return shape varies
   const link = (response as any).paymentLink

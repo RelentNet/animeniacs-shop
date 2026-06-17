@@ -76,6 +76,20 @@ describe('createPaymentLink', () => {
     )
   })
 
+  it('asks Square to collect the buyer shipping address (askForShippingAddress: true)', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({
+      lines: LINES,
+      cartId: 'cart-uuid',
+      locationId: 'LOC_X',
+      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
+    })
+    const opts = mockCreate.mock.calls[0][0].checkoutOptions
+    expect(opts.askForShippingAddress).toBe(true)
+    // Still keeps the existing redirect (regression guard for the happy path).
+    expect(opts.redirectUrl).toBe('https://dev.animeniacs.shop/checkout/success')
+  })
+
   it('throws if Square response lacks paymentLink.url', async () => {
     mockCreate.mockResolvedValue({ paymentLink: { url: null, orderId: 'ORDER_X' } })
     await expect(
