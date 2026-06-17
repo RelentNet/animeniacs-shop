@@ -12,12 +12,22 @@ machine. Read this first, then the linked phase handoff.
 ## Where we are right now
 
 > **2026-06-17 session summary — DEV IS FEATURE-COMPLETE & VERIFIED.** `main` @
-> `f0017c3`. This session: fixed the BigInt order-recording bug + refund-by-payment
-> (the order/webhook chain now works end-to-end), shipped Phases 17/18/19, created
-> 16 artists, and finished the config (Resend live, Logto decommissioned, env
-> cleaned, cron endpoint verified). **NEXT = production cutover** (operator-gated,
-> never autonomous — §E) + wire the abandoned-cart cron UI task. Operator is doing
-> site theming in a separate session and will return here for the cutover.
+> `4edb790`. Order chain fixed (BigInt recording + refund-by-payment); Phases
+> 17/18/19 shipped; 16 artists created; config done (Resend live, Logto
+> decommissioned, env cleaned, cron endpoint verified).
+> **Storefront/UI pass (same day):** "Street Gallery" branding shipped + verified
+> (its 5 broken component tests fixed + `next/font` mocked); **PDP redesigned**
+> (image-forward, themed, sticky buy panel) with **art-theft protection = downres
+> (`next/image`, caps halved per operator: artwork ~550px / q70) + block-save**;
+> **account area + guest `/orders/lookup` themed** (fixed dark-text-on-dark).
+> **NEXT = production cutover** (operator-gated, §E). Open UI follow-ups: ① the
+> **art-protection PROXY** — `next/image` downscales the *display* but the original
+> Square URL is still in the `/_next/image?url=` param + publicly downloadable;
+> a server-side `/api/art` downscaler is the real wall (deferred, recommended
+> pre-prod). ② **revalidate-on-deploy** — ISR pages (`/artist`, `/category`) serve
+> empty/stale ~5 min after every deploy; a secret revalidate route pinged post-
+> deploy fixes it. ③ artist **avatars/social links** data entry (operator, via
+> `/admin/artists`). ④ wire the abandoned-cart cron UI task.
 
 - **Phase 19 (password-reset UI) — SHIPPED + deployed + verified on dev.**
   `/forgot-password` + `/reset-password` pages + a "Forgot password?" link on
