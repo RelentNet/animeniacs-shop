@@ -5,7 +5,54 @@
 `overnight-polish` (never `main`). Presentation-only — no data/query/auth/money
 logic changes. Started 2026-06-18.
 
-> Final summary goes at the very top of this file when the pass completes.
+## ✅ FINAL SUMMARY — pass complete (2026-06-18)
+
+All 7 surfaces audited, polished, and verified. Branch `overnight-polish` pushed
+(7 commits). **Gate green: typecheck clean · 596/596 tests · unreachable-DB build
+exit 0 · canaries logto=0 goaffpro=0.** No deploy. No data/query/auth/server-action/
+env/money changes — presentation only. `(account)`/`(admin)` kept `force-dynamic`;
+`SQUARE_ENV=sandbox`; art-protection preserved/extended; IP-never-public respected.
+
+**What changed, per surface:**
+1. **Content/policy (12 pages)** — were rendering essentially *unstyled* (`prose`
+   class with no typography plugin). Added a themed `.prose` to globals.css (display
+   titles + neon rule, neon list markers, themed links, blockquote/hr) + reflowed
+   `MarkdownPage`. Verified desktop + mobile.
+2. **Auth (4 pages)** — were fully light-mode. Rebuilt on the dark standard (centered
+   card, display headings, themed fields, neon CTAs). Added reusable form utilities
+   to globals.css: `.field-*`, `.alert`/`.alert-error`/`.alert-ok`/`.alert-warn`,
+   `.panel`, `.btn-neon:disabled`. Verified desktop + mobile.
+3. **Order entry** — `checkout/success` (page+loading+error) was light-mode → themed
+   (neon total, order-summary panel, themed skeleton/error); `/orders/lookup` form
+   migrated to shared utilities. Verified.
+4. **Account** — already on-standard; audit-only + one art-protection fix (wishlist
+   thumbnails). Auth-gated → code-verified.
+5. **Cart** — *hidden* light-mode surface (literal white drawer + light `CartLine`);
+   re-themed the CSS module + line to dark (neon checkout, art-protected thumbs).
+   Open drawer is client-only → code-verified.
+6. **Browse + product** — `/shop` + `/product` already excellent (left as-is).
+   Themed the holdouts: `/artist` + `/artist/[slug]` (incl. a white empty-state box),
+   shop/category/product `loading.tsx`+`error.tsx`, `ReviewForm`, `StarRatingInput`.
+   Verified `/artist` desktop+mobile; `/shop`+`/product` by screenshot.
+7. **Admin** — intentionally a separate light inline-style idiom (CLAUDE.md);
+   internally consistent. Left as-is by design (not converted to dark).
+
+**Needs your eyes / flagged (none blocking):**
+- **Local headless Chrome can't run client JS or render auth/dynamic routes** (the
+  memory's "CDP is partly broken here"). So these were verified by *code review*, not
+  pixels: account pages, cart drawer open state, ReviewForm (auth-gated), checkout
+  full line-item view (needs a live order), error/loading (transient), `/category/[slug]`
+  (no public links — categories are IP names, never linked per IP-never-public). All
+  reuse tokens/utilities already pixel-verified on other surfaces; risk is low. A
+  human spot-check of the cart drawer + a signed-in account page is worthwhile before
+  prod cutover.
+- Nothing required a logic change, so nothing was skipped for scope reasons.
+- New globals.css utilities introduced (all presentation): `.panel`, `.field-*`,
+  `.alert*`, `.btn-neon:disabled`, themed `.prose`.
+
+---
+
+> (Original placeholder — superseded by the summary above.)
 
 ## The standard (reference: homepage)
 
@@ -81,8 +128,10 @@ logic changes. Started 2026-06-18.
 - [x] /product/[id] — already themed (verified by screenshot)
 - [x] shop/category/product loading.tsx + error.tsx — themed (were light-mode)
 
-### 7. Admin (lowest priority — light theme-consistency only)
-- [ ] /admin/* (skip if short on time)
+### 7. Admin ✅ (audited — intentionally separate idiom, no changes)
+- [x] /admin/* — deliberate light inline-style idiom (CLAUDE.md); internally
+      consistent (no storefront dark classes leak in, 21/23 files inline-styled,
+      light shell handles legibility). Left as-is by design; not converted to dark.
 
 ## Log
 
