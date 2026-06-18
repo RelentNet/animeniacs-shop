@@ -52,7 +52,7 @@ const SECTIONS = [
 
 export function Footer() {
   return (
-    <footer className="mt-24 border-t border-line bg-ink-2 text-muted">
+    <footer className="border-t border-line bg-ink-2 text-muted">
       {/* Newsletter band */}
       <div className="speed-lines border-b border-line">
         <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-5 px-4 py-8 md:flex-row md:items-center">

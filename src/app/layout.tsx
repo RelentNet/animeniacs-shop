@@ -45,6 +45,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${bebas.variable} ${spaceMono.variable}`}>
       <body className="flex min-h-screen flex-col bg-ink text-bone">
+        <a
+          href="#content"
+          className="sr-only z-[100] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:rounded focus:bg-neon focus:px-4 focus:py-2 focus:font-bold focus:text-ink focus:no-underline"
+        >
+          Skip to content
+        </a>
         <CartProvider>
           <PromoBar />
           <Header />

@@ -23,7 +23,19 @@ vi.mock('next/font/google', () => {
  * a small in-memory shim once at setup. The shim implements just enough of the
  * Web Storage API to satisfy zod-validated reads and round-trip writes.
  */
-if (typeof window !== 'undefined' && typeof window.localStorage === 'undefined') {
+// Install when localStorage is missing OR present-but-broken. Some Node/jsdom
+// combos expose a `localStorage` object that lacks a working `clear()` (e.g.
+// Node's experimental Web Storage gated behind `--localstorage-file`), which the
+// old `=== undefined` guard let through, crashing every test that clears storage.
+function localStorageUsable(): boolean {
+  try {
+    return typeof window.localStorage?.clear === 'function' && typeof window.localStorage?.setItem === 'function'
+  } catch {
+    return false
+  }
+}
+
+if (typeof window !== 'undefined' && !localStorageUsable()) {
   class MemoryStorage implements Storage {
     private store = new Map<string, string>()
     get length(): number {

@@ -22,6 +22,9 @@ dist/
 .env.development.local
 .env.test.local
 .env.production.local
+# Downloaded env exports (e.g. env.local.download)
+env.local.download
+*.download
 
 # Editor / OS
 .DS_Store

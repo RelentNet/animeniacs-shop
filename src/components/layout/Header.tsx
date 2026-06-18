@@ -1,23 +1,12 @@
+'use client'
+
 import { CartButton } from '@/components/cart/CartButton'
+import { Logo } from '@/components/layout/Logo'
+import { MobileNav } from '@/components/layout/MobileNav'
 import type { Route } from 'next'
 import Link from 'next/link'
-
-/**
- * Compact nav wordmark. The full graffiti logo is too detailed to read at nav
- * size, so it headlines the hero instead; here we use a crisp text lockup with
- * the neon-accented "É" matching the mark.
- */
-function Wordmark() {
-  return (
-    <Link
-      href="/"
-      aria-label="Animeniacs home"
-      className="font-display text-3xl tracking-wide text-bone transition-colors hover:text-neon hover:no-underline"
-    >
-      ANIM<span className="neon-text">É</span>NIACS
-    </Link>
-  )
-}
+import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 const NAV: { href: Route; label: string }[] = [
   { href: '/shop' as Route, label: 'Shop' },
@@ -27,22 +16,63 @@ const NAV: { href: Route; label: string }[] = [
   { href: '/account' as Route, label: 'Account' }
 ]
 
-export function Header() {
+function isActive(pathname: string, href: string): boolean {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
+
+/** The graffiti mark as the nav wordmark. Sized so it reads (it turns to mush
+ * below ~h-14); the duotone Logo recolors via the --logo-* vars in globals.css. */
+function Wordmark(): JSX.Element {
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-md">
+    <Link href="/" aria-label="Animeniacs home" className="block transition-transform hover:scale-[1.03] hover:no-underline">
+      <Logo className="h-14 w-auto drop-shadow-[0_0_18px_rgba(139,61,255,0.45)]" />
+    </Link>
+  )
+}
+
+export function Header(): JSX.Element {
+  const pathname = usePathname() ?? '/'
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  return (
+    <header
+      className={`sticky top-0 z-40 border-b backdrop-blur-md transition-all duration-300 ${
+        scrolled
+          ? 'border-line-strong bg-ink/95 shadow-[0_10px_30px_-12px_rgba(139,61,255,0.55)]'
+          : 'border-line bg-ink/80'
+      }`}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3">
         <Wordmark />
         <nav aria-label="Primary">
-          <ul className="flex items-center gap-6 text-sm font-medium">
-            {NAV.map((item) => (
-              <li key={item.href} className="hidden md:block">
-                <Link href={item.href} className="link-neon">
-                  {item.label}
-                </Link>
-              </li>
-            ))}
+          <ul className="flex items-center gap-7 text-sm font-medium">
+            {NAV.map((item) => {
+              const active = isActive(pathname, item.href)
+              return (
+                <li key={item.href} className="hidden md:block">
+                  <Link
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={`link-neon${active ? ' is-active' : ''}`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              )
+            })}
             <li className="text-bone">
               <CartButton />
+            </li>
+            <li className="md:hidden">
+              <MobileNav items={NAV} />
             </li>
           </ul>
         </nav>

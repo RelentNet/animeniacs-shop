@@ -28,7 +28,7 @@
   /* Ink-on-dark text */
   --color-bone: #f3eeff; /* primary text */
   --color-muted: #a99bc9; /* secondary text */
-  --color-faint: #6f6390; /* tertiary / hints */
+  --color-faint: #8c80ad; /* tertiary / hints — lightened to clear WCAG AA (4.5:1) on dark */
 
   /* Hairline */
   --color-line: rgba(139, 61, 255, 0.22);
@@ -67,10 +67,15 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Links default to bone; components opt into neon where it reads. */
-a {
-  color: inherit;
-  text-decoration: none;
+/* Links default to inherit; components (.btn-neon/.link-neon) and color
+   utilities opt into specific colors. MUST live in @layer base: unlayered, this
+   rule outranks every @layer and would force links back to the inherited color
+   (e.g. bone text on the neon buttons — a contrast failure). */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 /* Visible keyboard focus everywhere — neon ring. */
@@ -252,6 +257,13 @@ a {
   .link-neon:hover::after {
     width: 100%;
   }
+  /* Active nav item: brighter text + a persistent neon underline. */
+  .link-neon.is-active {
+    color: var(--color-bone);
+  }
+  .link-neon.is-active::after {
+    width: 100%;
+  }
 
   /* Diagonal speed-line band — a JDM motion streak for dividers/hero. */
   .speed-lines {
@@ -291,6 +303,126 @@ a {
     border: 0;
     background: linear-gradient(90deg, transparent, var(--color-neon), transparent);
     opacity: 0.5;
+  }
+
+  /* Scroll-reveal — set by the <Reveal> client component via IntersectionObserver.
+     Children start slightly down + transparent and ease in once on screen. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* On-load entrance (above-the-fold). Plays once on first paint; stagger via an
+     inline animation-delay. `both` fill-mode holds the hidden `from` state until
+     the delay elapses, so staggered elements don't flash. Reduced-motion below
+     short-circuits to fully visible. */
+  .enter {
+    opacity: 0;
+    animation: enter-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .enter-pop {
+    opacity: 0;
+    animation: enter-pop 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  @keyframes enter-up {
+    from {
+      opacity: 0;
+      transform: translateY(26px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes enter-pop {
+    from {
+      opacity: 0;
+      transform: translateY(34px) scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Marquee — an infinite horizontal scroll for the brand ticker. The track
+     holds the content twice; translating -50% loops seamlessly. Pauses on hover. */
+  .marquee {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  }
+  .marquee-track {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    white-space: nowrap;
+    animation: marquee-scroll 34s linear infinite;
+  }
+  @keyframes marquee-scroll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  /* Slow ambient float for hero accents. */
+  .float-slow {
+    animation: float-slow 9s ease-in-out infinite;
+  }
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-12px);
+    }
+  }
+
+  /* A wash of moving neon/purple light behind the hero. */
+  .aurora {
+    background:
+      radial-gradient(40% 55% at 18% 30%, rgba(139, 61, 255, 0.5), transparent 70%),
+      radial-gradient(36% 50% at 82% 22%, rgba(57, 255, 20, 0.18), transparent 70%),
+      radial-gradient(45% 60% at 60% 88%, rgba(91, 33, 182, 0.45), transparent 72%);
+    filter: blur(8px);
+    animation: aurora-drift 18s ease-in-out infinite alternate;
+  }
+  @keyframes aurora-drift {
+    from {
+      transform: translate3d(-2%, -1%, 0) scale(1.02);
+    }
+    to {
+      transform: translate3d(3%, 2%, 0) scale(1.08);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .enter,
+  .enter-pop {
+    opacity: 1;
+    animation: none;
+  }
+  .marquee-track,
+  .float-slow,
+  .aurora {
+    animation: none;
   }
 }
 

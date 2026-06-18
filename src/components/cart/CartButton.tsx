@@ -33,6 +33,7 @@ export function CartButton(): JSX.Element {
       type="button"
       aria-label={`Open cart (${ariaCount} items)`}
       onClick={openDrawer}
+      className="transition-colors hover:text-neon"
       style={{
         position: 'relative',
         background: 'none',
