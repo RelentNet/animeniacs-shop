@@ -43,11 +43,18 @@ function formatMoney(amount: bigint | number | undefined): string {
 
 function GenericThanks(): JSX.Element {
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12 text-center">
-      <h1 className="text-3xl font-bold">Thanks for your order!</h1>
-      <p className="mt-4 text-gray-700">
+    <main className="mx-auto max-w-2xl px-4 py-16 text-center md:py-24">
+      <p className="eyebrow">Order confirmed</p>
+      <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Thanks for your order!</h1>
+      <p className="mt-4 text-muted">
         Your payment was received. You&apos;ll get a confirmation email from Square shortly.
       </p>
+      <div className="mt-8 flex justify-center">
+        <a href="/shop" className="btn-neon">
+          Keep shopping
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
     </main>
   )
 }
@@ -95,42 +102,51 @@ export default async function CheckoutSuccessPage({
       <Script id="plausible-checkout-completed" strategy="afterInteractive">
         {`if (typeof window !== 'undefined' && window.plausible) { window.plausible('checkout_completed', { props: { orderId: ${JSON.stringify(order.id)}, revenueCents: ${totalCents} } }); }`}
       </Script>
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <h1 className="text-3xl font-bold">Thanks for your order!</h1>
-        <p className="mt-4 text-gray-700">
-          Order <code className="font-semibold">{order.id}</code> received. You&apos;ll get a
-          confirmation email shortly.
+      <main className="mx-auto max-w-2xl px-4 py-16">
+        <p className="eyebrow">Order confirmed</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Thanks for your order!</h1>
+        <p className="mt-4 text-muted">
+          Order{' '}
+          <code className="rounded bg-wall-2 px-1.5 py-0.5 font-mono text-sm text-neon-soft">
+            {order.id}
+          </code>{' '}
+          received. You&apos;ll get a confirmation email shortly.
         </p>
-        <p className="mt-2 text-sm text-gray-600">
+        <p className="mt-2 text-sm text-muted">
           Look up your order anytime at{' '}
-          <a href="/orders/lookup" className="font-medium text-gray-900 underline">
+          <a href="/orders/lookup" className="link-neon font-medium">
             /orders/lookup
           </a>{' '}
           using your email and this order number.
         </p>
 
         {Array.isArray(order.lineItems) && order.lineItems.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-xl font-semibold">What you ordered</h2>
-            <ul className="mt-3 divide-y divide-gray-200">
+          <section className="panel mt-8 p-6">
+            <h2 className="eyebrow text-purple-soft">What you ordered</h2>
+            <ul className="mt-4 divide-y divide-line">
               {order.lineItems.map((line, idx) => (
                 <li
                   key={`${line.name ?? 'item'}-${line.quantity ?? ''}-${idx}`}
-                  className="flex justify-between py-3"
+                  className="flex justify-between gap-4 py-3"
                 >
-                  <span>
+                  <span className="text-muted">
                     {line.name} × {line.quantity}
                   </span>
-                  <span>{formatMoney(line.basePriceMoney?.amount)}</span>
+                  <span className="font-medium text-bone">
+                    {formatMoney(line.basePriceMoney?.amount)}
+                  </span>
                 </li>
               ))}
             </ul>
           </section>
         )}
 
-        <p className="mt-8 text-2xl font-semibold">
-          Total: {formatMoney(order.totalMoney?.amount)}
-        </p>
+        <div className="mt-8 flex items-baseline justify-between border-t border-line-strong pt-5">
+          <span className="font-display text-3xl text-bone">Total</span>
+          <span className="font-display neon-text text-3xl">
+            {formatMoney(order.totalMoney?.amount)}
+          </span>
+        </div>
       </main>
     </>
   )

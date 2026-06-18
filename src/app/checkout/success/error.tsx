@@ -8,17 +8,18 @@ export default function CheckoutSuccessError({
   reset: () => void
 }): JSX.Element {
   return (
-    <main className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="mb-3 text-2xl font-semibold">Thanks for your order!</h1>
-      <p className="mb-4 text-gray-600">
+    <main className="mx-auto max-w-md px-4 py-16 text-center md:py-24">
+      <p className="eyebrow">Order confirmed</p>
+      <h1 className="font-display mt-2 text-4xl text-bone md:text-5xl">Thanks for your order!</h1>
+      <p className="mt-4 text-muted">
         Your payment was received. You&apos;ll get a confirmation email from Square shortly.
       </p>
-      <button type="button" onClick={reset} className="rounded bg-gray-900 px-4 py-2 text-white">
+      <button type="button" onClick={reset} className="btn-ghost mt-6">
         Reload
       </button>
-      <details className="mt-6 text-xs text-gray-400">
-        <summary>Technical details</summary>
-        <code>{error.message}</code>
+      <details className="mt-8 text-left text-xs text-faint">
+        <summary className="cursor-pointer">Technical details</summary>
+        <code className="mt-2 block break-all">{error.message}</code>
       </details>
     </main>
   )

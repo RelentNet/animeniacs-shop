@@ -58,9 +58,9 @@ logic changes. Started 2026-06-18.
 - [x] /forgot-password
 - [x] /reset-password
 
-### 3. Order entry points
-- [ ] /orders/lookup
-- [ ] /checkout/success
+### 3. Order entry points ✅
+- [x] /orders/lookup — was already themed; migrated form to shared field utilities + panel
+- [x] /checkout/success (+ loading.tsx, error.tsx)
 
 ### 4. Account
 - [ ] /account
@@ -115,3 +115,12 @@ logic changes. Started 2026-06-18.
   so 390px screenshots are 500px layouts cropped to 390 (false right-edge "cut").
   Capture mobile at **width 500** (accurate, no crop) and confirm overflow with
   `node /tmp/measure.mjs <url> 500`.
+- **2026-06-18 — Surface 3 DONE.** `/checkout/success` (page + loading + error)
+  was fully light-mode (`text-gray-*`, `bg-gray-200` skeletons, `bg-gray-900`
+  button) → themed: eyebrow + display heading, order-summary `.panel`, neon total,
+  "keep shopping" CTA, themed skeleton (motion-reduce-safe) and error states. The
+  Square `orders.get` fetch + `markCartCompleted` + Plausible Script + CartClearer
+  are untouched. `/orders/lookup` was already themed; migrated `LookupForm` to the
+  shared `.field-*`/`.alert`/`.panel` utilities for consistency (form-action wiring
+  unchanged). Verified desktop + 500px mobile (overflow 0). Full line-item success
+  view needs a live Square order to screenshot — markup themed + reviewed. Gate green.
