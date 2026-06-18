@@ -41,7 +41,8 @@ export default async function WishlistPage(): Promise<JSX.Element> {
                     alt={product.name}
                     width={300}
                     height={450}
-                    className="aspect-[2/3] w-full rounded-md border border-line object-cover transition group-hover:border-neon"
+                    draggable={false}
+                    className="aspect-[2/3] w-full select-none rounded-md border border-line object-cover transition group-hover:border-neon"
                   />
                 ) : (
                   <div

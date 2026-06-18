@@ -62,12 +62,12 @@ logic changes. Started 2026-06-18.
 - [x] /orders/lookup — was already themed; migrated form to shared field utilities + panel
 - [x] /checkout/success (+ loading.tsx, error.tsx)
 
-### 4. Account
-- [ ] /account
-- [ ] /account/orders
-- [ ] /account/orders/[id]
-- [ ] /account/wishlist (+ _components)
-- [ ] `OrderDetailView.tsx`
+### 4. Account ✅ (already on-standard; light fix only)
+- [x] /account — already themed (eyebrow, display, bg-wall panels, btn-neon)
+- [x] /account/orders — already themed (empty state + neon row hovers)
+- [x] /account/orders/[id] — already themed (IDOR guard intact, back-link)
+- [x] /account/wishlist (+ _components) — added art-protection to thumbnails
+- [x] `OrderDetailView.tsx` — already themed (neon total, items list)
 
 ### 5. Cart
 - [ ] CartDrawer.tsx
@@ -124,3 +124,21 @@ logic changes. Started 2026-06-18.
   shared `.field-*`/`.alert`/`.panel` utilities for consistency (form-action wiring
   unchanged). Verified desktop + 500px mobile (overflow 0). Full line-item success
   view needs a live Square order to screenshot — markup themed + reviewed. Gate green.
+- **2026-06-18 — Surface 4 (account) DONE — already on-standard.** Audited all of
+  /account, /account/orders, /account/orders/[id], /account/wishlist, AccountNav,
+  SavedAddresses, OrderDetailView: all already use the Street Gallery tokens/
+  utilities (eyebrow + display headings, `bg-wall` panels, neon active tabs, themed
+  forms, empty states, neon total). Per "don't rewrite already-good pages," made
+  ONE fix: added `draggable={false}` + `select-none` to wishlist thumbnails for
+  art-protection parity with the homepage `FramedArt`. Force-dynamic + IDOR guard
+  untouched.
+  ⚠️ **Screenshot caveat (env limitation, logged not blocking):** auth-gated pages
+  could not be pixel-captured. The working `--headless --screenshot` path needs a
+  warm DEFAULT profile; auth needs a cookie, which requires a custom profile, and
+  on this machine a fresh/custom profile + `headless=new` + CDP navigation will not
+  apply the dev `<link>` stylesheet (renders unstyled even after 28s) — matches the
+  memory's "CDP is partly broken here." Verified instead by (a) code review against
+  the standard, (b) CDP render confirming correct content/auth/structure, (c) shared
+  `layout.css` + identical classes already proven styled on 6 other surfaces. The
+  one change is a zero-visual art-protection attr. Helpers left at /tmp/authshot.mjs
+  + /tmp/setcookie.mjs if a warm-profile path is found later.
