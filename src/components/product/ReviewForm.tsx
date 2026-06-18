@@ -4,9 +4,6 @@ import { type ReviewFormState, submitReviewAction } from '@/app/product/[id]/rev
 import { useFormState } from 'react-dom'
 import { StarRatingInput } from './StarRating'
 
-const INPUT_CLASS =
-  'mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-900'
-
 /**
  * Signed-in review submission form (Tailwind). `useFormState` drives the
  * success / pending / duplicate banners. `productId` is carried as a hidden
@@ -18,7 +15,7 @@ export function ReviewForm({ productId }: { productId: string }): JSX.Element {
 
   if (state.ok) {
     return (
-      <output className="block rounded-md bg-green-50 px-4 py-3 text-sm text-green-800">
+      <output className="alert alert-ok block">
         {state.pending
           ? 'Thanks — your review is pending approval and will appear once a moderator publishes it.'
           : 'Thanks — your review has been published.'}
@@ -31,17 +28,17 @@ export function ReviewForm({ productId }: { productId: string }): JSX.Element {
       <input type="hidden" name="productId" value={productId} />
 
       {state.error === 'duplicate' ? (
-        <p role="alert" className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p role="alert" className="alert alert-warn">
           You have already reviewed this product.
         </p>
       ) : null}
       {state.error === 'auth' ? (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="alert alert-error">
           Please sign in to write a review.
         </p>
       ) : null}
       {state.error === 'server' ? (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="alert alert-error">
           Something went wrong. Please try again.
         </p>
       ) : null}
@@ -49,30 +46,30 @@ export function ReviewForm({ productId }: { productId: string }): JSX.Element {
       <div>
         <StarRatingInput />
         {state.fieldErrors?.rating ? (
-          <p className="mt-1 text-sm text-red-600">{state.fieldErrors.rating}</p>
+          <p className="mt-1 text-sm text-red-300">{state.fieldErrors.rating}</p>
         ) : null}
       </div>
 
       <div>
-        <label htmlFor="review-title" className="text-sm font-medium text-gray-900">
-          Title <span className="text-gray-400">(optional)</span>
+        <label htmlFor="review-title" className="field-label">
+          Title <span className="text-faint">(optional)</span>
         </label>
-        <input id="review-title" name="title" maxLength={120} className={INPUT_CLASS} />
+        <input id="review-title" name="title" maxLength={120} className="field-input mt-2" />
       </div>
 
       <div>
-        <label htmlFor="review-body" className="text-sm font-medium text-gray-900">
+        <label htmlFor="review-body" className="field-label">
           Your review
         </label>
-        <textarea id="review-body" name="body" rows={4} className={INPUT_CLASS} />
+        <textarea id="review-body" name="body" rows={4} className="field-textarea mt-2" />
         {state.fieldErrors?.body ? (
-          <p className="mt-1 text-sm text-red-600">{state.fieldErrors.body}</p>
+          <p className="mt-1 text-sm text-red-300">{state.fieldErrors.body}</p>
         ) : null}
       </div>
 
       <div>
-        <label htmlFor="review-photos" className="text-sm font-medium text-gray-900">
-          Photos <span className="text-gray-400">(optional, up to 4)</span>
+        <label htmlFor="review-photos" className="field-label">
+          Photos <span className="text-faint">(optional, up to 4)</span>
         </label>
         <input
           id="review-photos"
@@ -80,17 +77,14 @@ export function ReviewForm({ productId }: { productId: string }): JSX.Element {
           type="file"
           multiple
           accept="image/png,image/jpeg,image/webp"
-          className="mt-1 block w-full text-sm text-gray-700 file:mr-3 file:rounded-md file:border-0 file:bg-gray-900 file:px-3 file:py-2 file:text-sm file:text-white"
+          className="mt-2 block w-full text-sm text-muted file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-neon file:px-3 file:py-2 file:text-sm file:font-semibold file:text-ink hover:file:bg-[#5cff3d]"
         />
         {state.fieldErrors?.photos ? (
-          <p className="mt-1 text-sm text-red-600">{state.fieldErrors.photos}</p>
+          <p className="mt-1 text-sm text-red-300">{state.fieldErrors.photos}</p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700"
-      >
+      <button type="submit" className="btn-neon">
         Submit review
       </button>
     </form>

@@ -231,6 +231,11 @@ body {
     border-color: rgba(57, 255, 20, 0.4);
     color: var(--color-neon-soft);
   }
+  .alert-warn {
+    background: rgba(251, 191, 36, 0.12);
+    border-color: rgba(251, 191, 36, 0.45);
+    color: #fcd34d;
+  }
 
   /* Street card — wall surface, purple hairline, lift + glow on hover. */
   .card-street {

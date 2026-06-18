@@ -21,10 +21,11 @@ export default async function ArtistGalleryPage(): Promise<JSX.Element> {
   const artists = isBuildPhase ? [] : await getActiveArtists()
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold">Artists</h1>
-        <p className="mt-2 text-gray-700">
+    <div className="mx-auto max-w-6xl px-4 py-12 md:py-16">
+      <header className="mb-10">
+        <p className="eyebrow">The crew</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Artists</h1>
+        <p className="mt-3 max-w-2xl text-muted">
           Every Animeniacs drop is made with one of our partner artists. Browse them all.
         </p>
       </header>
@@ -37,10 +38,12 @@ export default async function ArtistGalleryPage(): Promise<JSX.Element> {
             <li key={a.id}>
               <Link
                 href={`/artist/${a.slug}` as Route}
-                className="block rounded-lg p-3 transition hover:bg-gray-50"
+                className="group block rounded-lg p-3 transition-colors hover:bg-wall hover:no-underline"
               >
                 <Avatar src={a.avatarUrl} alt={a.displayName} />
-                <div className="mt-3 text-center text-sm font-medium">{a.displayName}</div>
+                <div className="mt-3 text-center text-sm font-medium text-bone transition-colors group-hover:text-neon">
+                  {a.displayName}
+                </div>
               </Link>
             </li>
           ))}
@@ -58,7 +61,8 @@ function Avatar({ src, alt }: { src: string | null; alt: string }): JSX.Element 
         alt={alt}
         width={300}
         height={300}
-        className="aspect-square w-full rounded-full object-cover"
+        draggable={false}
+        className="aspect-square w-full select-none rounded-full border border-line object-cover transition group-hover:border-neon"
       />
     )
   }
@@ -71,7 +75,7 @@ function Avatar({ src, alt }: { src: string | null; alt: string }): JSX.Element 
   return (
     <div
       aria-hidden="true"
-      className="flex aspect-square w-full items-center justify-center rounded-full bg-gray-200 text-2xl font-bold text-gray-500"
+      className="font-display flex aspect-square w-full items-center justify-center rounded-full border border-line bg-wall-2 text-3xl text-purple-soft transition group-hover:border-neon"
     >
       {initials || '?'}
     </div>
@@ -80,8 +84,8 @@ function Avatar({ src, alt }: { src: string | null; alt: string }): JSX.Element 
 
 function EmptyState(): JSX.Element {
   return (
-    <div className="rounded-lg bg-gray-50 p-8 text-center">
-      <p>No artists yet — check back soon.</p>
+    <div className="panel p-10 text-center">
+      <p className="text-muted">No artists yet — check back soon.</p>
     </div>
   )
 }

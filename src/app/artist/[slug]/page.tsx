@@ -53,11 +53,14 @@ export default async function ArtistProfilePage({ params }: PageProps): Promise<
 
 function ArtistHeader({ artist }: { artist: Artist }): JSX.Element {
   return (
-    <header className="mb-8 flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+    <header className="mb-10 flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left">
       <Avatar artist={artist} />
       <div className="flex-1">
-        <h1 className="text-3xl font-bold">{artist.displayName}</h1>
-        {artist.bio && <p className="mt-2 whitespace-pre-line text-gray-700">{artist.bio}</p>}
+        <p className="eyebrow">Artist</p>
+        <h1 className="font-display mt-1 text-5xl text-bone md:text-6xl">{artist.displayName}</h1>
+        {artist.bio && (
+          <p className="mt-3 whitespace-pre-line text-muted">{artist.bio}</p>
+        )}
         <SocialLinks artist={artist} />
       </div>
     </header>
@@ -72,7 +75,8 @@ function Avatar({ artist }: { artist: Artist }): JSX.Element {
         alt={artist.displayName}
         width={500}
         height={500}
-        className="h-32 w-32 rounded-full object-cover sm:h-40 sm:w-40"
+        draggable={false}
+        className="h-32 w-32 shrink-0 select-none rounded-full border border-line object-cover sm:h-40 sm:w-40"
       />
     )
   }
@@ -84,7 +88,7 @@ function Avatar({ artist }: { artist: Artist }): JSX.Element {
   return (
     <div
       aria-hidden="true"
-      className="flex h-32 w-32 items-center justify-center rounded-full bg-gray-200 text-3xl font-bold text-gray-500 sm:h-40 sm:w-40"
+      className="font-display flex h-32 w-32 shrink-0 items-center justify-center rounded-full border border-line bg-wall-2 text-4xl text-purple-soft sm:h-40 sm:w-40"
     >
       {initials || '?'}
     </div>
@@ -107,15 +111,10 @@ function SocialLinks({ artist }: { artist: Artist }): JSX.Element | null {
   if (links.length === 0) return null
 
   return (
-    <ul className="mt-3 flex flex-wrap gap-3 text-sm">
+    <ul className="mt-4 flex flex-wrap justify-center gap-4 text-sm sm:justify-start">
       {links.map((l) => (
         <li key={l.label}>
-          <a
-            href={l.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline hover:no-underline"
-          >
+          <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-neon font-medium">
             {l.label}
           </a>
         </li>
@@ -148,9 +147,9 @@ function ProductGrid({
 function EmptyState({ artist }: { artist: Artist }): JSX.Element {
   const instagram = artist.instagram
   return (
-    <section className="mt-12 rounded-lg bg-gray-50 p-8 text-center">
-      <h2 className="text-xl font-semibold">No drops yet</h2>
-      <p className="mt-2 text-gray-700">
+    <section className="panel mt-12 p-10 text-center">
+      <h2 className="font-display text-3xl text-bone">No drops yet</h2>
+      <p className="mt-3 text-muted">
         {artist.displayName} doesn’t have any drops yet
         {instagram ? (
           <>
@@ -160,7 +159,7 @@ function EmptyState({ artist }: { artist: Artist }): JSX.Element {
               href={instagram}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:no-underline"
+              className="link-neon font-medium"
             >
               Instagram
             </a>{' '}

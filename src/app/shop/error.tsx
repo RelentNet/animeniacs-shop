@@ -8,15 +8,16 @@ export default function ShopError({
   reset: () => void
 }): JSX.Element {
   return (
-    <div className="mx-auto max-w-md px-4 py-16 text-center">
-      <h1 className="mb-3 text-2xl font-semibold">Couldn't load the shop.</h1>
-      <p className="mb-4 text-gray-600">Something went wrong. Try again, or come back later.</p>
-      <button type="button" onClick={reset} className="rounded bg-gray-900 px-4 py-2 text-white">
+    <div className="mx-auto max-w-md px-4 py-16 text-center md:py-24">
+      <p className="eyebrow">Something went wrong</p>
+      <h1 className="font-display mt-2 text-4xl text-bone md:text-5xl">Couldn't load the shop</h1>
+      <p className="mt-4 text-muted">Something went wrong. Try again, or come back later.</p>
+      <button type="button" onClick={reset} className="btn-ghost mt-6">
         Try again
       </button>
-      <details className="mt-6 text-xs text-gray-400">
-        <summary>Technical details</summary>
-        <code>{error.message}</code>
+      <details className="mt-8 text-left text-xs text-faint">
+        <summary className="cursor-pointer">Technical details</summary>
+        <code className="mt-2 block break-all">{error.message}</code>
       </details>
     </div>
   )

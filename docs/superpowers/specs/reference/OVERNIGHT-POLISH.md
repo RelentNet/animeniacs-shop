@@ -73,13 +73,13 @@ logic changes. Started 2026-06-18.
 - [x] CartDrawer (CartDrawer.module.css) — was fully light-mode (white drawer!)
 - [x] CartLine — was light inline styles (#eee/#666)
 
-### 6. Browse + product
-- [ ] /shop (ShopFilters, Pagination)
-- [ ] /category/[slug]
-- [ ] /artist + /artist/[slug]
-- [ ] product components (ProductCard, VariantPicker, ProductReviews, ReviewForm,
-      StarRating, WishlistButton, MockupGallery, PdpPurchasePanel)
-- [ ] /product/[id]
+### 6. Browse + product ✅
+- [x] /shop (ShopFilters, Pagination) — already themed (verified by screenshot)
+- [x] /category/[slug] — themed already (0 light-hits); themed its loading/error
+- [x] /artist + /artist/[slug] — were light-mode; themed (verified desktop+mobile)
+- [x] product components — ReviewForm + StarRatingInput themed; rest already on-standard
+- [x] /product/[id] — already themed (verified by screenshot)
+- [x] shop/category/product loading.tsx + error.tsx — themed (were light-mode)
 
 ### 7. Admin (lowest priority — light theme-consistency only)
 - [ ] /admin/* (skip if short on time)
@@ -164,3 +164,21 @@ logic changes. Started 2026-06-18.
   cannot drive interactions (no hydration) and fail on navigated/dynamic routes.
   Static SSR pixel verification = old `--headless --screenshot` (warm default
   profile, launch at URL). Interaction/auth verification here = code review.
+- **2026-06-18 — Surface 6 (browse + product) DONE.** AUDIT: /shop and /product/[id]
+  were already excellent (themed filter bar, HUD product cards, neon prices, PDP) —
+  verified by screenshot, NOT rewritten. Same for ProductCard, VariantPicker,
+  ProductReviews, WishlistButton, MockupGallery, PdpPurchasePanel, ShopFilters,
+  Pagination, /category/[slug] (all 0 light-hits). FIXED the light-mode offenders:
+  • /artist + /artist/[slug] — default-font headings, text-gray-700, bg-gray-200
+    avatars, and a white bg-gray-50 empty-state box → themed (eyebrow + display
+    heading, dark avatar placeholders w/ neon-hover, link-neon socials, .panel empty
+    states, art-protected avatars). Verified desktop + 500px mobile (overflow 0).
+  • shop/category/product loading.tsx → dark bg-wall-2 skeletons + motion-reduce.
+  • shop/category/product error.tsx → eyebrow + display + .btn-ghost + themed details.
+  • ReviewForm.tsx (14 light hits) → shared .field-*/.alert utilities, neon file
+    button, .btn-neon submit; added .alert-warn (amber) for the duplicate notice.
+  • StarRatingInput legend → .field-label.
+  No data/query/server-action changes. Could not pixel-verify (noted, not blocking):
+  error/loading (transient — code-verified, mirror the verified checkout error),
+  ReviewForm (auth-gated), /category/[slug] (no public links — IP-never-public).
+  Gate green (typecheck/596 tests/build exit 0/canaries 0).

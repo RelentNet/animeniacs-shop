@@ -45,10 +45,10 @@ export function StarRatingInput({
 }): JSX.Element {
   return (
     <fieldset className="border-0 p-0">
-      <legend className="text-sm font-medium text-gray-900">Your rating</legend>
-      <div className="mt-1 inline-flex items-center gap-1">
+      <legend className="field-label">Your rating</legend>
+      <div className="mt-1.5 inline-flex items-center gap-1">
         {STARS.map((star) => (
-          <label key={star} className="cursor-pointer text-2xl text-amber-500">
+          <label key={star} className="cursor-pointer text-2xl text-amber-400">
             <input
               type="radio"
               name={name}
