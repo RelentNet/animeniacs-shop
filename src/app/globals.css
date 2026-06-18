@@ -148,6 +148,12 @@ body {
   .btn-neon:active {
     transform: translateY(0);
   }
+  .btn-neon:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
 
   /* Secondary CTA — ghost with purple hairline, neon on hover. */
   .btn-ghost {
@@ -172,6 +178,60 @@ body {
     text-decoration: none;
   }
 
+  /* ---------------------------------------------------------------------------
+     Form controls — shared across auth, order lookup, account, reviews. Dark
+     inset fields on a card surface; mono HUD labels; neon focus glow (the global
+     :focus-visible neon ring still applies for keyboard users).
+     --------------------------------------------------------------------------- */
+  .field-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--color-muted);
+  }
+  .field-input,
+  .field-textarea,
+  .field-select {
+    width: 100%;
+    background: var(--color-ink);
+    border: 1px solid var(--color-line-strong);
+    border-radius: 0.4rem;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    color: var(--color-bone);
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  }
+  .field-input::placeholder,
+  .field-textarea::placeholder {
+    color: var(--color-faint);
+  }
+  .field-input:focus,
+  .field-textarea:focus,
+  .field-select:focus {
+    border-color: var(--color-neon);
+    box-shadow: 0 0 0 1px var(--color-neon), 0 0 18px -5px rgba(57, 255, 20, 0.55);
+  }
+
+  /* Inline status banners. */
+  .alert {
+    border-radius: 0.4rem;
+    border: 1px solid;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.875rem;
+  }
+  .alert-error {
+    background: rgba(248, 113, 113, 0.12);
+    border-color: rgba(248, 113, 113, 0.5);
+    color: #fca5a5;
+  }
+  .alert-ok {
+    background: rgba(57, 255, 20, 0.1);
+    border-color: rgba(57, 255, 20, 0.4);
+    color: var(--color-neon-soft);
+  }
+
   /* Street card — wall surface, purple hairline, lift + glow on hover. */
   .card-street {
     position: relative;
@@ -184,6 +244,15 @@ body {
     transform: translateY(-4px);
     border-color: var(--color-line-strong);
     box-shadow: 0 14px 40px -12px rgba(139, 61, 255, 0.55), 0 0 0 1px rgba(57, 255, 20, 0.12);
+  }
+
+  /* Static surface panel — card-street's look without the hover lift. For
+     non-interactive containers: forms, info blocks, account/order/cart panels. */
+  .panel {
+    position: relative;
+    background: var(--color-wall);
+    border: 1px solid var(--color-line);
+    border-radius: 0.6rem;
   }
 
   /* Cyberpunk HUD corner brackets (top-left + bottom-right). Apply to a

@@ -33,85 +33,82 @@ export default function SignUpPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold text-gray-900">Create an account</h1>
-      <p className="mt-1 text-sm text-gray-600">Track orders, save addresses, and more.</p>
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+      <div className="enter">
+        <p className="eyebrow">Join the crew</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Create account</h1>
+        <p className="mt-2 text-muted">Track orders, save addresses, and more.</p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        {error ? (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
+        <form onSubmit={onSubmit} className="panel mt-8 space-y-5 p-6 md:p-7">
+          {error ? (
+            <p role="alert" className="alert alert-error">
+              {error}
+            </p>
+          ) : null}
 
-        <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label htmlFor="name" className="field-label">
+              Name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="field-input mt-2"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label htmlFor="email" className="field-label">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="field-input mt-2"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-          <p className="mt-1 text-xs text-gray-500">At least 8 characters.</p>
-        </div>
+          <div>
+            <label htmlFor="password" className="field-label">
+              Password
+            </label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="field-input mt-2"
+            />
+            <p className="mt-1.5 text-xs text-faint">At least 8 characters.</p>
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-60"
-        >
-          {loading ? 'Creating account…' : 'Create account'}
-        </button>
-      </form>
+          <button type="submit" disabled={loading} className="btn-neon w-full justify-center">
+            {loading ? 'Creating account…' : 'Create account'}
+            {loading ? null : <span aria-hidden="true">→</span>}
+          </button>
+        </form>
 
-      <p className="mt-6 text-sm text-gray-600">
-        Already have an account?{' '}
-        <Link
-          href={'/sign-in' as Route}
-          className="font-medium text-gray-900 underline hover:no-underline"
-        >
-          Sign in
-        </Link>
-      </p>
+        <p className="mt-6 text-sm text-muted">
+          Already have an account?{' '}
+          <Link href={'/sign-in' as Route} className="link-neon font-medium">
+            Sign in
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }

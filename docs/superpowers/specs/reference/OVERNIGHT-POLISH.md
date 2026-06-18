@@ -52,11 +52,11 @@ logic changes. Started 2026-06-18.
 - [x] /refund-return-policy
 - [x] /how-to-display-our-art
 
-### 2. Auth
-- [ ] /sign-in
-- [ ] /sign-up
-- [ ] /forgot-password
-- [ ] /reset-password
+### 2. Auth ✅
+- [x] /sign-in
+- [x] /sign-up
+- [x] /forgot-password
+- [x] /reset-password
 
 ### 3. Order entry points
 - [ ] /orders/lookup
@@ -102,3 +102,16 @@ logic changes. Started 2026-06-18.
   become-an-artist) + true 390px mobile (headless honors phone widths — the
   ~500px clamp is headed-window only, so screenshots work for mobile too).
   Gate green (typecheck/596 tests/build exit 0/canaries 0). No logic touched.
+- **2026-06-18 — Surface 2 (auth) DONE.** All four pages were fully light-mode
+  (`text-gray-*`, `bg-gray-900`, `border-gray-300`) — never themed. Rebuilt on the
+  Street Gallery standard: centered card layout, mono eyebrow + display h1, themed
+  fields, neon full-width CTA. Added reusable form utilities to `globals.css`
+  (`.field-label/.field-input/.field-textarea/.field-select`, `.alert/.alert-error/
+  .alert-ok`, `.panel` static surface, `.btn-neon:disabled`) — these will carry the
+  next surfaces (order lookup, account, reviews). Logic untouched (handlers, state,
+  authClient calls, Suspense/token guard, anti-enumeration all byte-identical).
+  Verified desktop + accurate 500px mobile (overflow audit 0 on all four).
+  **Workflow note:** macOS Chrome lays out at a ~500px min even in old headless,
+  so 390px screenshots are 500px layouts cropped to 390 (false right-edge "cut").
+  Capture mobile at **width 500** (accurate, no crop) and confirm overflow with
+  `node /tmp/measure.mjs <url> 500`.

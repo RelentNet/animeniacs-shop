@@ -37,19 +37,19 @@ function ResetPasswordForm(): JSX.Element {
   // Missing/blank token → the link is invalid or expired. Never call the API.
   if (!token) {
     return (
-      <div className="mx-auto max-w-md px-4 py-12">
-        <h1 className="text-2xl font-bold text-gray-900">Reset your password</h1>
-        <p role="alert" className="mt-6 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          This password reset link is invalid or expired.
-        </p>
-        <p className="mt-6 text-sm text-gray-600">
-          <Link
-            href={'/forgot-password' as Route}
-            className="font-medium text-gray-900 underline hover:no-underline"
-          >
-            Request a new link
-          </Link>
-        </p>
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+        <div className="enter">
+          <p className="eyebrow">Account recovery</p>
+          <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Reset password</h1>
+          <p role="alert" className="alert alert-error mt-8">
+            This password reset link is invalid or expired.
+          </p>
+          <p className="mt-6 text-sm text-muted">
+            <Link href={'/forgot-password' as Route} className="link-neon font-medium">
+              Request a new link
+            </Link>
+          </p>
+        </div>
       </div>
     )
   }
@@ -85,75 +85,75 @@ function ResetPasswordForm(): JSX.Element {
 
   if (done) {
     return (
-      <div className="mx-auto max-w-md px-4 py-12">
-        <h1 className="text-2xl font-bold text-gray-900">Password reset</h1>
-        <output className="mt-6 block rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-          Your password has been reset. Redirecting you to sign in…
-        </output>
-        <p className="mt-6 text-sm text-gray-600">
-          <Link
-            href={'/sign-in' as Route}
-            className="font-medium text-gray-900 underline hover:no-underline"
-          >
-            Sign in
-          </Link>
-        </p>
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+        <div className="enter">
+          <p className="eyebrow">Account recovery</p>
+          <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Password reset</h1>
+          <output className="alert alert-ok mt-8 block">
+            Your password has been reset. Redirecting you to sign in…
+          </output>
+          <p className="mt-6 text-sm text-muted">
+            <Link href={'/sign-in' as Route} className="link-neon font-medium">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold text-gray-900">Choose a new password</h1>
-      <p className="mt-1 text-sm text-gray-600">Enter and confirm your new password.</p>
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+      <div className="enter">
+        <p className="eyebrow">Account recovery</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">New password</h1>
+        <p className="mt-2 text-muted">Enter and confirm your new password.</p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        {error ? (
-          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
-          </p>
-        ) : null}
+        <form onSubmit={onSubmit} className="panel mt-8 space-y-5 p-6 md:p-7">
+          {error ? (
+            <p role="alert" className="alert alert-error">
+              {error}
+            </p>
+          ) : null}
 
-        <div>
-          <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
-            New password
-          </label>
-          <input
-            id="newPassword"
-            name="newPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label htmlFor="newPassword" className="field-label">
+              New password
+            </label>
+            <input
+              id="newPassword"
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="field-input mt-2"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-            Confirm password
-          </label>
-          <input
-            id="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-          />
-        </div>
+          <div>
+            <label htmlFor="confirmPassword" className="field-label">
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              className="field-input mt-2"
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-60"
-        >
-          {loading ? 'Resetting…' : 'Reset password'}
-        </button>
-      </form>
+          <button type="submit" disabled={loading} className="btn-neon w-full justify-center">
+            {loading ? 'Resetting…' : 'Reset password'}
+            {loading ? null : <span aria-hidden="true">→</span>}
+          </button>
+        </form>
+      </div>
     </div>
   )
 }
@@ -162,9 +162,12 @@ export default function ResetPasswordPage(): JSX.Element {
   return (
     <Suspense
       fallback={
-        <div className="mx-auto max-w-md px-4 py-12">
-          <h1 className="text-2xl font-bold text-gray-900">Reset your password</h1>
-          <p className="mt-1 text-sm text-gray-600">Loading…</p>
+        <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+          <div>
+            <p className="eyebrow">Account recovery</p>
+            <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Reset password</h1>
+            <p className="mt-2 text-muted">Loading…</p>
+          </div>
         </div>
       }
     >

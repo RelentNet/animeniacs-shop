@@ -35,52 +35,47 @@ export default function ForgotPasswordPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <h1 className="text-2xl font-bold text-gray-900">Reset your password</h1>
-      <p className="mt-1 text-sm text-gray-600">
-        Enter your email and we’ll send you a link to reset it.
-      </p>
+    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-16">
+      <div className="enter">
+        <p className="eyebrow">Account recovery</p>
+        <h1 className="font-display mt-2 text-5xl text-bone md:text-6xl">Reset password</h1>
+        <p className="mt-2 text-muted">Enter your email and we’ll send you a link to reset it.</p>
 
-      {submitted ? (
-        <output className="mt-6 block rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
-          If an account exists for that email, we’ve sent a password reset link.
-        </output>
-      ) : (
-        <form onSubmit={onSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-gray-900 focus:outline-none"
-            />
-          </div>
+        {submitted ? (
+          <output className="alert alert-ok mt-8 block">
+            If an account exists for that email, we’ve sent a password reset link.
+          </output>
+        ) : (
+          <form onSubmit={onSubmit} className="panel mt-8 space-y-5 p-6 md:p-7">
+            <div>
+              <label htmlFor="email" className="field-label">
+                Email
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="field-input mt-2"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-700 disabled:opacity-60"
-          >
-            {loading ? 'Sending…' : 'Send reset link'}
-          </button>
-        </form>
-      )}
+            <button type="submit" disabled={loading} className="btn-neon w-full justify-center">
+              {loading ? 'Sending…' : 'Send reset link'}
+              {loading ? null : <span aria-hidden="true">→</span>}
+            </button>
+          </form>
+        )}
 
-      <p className="mt-6 text-sm text-gray-600">
-        <Link
-          href={'/sign-in' as Route}
-          className="font-medium text-gray-900 underline hover:no-underline"
-        >
-          Back to sign in
-        </Link>
-      </p>
+        <p className="mt-6 text-sm text-muted">
+          <Link href={'/sign-in' as Route} className="link-neon font-medium">
+            ← Back to sign in
+          </Link>
+        </p>
+      </div>
     </div>
   )
 }
