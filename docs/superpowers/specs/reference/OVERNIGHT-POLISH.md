@@ -69,9 +69,9 @@ logic changes. Started 2026-06-18.
 - [x] /account/wishlist (+ _components) — added art-protection to thumbnails
 - [x] `OrderDetailView.tsx` — already themed (neon total, items list)
 
-### 5. Cart
-- [ ] CartDrawer.tsx
-- [ ] CartLine
+### 5. Cart ✅
+- [x] CartDrawer (CartDrawer.module.css) — was fully light-mode (white drawer!)
+- [x] CartLine — was light inline styles (#eee/#666)
 
 ### 6. Browse + product
 - [ ] /shop (ShopFilters, Pagination)
@@ -142,3 +142,25 @@ logic changes. Started 2026-06-18.
   `layout.css` + identical classes already proven styled on 6 other surfaces. The
   one change is a zero-visual art-protection attr. Helpers left at /tmp/authshot.mjs
   + /tmp/setcookie.mjs if a warm-profile path is found later.
+- **2026-06-18 — Surface 5 (cart) DONE — was a hidden light-mode surface.** The
+  earlier triage grep missed it: `CartDrawer.module.css` was a literal `background:
+  white` drawer (#eee borders, #666 text, #111 checkout) and `CartLine.tsx` used
+  light inline styles (#eee skeletons, #666 text). Re-themed both to dark: drawer =
+  `ink-2` panel w/ neon left border + purple shadow, display-font title, themed
+  footer/subtotal, neon ✦ badges, a `.btn-neon`-mirrored checkout, themed error +
+  neon close; CartLine = bone/muted text, neon-hover qty stepper, dark
+  motion-reduce skeleton, art-protected thumbnail. CSS module references the global
+  `@theme` `var(--color-*)`/`var(--font-display)` (confirmed resolvable: body bg
+  already computes to `--color-ink`). CartButton was already themed (neon badge).
+  Cart logic/checkout handler/Radix wiring untouched.
+  ⚠️ **Screenshot caveat (env, logged not blocking):** the drawer only renders on a
+  client click, and **client JS does not hydrate in this headless/CDP context**
+  (`window.next` undefined, no React fibers, even after 6s — though CSS loads fine).
+  So the open drawer can't be pixel-captured here (same root cause as the auth-page
+  block — local CDP can't run the client bundle). Verified by code review + proven
+  token resolution. Helper at /tmp/drawershot.mjs (works for static/SSR captures).
+- **2026-06-18 — workflow note:** CDP screenshots (`/tmp/drawershot.mjs`) render
+  STYLED when launched **directly** at a public URL (body bg poll confirms), but
+  cannot drive interactions (no hydration) and fail on navigated/dynamic routes.
+  Static SSR pixel verification = old `--headless --screenshot` (warm default
+  profile, launch at URL). Interaction/auth verification here = code review.

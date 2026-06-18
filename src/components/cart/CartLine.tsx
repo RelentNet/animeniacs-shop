@@ -22,22 +22,11 @@ export function CartLine({ entry, product, isHydrating }: CartLineProps): JSX.El
 
   if (isHydrating && product === undefined) {
     return (
-      <li
-        data-testid="cart-line-skeleton"
-        style={{ display: 'flex', gap: '0.75rem', padding: '0.75rem 0' }}
-      >
-        <div style={{ width: 64, height: 64, background: '#eee', borderRadius: 4 }} />
-        <div style={{ flex: 1 }}>
-          <div
-            style={{
-              width: '70%',
-              height: 14,
-              background: '#eee',
-              borderRadius: 2,
-              marginBottom: 6
-            }}
-          />
-          <div style={{ width: '40%', height: 12, background: '#eee', borderRadius: 2 }} />
+      <li data-testid="cart-line-skeleton" className="flex gap-3 py-3">
+        <div className="h-16 w-16 shrink-0 animate-pulse rounded bg-wall-2 motion-reduce:animate-none" />
+        <div className="flex-1">
+          <div className="mb-1.5 h-3.5 w-2/3 animate-pulse rounded bg-wall-2 motion-reduce:animate-none" />
+          <div className="h-3 w-2/5 animate-pulse rounded bg-wall-2 motion-reduce:animate-none" />
         </div>
       </li>
     )
@@ -50,27 +39,17 @@ export function CartLine({ entry, product, isHydrating }: CartLineProps): JSX.El
 
   if (isStale) {
     return (
-      <li
-        style={{
-          display: 'flex',
-          gap: '0.75rem',
-          padding: '0.75rem 0',
-          opacity: 0.6,
-          borderBottom: '1px solid #eee'
-        }}
-      >
-        <div
-          style={{ width: 64, height: 64, background: '#eee', borderRadius: 4 }}
-          aria-hidden="true"
-        />
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600 }}>{product?.name ?? 'Item'}</div>
-          <div style={{ color: '#a33', fontSize: '0.85em' }}>No longer available</div>
+      <li className="flex items-center gap-3 border-b border-line py-3 opacity-70">
+        <div className="h-16 w-16 shrink-0 rounded bg-wall-2" aria-hidden="true" />
+        <div className="flex-1">
+          <div className="font-medium text-bone">{product?.name ?? 'Item'}</div>
+          <div className="text-sm text-red-300">No longer available</div>
         </div>
         <button
           type="button"
           aria-label="Remove from cart"
           onClick={() => removeItem(entry.catalogItemId, entry.variationId)}
+          className="text-sm text-muted transition-colors hover:text-neon"
         >
           Remove
         </button>
@@ -82,44 +61,36 @@ export function CartLine({ entry, product, isHydrating }: CartLineProps): JSX.El
   const lineCents = unitCents * entry.quantity
 
   return (
-    <li
-      style={{
-        display: 'flex',
-        gap: '0.75rem',
-        padding: '0.75rem 0',
-        borderBottom: '1px solid #eee'
-      }}
-    >
+    <li className="flex gap-3 border-b border-line py-3">
       {product.images[0] ? (
         <Image
           src={product.images[0]}
           alt={product.name}
           width={64}
           height={64}
-          style={{ objectFit: 'cover', borderRadius: 4 }}
+          draggable={false}
+          className="h-16 w-16 shrink-0 select-none rounded border border-line object-cover"
         />
       ) : (
-        <div
-          style={{ width: 64, height: 64, background: '#eee', borderRadius: 4 }}
-          aria-hidden="true"
-        />
+        <div className="h-16 w-16 shrink-0 rounded bg-wall-2" aria-hidden="true" />
       )}
 
-      <div style={{ flex: 1, display: 'grid', gap: '0.25rem' }}>
-        <div style={{ fontWeight: 600 }}>{product.name}</div>
-        <div style={{ color: '#666', fontSize: '0.85em' }}>{variation.name}</div>
-        <div style={{ color: '#666', fontSize: '0.85em' }}>{formatCents(unitCents)} each</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <div className="grid flex-1 gap-1">
+        <div className="font-medium text-bone">{product.name}</div>
+        <div className="text-sm text-muted">{variation.name}</div>
+        <div className="text-sm text-muted">{formatCents(unitCents)} each</div>
+        <div className="mt-1 flex items-center gap-2">
           <button
             type="button"
             aria-label="Decrease quantity"
             onClick={() => setQuantity(entry.catalogItemId, entry.variationId, entry.quantity - 1)}
+            className="flex h-7 w-7 items-center justify-center rounded border border-line-strong text-bone transition-colors hover:border-neon hover:text-neon"
           >
             −
           </button>
           <label
             htmlFor={`qty-${entry.catalogItemId}-${entry.variationId}`}
-            style={{ position: 'absolute', left: -9999 }}
+            className="sr-only"
           >
             Quantity
           </label>
@@ -130,24 +101,26 @@ export function CartLine({ entry, product, isHydrating }: CartLineProps): JSX.El
             min={1}
             value={entry.quantity}
             readOnly
-            style={{ width: '3rem', textAlign: 'center' }}
+            className="w-12 rounded border border-line bg-ink py-1 text-center text-bone"
           />
           <button
             type="button"
             aria-label="Increase quantity"
             onClick={() => setQuantity(entry.catalogItemId, entry.variationId, entry.quantity + 1)}
+            className="flex h-7 w-7 items-center justify-center rounded border border-line-strong text-bone transition-colors hover:border-neon hover:text-neon"
           >
             +
           </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', justifyItems: 'end', gap: '0.5rem' }}>
-        <div style={{ fontWeight: 600 }}>{formatCents(lineCents)}</div>
+      <div className="grid justify-items-end gap-2">
+        <div className="font-mono font-semibold text-bone">{formatCents(lineCents)}</div>
         <button
           type="button"
           aria-label="Remove from cart"
           onClick={() => removeItem(entry.catalogItemId, entry.variationId)}
+          className="text-sm text-muted transition-colors hover:text-neon"
         >
           Remove
         </button>
