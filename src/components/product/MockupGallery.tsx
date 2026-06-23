@@ -69,6 +69,41 @@ export function MockupGallery({
   const activePosition = activeScene ? activeScene.productPosition : CLEAN_POSITION
   const aspectRatio = activeScene?.aspectRatio ?? 4 / 5
 
+  // Subtle interactive tilt + sheen on the clean "Artwork" view. CSS-only (a 3D
+  // transform + a gradient overlay), so it exposes no higher-res image (Decision
+  // 2). Pointer moves write CSS vars on the overlay via ref — no React re-render
+  // — and only take effect in the clean view with motion allowed.
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const TILT_MAX = 7
+  const resetTilt = (): void => {
+    const el = overlayRef.current
+    if (!el) return
+    el.style.setProperty('--tilt-x', '0deg')
+    el.style.setProperty('--tilt-y', '0deg')
+    el.style.setProperty('--sheen-o', '0')
+  }
+  const handlePointerMove: React.PointerEventHandler<HTMLDivElement> = (e) => {
+    const el = overlayRef.current
+    if (!el || !isArtwork || reducedMotion) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const px = (e.clientX - rect.left) / rect.width
+    const py = (e.clientY - rect.top) / rect.height
+    el.style.setProperty('--tilt-x', `${(-(py - 0.5) * 2 * TILT_MAX).toFixed(2)}deg`)
+    el.style.setProperty('--tilt-y', `${((px - 0.5) * 2 * TILT_MAX).toFixed(2)}deg`)
+    el.style.setProperty('--mx', `${(px * 100).toFixed(1)}%`)
+    el.style.setProperty('--my', `${(py * 100).toFixed(1)}%`)
+    el.style.setProperty('--sheen-o', '1')
+  }
+
+  // Reset the tilt when leaving the clean view so it doesn't persist into scenes.
+  useEffect(() => {
+    const el = overlayRef.current
+    if (isArtwork || !el) return
+    el.style.setProperty('--tilt-x', '0deg')
+    el.style.setProperty('--tilt-y', '0deg')
+    el.style.setProperty('--sheen-o', '0')
+  }, [isArtwork])
+
   // Arrow keys cycle the full ordered list: Artwork (-1) → scene 0 → … → last.
   const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
     if (e.key === 'ArrowRight') {
@@ -173,6 +208,8 @@ export function MockupGallery({
         data-view={isArtwork ? 'artwork' : 'scene'}
         role="img"
         aria-label={displayLabel}
+        onPointerMove={handlePointerMove}
+        onPointerLeave={resetTilt}
       >
         {/* Scene backgrounds — stacked, crossfade by opacity. Clean "Artwork"
             view has none active, so the dark frame shows. */}
@@ -193,6 +230,7 @@ export function MockupGallery({
             prototype) rather than fading or sliding. */}
         {activeImage && (
           <div
+            ref={overlayRef}
             className={styles.overlayWrap}
             style={{
               top: activePosition.top,
@@ -202,18 +240,23 @@ export function MockupGallery({
               transform: activePosition.transform
             }}
           >
-            <Image
-              key={activeImage}
-              src={activeImage}
-              alt={productName}
-              fill
-              quality={70}
-              sizes="(max-width: 640px) 60vw, 420px"
-              priority
-              draggable={false}
-              onContextMenu={blockSave}
-              onDragStart={blockSave}
-            />
+            {/* Inner tilt layer (clean-view pointer effect) — separate element so
+                its fast follow doesn't inherit the 0.8s glide transition. */}
+            <div className={styles.tilt}>
+              <Image
+                key={activeImage}
+                src={activeImage}
+                alt={productName}
+                fill
+                quality={70}
+                sizes="(max-width: 640px) 60vw, 420px"
+                priority
+                draggable={false}
+                onContextMenu={blockSave}
+                onDragStart={blockSave}
+              />
+              {isArtwork && <div className={styles.sheen} aria-hidden="true" />}
+            </div>
           </div>
         )}
 

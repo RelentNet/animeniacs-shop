@@ -114,6 +114,8 @@
   position: absolute;
   z-index: 1;
   transition: all 800ms cubic-bezier(0.4, 0, 0.2, 1);
+  /* 3D context for the clean-view pointer tilt (.tilt child). */
+  perspective: 900px;
 }
 
 .overlayWrap img {
@@ -123,12 +125,50 @@
   pointer-events: none;
 }
 
+/* Inner tilt layer — follows the cursor on the clean Artwork view. Fast,
+   separate from the wrapper's 0.8s glide. Vars default to flat/off so scenes
+   and reduced-motion are unaffected. */
+.tilt {
+  position: absolute;
+  inset: 0;
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transform-style: preserve-3d;
+  transition: transform 200ms ease-out;
+  will-change: transform;
+}
+
+/* Moving sheen — a soft highlight tracking the cursor. CSS-only, exposes no
+   image data; sits above the art but below the save-shield. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--sheen-o, 0);
+  transition: opacity 220ms ease-out;
+  background: radial-gradient(
+    circle at var(--mx, 50%) var(--my, 50%),
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.06) 32%,
+    rgba(255, 255, 255, 0) 55%
+  );
+  mix-blend-mode: soft-light;
+}
+
 /* Reduced motion: instant moves, no entrance. The JS data-attribute gate stays
    for parity; the media query also covers the first paint before the effect
    runs. */
 .display[data-reduced-motion="true"] .bg,
-.display[data-reduced-motion="true"] .overlayWrap {
+.display[data-reduced-motion="true"] .overlayWrap,
+.display[data-reduced-motion="true"] .tilt {
   transition: none;
+}
+
+.display[data-reduced-motion="true"] .tilt {
+  transform: none;
+}
+
+.display[data-reduced-motion="true"] .sheen {
+  opacity: 0;
 }
 
 .display[data-reduced-motion="true"] {
@@ -142,8 +182,17 @@
 
   .bg,
   .overlayWrap,
-  .thumb {
+  .thumb,
+  .tilt {
     transition: none;
+  }
+
+  .tilt {
+    transform: none;
+  }
+
+  .sheen {
+    opacity: 0;
   }
 }
 
