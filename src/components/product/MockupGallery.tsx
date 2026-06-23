@@ -162,7 +162,7 @@ export function MockupGallery({
         role="img"
         aria-label={displayLabel}
       >
-        {/* Room scenes: only mounted/visible when a scene is active. */}
+        {/* Room-scene backgrounds — all mounted, crossfade by opacity. */}
         {scenes.map((s, i) => (
           <img
             key={s.id}
@@ -174,9 +174,13 @@ export function MockupGallery({
           />
         ))}
 
-        {activeImage && isArtwork && (
-          <div className={styles.artwork}>
+        {/* Clean "Artwork" layer — stays mounted so it crossfades in/out
+            instead of popping. Keyed by image so switching product images
+            replays a gentle fade-in. */}
+        {activeImage && (
+          <div className={styles.artwork} data-active={isArtwork}>
             <Image
+              key={activeImage}
               src={activeImage}
               alt={productName}
               width={DISPLAY_W}
@@ -192,29 +196,34 @@ export function MockupGallery({
           </div>
         )}
 
-        {activeImage && !isArtwork && activeScene && (
-          <div
-            className={styles.overlayWrap}
-            style={{
-              top: activeScene.productPosition.top,
-              left: activeScene.productPosition.left,
-              width: activeScene.productPosition.width,
-              height: activeScene.productPosition.height,
-              transform: activeScene.productPosition.transform
-            }}
-          >
-            <Image
-              src={activeImage}
-              alt={productName}
-              fill
-              quality={70}
-              sizes="(max-width: 640px) 30vw, 160px"
-              draggable={false}
-              onContextMenu={blockSave}
-              onDragStart={blockSave}
-            />
-          </div>
-        )}
+        {/* Per-scene product overlays — one per scene in its own position, each
+            crossfading by opacity so scene↔scene fades cleanly (never slides). */}
+        {activeImage &&
+          scenes.map((s, i) => (
+            <div
+              key={s.id}
+              className={styles.overlayWrap}
+              data-active={!isArtwork && i === sceneIdx}
+              style={{
+                top: s.productPosition.top,
+                left: s.productPosition.left,
+                width: s.productPosition.width,
+                height: s.productPosition.height,
+                transform: s.productPosition.transform
+              }}
+            >
+              <Image
+                src={activeImage}
+                alt=""
+                fill
+                quality={70}
+                sizes="(max-width: 640px) 30vw, 160px"
+                draggable={false}
+                onContextMenu={blockSave}
+                onDragStart={blockSave}
+              />
+            </div>
+          ))}
 
         {/* Transparent shield blocks right-click / drag-save over the whole frame. */}
         <button

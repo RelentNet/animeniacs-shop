@@ -36,7 +36,7 @@
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 6px;
-  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
 .thumb:hover {
@@ -46,6 +46,7 @@
 .thumb[aria-pressed="true"] {
   border-color: var(--color-neon);
   box-shadow: 0 0 0 1px rgba(57, 255, 20, 0.5), 0 0 16px -2px rgba(57, 255, 20, 0.45);
+  transform: scale(1.05);
 }
 
 .thumb img {
@@ -74,6 +75,8 @@
   aspect-ratio: 4 / 5;
   -webkit-user-select: none;
   user-select: none;
+  /* One-time entrance so the gallery settles in rather than snapping. */
+  animation: galleryEnter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* Subtle backlit-gallery wash + neon top edge so the dark frame reads as themed. */
@@ -86,6 +89,8 @@
   background: radial-gradient(120% 80% at 50% -10%, rgba(139, 61, 255, 0.16), transparent 60%);
 }
 
+/* Every display layer (scene bg, clean artwork, per-scene overlay) crossfades
+   on the same easing so artwork↔scene and scene↔scene transition fluidly. */
 .bg {
   position: absolute;
   inset: 0;
@@ -93,18 +98,15 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 400ms ease;
+  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bg[data-active="true"] {
   opacity: 1;
 }
 
-.display[data-reduced-motion="true"] .bg {
-  transition: none;
-}
-
-/* Clean "Artwork" surface: the art, contained, centered on dark. */
+/* Clean "Artwork" surface: the art, contained, centered on dark. Stays
+   mounted and crossfades via opacity (toggled by data-active). */
 .artwork {
   position: absolute;
   inset: 0;
@@ -112,6 +114,12 @@
   align-items: center;
   justify-content: center;
   padding: 6%;
+  opacity: 0;
+  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.artwork[data-active="true"] {
+  opacity: 1;
 }
 
 .artwork img {
@@ -119,11 +127,68 @@
   -webkit-user-select: none;
   user-select: none;
   pointer-events: none;
+  /* Gentle fade-in when the selected product image changes (Image is keyed). */
+  animation: galleryFade 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Scene overlay wrapper — positioned per scene, holds a fill <Image>. */
+/* Scene overlay wrapper — positioned per scene, holds a fill <Image>. One per
+   scene; crossfades by opacity so scene↔scene fades in place (never slides). */
 .overlayWrap {
   position: absolute;
+  opacity: 0;
+  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.overlayWrap[data-active="true"] {
+  opacity: 1;
+}
+
+/* Reduced motion: instant swaps, no entrance / fades. The JS data-attribute
+   gate stays for parity; the media query also covers the first paint before
+   the effect runs. */
+.display[data-reduced-motion="true"] .bg,
+.display[data-reduced-motion="true"] .artwork,
+.display[data-reduced-motion="true"] .overlayWrap {
+  transition: none;
+}
+
+.display[data-reduced-motion="true"],
+.display[data-reduced-motion="true"] .artwork img {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .display,
+  .artwork img {
+    animation: none;
+  }
+
+  .bg,
+  .artwork,
+  .overlayWrap,
+  .thumb {
+    transition: none;
+  }
+}
+
+@keyframes galleryEnter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes galleryFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .overlayWrap img {
