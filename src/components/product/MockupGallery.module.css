@@ -71,7 +71,8 @@
   border: 1px solid var(--color-line);
   border-radius: 10px;
   overflow: hidden;
-  /* Taller, art-forward frame (Decision 1: ≈4/5 print proportion). */
+  /* Frame matches the active scene's aspect ratio (set inline per scene); 4/5
+     is the fallback for the clean view + before a background has loaded. */
   aspect-ratio: 4 / 5;
   -webkit-user-select: none;
   user-select: none;
@@ -79,7 +80,7 @@
   animation: galleryEnter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Subtle backlit-gallery wash + neon top edge so the dark frame reads as themed. */
+/* Subtle backlit-gallery wash so the dark frame reads as themed. */
 .display::before {
   content: "";
   position: absolute;
@@ -89,77 +90,58 @@
   background: radial-gradient(120% 80% at 50% -10%, rgba(139, 61, 255, 0.16), transparent 60%);
 }
 
-/* Horizontal slide track — the active view slides into frame (matching the old
-   site's flexslider "slide" at ~500ms), rather than crossfading. Holds one
-   full-frame slide per view: [Artwork, scene 0…n]. */
-.track {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  will-change: transform;
-  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.slide {
-  position: relative;
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
-}
-
-/* Scene background — fills its slide. */
+/* Scene backgrounds — stacked, crossfade by opacity. object-fit: contain shows
+   the whole mockup (the frame already matches its ratio). Clean view = none
+   active, so the dark frame shows. */
 .bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 500ms ease;
 }
 
-/* Clean "Artwork" surface: the art, contained, centered on dark. */
-.artwork {
+.bg[data-active="true"] {
+  opacity: 1;
+}
+
+/* The single product overlay GLIDES between positions: changing its inline
+   top/left/width/height/transform animates over 0.8s, so the art moves and
+   reshapes into each room (faithful to the original prototype). */
+.overlayWrap {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6%;
+  z-index: 1;
+  transition: all 800ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.artwork img {
+.overlayWrap img {
   object-fit: contain;
   -webkit-user-select: none;
   user-select: none;
   pointer-events: none;
-  /* Gentle fade when the selected product image changes (Image is keyed). */
-  animation: galleryFade 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Scene overlay wrapper — positioned per scene, holds a fill <Image>. */
-.overlayWrap {
-  position: absolute;
-}
-
-/* Reduced motion: instant slide, no entrance / fades. The JS data-attribute
-   gate stays for parity; the media query also covers the first paint before
-   the effect runs. */
-.display[data-reduced-motion="true"] .track {
+/* Reduced motion: instant moves, no entrance. The JS data-attribute gate stays
+   for parity; the media query also covers the first paint before the effect
+   runs. */
+.display[data-reduced-motion="true"] .bg,
+.display[data-reduced-motion="true"] .overlayWrap {
   transition: none;
 }
 
-.display[data-reduced-motion="true"],
-.display[data-reduced-motion="true"] .artwork img {
+.display[data-reduced-motion="true"] {
   animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .display,
-  .artwork img {
+  .display {
     animation: none;
   }
 
-  .track,
+  .bg,
+  .overlayWrap,
   .thumb {
     transition: none;
   }
@@ -174,22 +156,6 @@
     opacity: 1;
     transform: none;
   }
-}
-
-@keyframes galleryFade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.overlayWrap img {
-  object-fit: contain;
-  -webkit-user-select: none;
-  user-select: none;
-  pointer-events: none;
 }
 
 /* Transparent shield: blocks right-click / drag-save on the whole display

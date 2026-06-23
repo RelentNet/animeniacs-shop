@@ -13,19 +13,28 @@ interface MockupGalleryProps {
 }
 
 /**
- * Downres caps (Decision 2; halved 2026-06-17 for stronger theft protection).
- * The print-resolution original is never sent at full size: the clean "Artwork"
- * view is bounded to ~550px on its longest edge at q70 (the box upscales it, so
- * it reads soft but is far below print resolution), thumbnails to ~48px. The
- * `sizes` hints below are likewise halved so the browser fetches the smaller
- * srcset entry. Square image URLs are remote-pattern-allowed in next.config, so
- * `next/image` optimizes + downscales them. (NOTE: the original Square URL is
- * still exposed in the /_next/image `url=` param — a server-side proxy is the
- * real wall; tracked separately.)
+ * Downres caps (Decision 2; theft protection). The print-resolution original is
+ * never sent at full size: the displayed product overlay is bounded by the
+ * `sizes` hint (~420px longest edge) at q70 and thumbnails to ~48px, so
+ * `next/image` fetches a small srcset entry far below print resolution. Square
+ * image URLs are remote-pattern-allowed in next.config. (NOTE: the original
+ * Square URL is still exposed in the /_next/image `url=` param — a server-side
+ * proxy is the real wall; tracked separately.)
  */
-const DISPLAY_W = 550
-const DISPLAY_H = 688 // 4/5 frame
 const THUMB_W = 48
+
+/**
+ * Clean "Artwork" view position (centered, large). The single product overlay
+ * glides between this and each scene's authored position, so the art physically
+ * moves into the room rather than fading or sliding.
+ */
+const CLEAN_POSITION = {
+  top: '5%',
+  left: '12%',
+  width: '76%',
+  height: '90%',
+  transform: 'none'
+} as const
 
 /** Block right-click / drag image-save as a mild deterrent (Decision 2). */
 function blockSave(e: React.SyntheticEvent): void {
@@ -57,6 +66,8 @@ export function MockupGallery({
   const isArtwork = sceneIdx < 0
   const activeScene = isArtwork ? null : scenes[sceneIdx]
   const activeImage = productImages[productImageIdx] ?? null
+  const activePosition = activeScene ? activeScene.productPosition : CLEAN_POSITION
+  const aspectRatio = activeScene?.aspectRatio ?? 4 / 5
 
   // Arrow keys cycle the full ordered list: Artwork (-1) → scene 0 → … → last.
   const handleKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
@@ -157,72 +168,54 @@ export function MockupGallery({
 
       <div
         className={styles.display}
+        style={{ aspectRatio: String(aspectRatio) }}
         data-reduced-motion={reducedMotion ? 'true' : 'false'}
         data-view={isArtwork ? 'artwork' : 'scene'}
         role="img"
         aria-label={displayLabel}
       >
-        {/* Horizontal slide track: the active view slides into frame (matches
-            the old site's flexslider "slide") instead of crossfading. Ordered
-            [Artwork, scene 0…n] — Artwork is slide 0, so sceneIdx (-1 = artwork)
-            maps to track position sceneIdx + 1. */}
-        <div
-          className={styles.track}
-          style={{ transform: `translateX(-${(sceneIdx + 1) * 100}%)` }}
-        >
-          {/* Artwork slide — clean art centered on dark. Image is keyed so
-              switching product images replays a gentle fade-in. */}
-          <div className={styles.slide}>
-            {activeImage && (
-              <div className={styles.artwork}>
-                <Image
-                  key={activeImage}
-                  src={activeImage}
-                  alt={productName}
-                  width={DISPLAY_W}
-                  height={DISPLAY_H}
-                  quality={70}
-                  sizes="(max-width: 640px) 45vw, 290px"
-                  priority
-                  draggable={false}
-                  onContextMenu={blockSave}
-                  onDragStart={blockSave}
-                  style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
-                />
-              </div>
-            )}
-          </div>
+        {/* Scene backgrounds — stacked, crossfade by opacity. Clean "Artwork"
+            view has none active, so the dark frame shows. */}
+        {scenes.map((s, i) => (
+          <img
+            key={s.id}
+            src={s.backgroundImage}
+            alt=""
+            className={styles.bg}
+            data-active={!isArtwork && i === sceneIdx}
+            draggable={false}
+          />
+        ))}
 
-          {/* One slide per room scene — background + product at its position. */}
-          {scenes.map((s) => (
-            <div key={s.id} className={styles.slide}>
-              <img src={s.backgroundImage} alt="" className={styles.bg} draggable={false} />
-              {activeImage && (
-                <div
-                  className={styles.overlayWrap}
-                  style={{
-                    top: s.productPosition.top,
-                    left: s.productPosition.left,
-                    width: s.productPosition.width,
-                    height: s.productPosition.height,
-                    transform: s.productPosition.transform
-                  }}
-                >
-                  <Image
-                    src={activeImage}
-                    alt=""
-                    fill
-                    quality={70}
-                    sizes="(max-width: 640px) 30vw, 160px"
-                    draggable={false}
-                    onContextMenu={blockSave}
-                    onDragStart={blockSave}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        {/* Single product overlay — GLIDES between the clean position and each
+            scene's authored position via `transition: all` on .overlayWrap, so
+            the art physically moves/reshapes into the room (matches the original
+            prototype) rather than fading or sliding. */}
+        {activeImage && (
+          <div
+            className={styles.overlayWrap}
+            style={{
+              top: activePosition.top,
+              left: activePosition.left,
+              width: activePosition.width,
+              height: activePosition.height,
+              transform: activePosition.transform
+            }}
+          >
+            <Image
+              key={activeImage}
+              src={activeImage}
+              alt={productName}
+              fill
+              quality={70}
+              sizes="(max-width: 640px) 60vw, 420px"
+              priority
+              draggable={false}
+              onContextMenu={blockSave}
+              onDragStart={blockSave}
+            />
+          </div>
+        )}
 
         {/* Transparent shield blocks right-click / drag-save over the whole frame. */}
         <button

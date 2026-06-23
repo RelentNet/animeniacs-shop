@@ -27,12 +27,14 @@ const SCENES: MockupScene[] = [
     id: 's1',
     name: 'Scene One',
     backgroundImage: '/images/mockup-scenes/style1.webp',
+    aspectRatio: 1.6,
     productPosition: { top: '0', left: '0', width: '50%', height: '50%', transform: 'none' }
   },
   {
     id: 's2',
     name: 'Scene Two',
     backgroundImage: '/images/mockup-scenes/style2.webp',
+    aspectRatio: 1,
     productPosition: { top: '10%', left: '10%', width: '40%', height: '40%', transform: 'none' }
   }
 ]
