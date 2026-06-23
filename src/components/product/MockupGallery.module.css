@@ -147,9 +147,9 @@
   transition: opacity 220ms ease-out;
   background: radial-gradient(
     circle at var(--mx, 50%) var(--my, 50%),
-    rgba(255, 255, 255, 0.3),
-    rgba(255, 255, 255, 0.06) 32%,
-    rgba(255, 255, 255, 0) 55%
+    rgba(255, 255, 255, 0.55),
+    rgba(255, 255, 255, 0.12) 18%,
+    rgba(255, 255, 255, 0) 40%
   );
   mix-blend-mode: soft-light;
 }
