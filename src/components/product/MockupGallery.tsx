@@ -162,68 +162,67 @@ export function MockupGallery({
         role="img"
         aria-label={displayLabel}
       >
-        {/* Room-scene backgrounds — all mounted, crossfade by opacity. */}
-        {scenes.map((s, i) => (
-          <img
-            key={s.id}
-            src={s.backgroundImage}
-            alt=""
-            className={styles.bg}
-            data-active={!isArtwork && i === sceneIdx}
-            draggable={false}
-          />
-        ))}
-
-        {/* Clean "Artwork" layer — stays mounted so it crossfades in/out
-            instead of popping. Keyed by image so switching product images
-            replays a gentle fade-in. */}
-        {activeImage && (
-          <div className={styles.artwork} data-active={isArtwork}>
-            <Image
-              key={activeImage}
-              src={activeImage}
-              alt={productName}
-              width={DISPLAY_W}
-              height={DISPLAY_H}
-              quality={70}
-              sizes="(max-width: 640px) 45vw, 290px"
-              priority
-              draggable={false}
-              onContextMenu={blockSave}
-              onDragStart={blockSave}
-              style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
-            />
+        {/* Horizontal slide track: the active view slides into frame (matches
+            the old site's flexslider "slide") instead of crossfading. Ordered
+            [Artwork, scene 0…n] — Artwork is slide 0, so sceneIdx (-1 = artwork)
+            maps to track position sceneIdx + 1. */}
+        <div
+          className={styles.track}
+          style={{ transform: `translateX(-${(sceneIdx + 1) * 100}%)` }}
+        >
+          {/* Artwork slide — clean art centered on dark. Image is keyed so
+              switching product images replays a gentle fade-in. */}
+          <div className={styles.slide}>
+            {activeImage && (
+              <div className={styles.artwork}>
+                <Image
+                  key={activeImage}
+                  src={activeImage}
+                  alt={productName}
+                  width={DISPLAY_W}
+                  height={DISPLAY_H}
+                  quality={70}
+                  sizes="(max-width: 640px) 45vw, 290px"
+                  priority
+                  draggable={false}
+                  onContextMenu={blockSave}
+                  onDragStart={blockSave}
+                  style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto' }}
+                />
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Per-scene product overlays — one per scene in its own position, each
-            crossfading by opacity so scene↔scene fades cleanly (never slides). */}
-        {activeImage &&
-          scenes.map((s, i) => (
-            <div
-              key={s.id}
-              className={styles.overlayWrap}
-              data-active={!isArtwork && i === sceneIdx}
-              style={{
-                top: s.productPosition.top,
-                left: s.productPosition.left,
-                width: s.productPosition.width,
-                height: s.productPosition.height,
-                transform: s.productPosition.transform
-              }}
-            >
-              <Image
-                src={activeImage}
-                alt=""
-                fill
-                quality={70}
-                sizes="(max-width: 640px) 30vw, 160px"
-                draggable={false}
-                onContextMenu={blockSave}
-                onDragStart={blockSave}
-              />
+          {/* One slide per room scene — background + product at its position. */}
+          {scenes.map((s) => (
+            <div key={s.id} className={styles.slide}>
+              <img src={s.backgroundImage} alt="" className={styles.bg} draggable={false} />
+              {activeImage && (
+                <div
+                  className={styles.overlayWrap}
+                  style={{
+                    top: s.productPosition.top,
+                    left: s.productPosition.left,
+                    width: s.productPosition.width,
+                    height: s.productPosition.height,
+                    transform: s.productPosition.transform
+                  }}
+                >
+                  <Image
+                    src={activeImage}
+                    alt=""
+                    fill
+                    quality={70}
+                    sizes="(max-width: 640px) 30vw, 160px"
+                    draggable={false}
+                    onContextMenu={blockSave}
+                    onDragStart={blockSave}
+                  />
+                </div>
+              )}
             </div>
           ))}
+        </div>
 
         {/* Transparent shield blocks right-click / drag-save over the whole frame. */}
         <button

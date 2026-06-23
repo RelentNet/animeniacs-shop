@@ -89,24 +89,35 @@
   background: radial-gradient(120% 80% at 50% -10%, rgba(139, 61, 255, 0.16), transparent 60%);
 }
 
-/* Every display layer (scene bg, clean artwork, per-scene overlay) crossfades
-   on the same easing so artwork↔scene and scene↔scene transition fluidly. */
+/* Horizontal slide track — the active view slides into frame (matching the old
+   site's flexslider "slide" at ~500ms), rather than crossfading. Holds one
+   full-frame slide per view: [Artwork, scene 0…n]. */
+.track {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.slide {
+  position: relative;
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Scene background — fills its slide. */
 .bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.bg[data-active="true"] {
-  opacity: 1;
-}
-
-/* Clean "Artwork" surface: the art, contained, centered on dark. Stays
-   mounted and crossfades via opacity (toggled by data-active). */
+/* Clean "Artwork" surface: the art, contained, centered on dark. */
 .artwork {
   position: absolute;
   inset: 0;
@@ -114,12 +125,6 @@
   align-items: center;
   justify-content: center;
   padding: 6%;
-  opacity: 0;
-  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.artwork[data-active="true"] {
-  opacity: 1;
 }
 
 .artwork img {
@@ -127,28 +132,19 @@
   -webkit-user-select: none;
   user-select: none;
   pointer-events: none;
-  /* Gentle fade-in when the selected product image changes (Image is keyed). */
+  /* Gentle fade when the selected product image changes (Image is keyed). */
   animation: galleryFade 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Scene overlay wrapper — positioned per scene, holds a fill <Image>. One per
-   scene; crossfades by opacity so scene↔scene fades in place (never slides). */
+/* Scene overlay wrapper — positioned per scene, holds a fill <Image>. */
 .overlayWrap {
   position: absolute;
-  opacity: 0;
-  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.overlayWrap[data-active="true"] {
-  opacity: 1;
-}
-
-/* Reduced motion: instant swaps, no entrance / fades. The JS data-attribute
+/* Reduced motion: instant slide, no entrance / fades. The JS data-attribute
    gate stays for parity; the media query also covers the first paint before
    the effect runs. */
-.display[data-reduced-motion="true"] .bg,
-.display[data-reduced-motion="true"] .artwork,
-.display[data-reduced-motion="true"] .overlayWrap {
+.display[data-reduced-motion="true"] .track {
   transition: none;
 }
 
@@ -163,9 +159,7 @@
     animation: none;
   }
 
-  .bg,
-  .artwork,
-  .overlayWrap,
+  .track,
   .thumb {
     transition: none;
   }
