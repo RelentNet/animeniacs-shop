@@ -1,4 +1,5 @@
 import 'server-only'
+import { artImageUrl } from '@/lib/images/art-url'
 import { unstable_cache as cache } from 'next/cache'
 import { getSquareClient } from './client'
 
@@ -57,6 +58,21 @@ export async function resolveImageUrls(
 }
 
 /**
+ * Resolve ONE Square IMAGE object id → its current presigned CDN url, for the
+ * art proxy (`/api/art`). Cached per id (~50 min, under the presigned-url
+ * lifetime) so the proxy doesn't `batchGet` on every image request and recovers
+ * automatically when a url rotates. Returns null if the id isn't a live IMAGE.
+ */
+export const resolveImageUrlCached = cache(
+  async (id: string): Promise<string | null> => {
+    const map = await resolveImageUrls(getSquareClient(), [id])
+    return map.get(id) ?? null
+  },
+  ['square-image-url'],
+  { revalidate: 3000 }
+)
+
+/**
  * Returns active (non-archived) catalog items whose `categories[]`
  * contains the given category id. Image URLs are resolved by fetching
  * each referenced IMAGE object.
@@ -91,17 +107,9 @@ export const getItemsByCategoryId = cache(
 
     if (active.length === 0) return []
 
-    // Collect all unique image IDs referenced by these items.
-    const allImageIds = new Set<string>()
-    for (const it of active) {
-      const ids: string[] = it.itemData?.imageIds ?? []
-      for (const id of ids) allImageIds.add(id)
-    }
-
-    // Batch-fetch images (chunked under Square's batchGet object cap).
-    const imageUrlById = await resolveImageUrls(client, Array.from(allImageIds))
-
-    // Project to our public shape.
+    // Project to our public shape. Images are referenced by Square image id via
+    // the art proxy (the original url is never sent to the client), so no
+    // per-page url resolution is needed here.
     const out: ArtistProduct[] = []
     for (const it of active) {
       const itemData = it.itemData ?? {}
@@ -129,7 +137,7 @@ export const getItemsByCategoryId = cache(
       out.push({
         id: it.id,
         name: itemData.name ?? '(unnamed)',
-        imageUrl: firstImageId ? (imageUrlById.get(firstImageId) ?? null) : null,
+        imageUrl: firstImageId ? artImageUrl(firstImageId) : null,
         priceCents,
         categoryIds,
         updatedAt: typeof it.updatedAt === 'string' ? it.updatedAt : null
@@ -179,16 +187,8 @@ export const getShopProducts = cache(
 
     if (active.length === 0) return []
 
-    // Collect all unique image IDs referenced by these items.
-    const allImageIds = new Set<string>()
-    for (const it of active) {
-      const ids: string[] = it.itemData?.imageIds ?? []
-      for (const id of ids) allImageIds.add(id)
-    }
-
-    // Batch-fetch images (chunked under Square's batchGet object cap).
-    const imageUrlById = await resolveImageUrls(client, Array.from(allImageIds))
-
+    // Images are referenced by Square image id via the art proxy, so no per-page
+    // url resolution is needed.
     const byId = new Map<string, ArtistProduct>()
     for (const it of active) {
       if (byId.has(it.id)) continue
@@ -216,7 +216,7 @@ export const getShopProducts = cache(
       byId.set(it.id, {
         id: it.id,
         name: itemData.name ?? '(unnamed)',
-        imageUrl: firstImageId ? (imageUrlById.get(firstImageId) ?? null) : null,
+        imageUrl: firstImageId ? artImageUrl(firstImageId) : null,
         priceCents,
         categoryIds,
         updatedAt: typeof it.updatedAt === 'string' ? it.updatedAt : null

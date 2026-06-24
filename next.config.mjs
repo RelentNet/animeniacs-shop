@@ -11,16 +11,11 @@ const config = {
     serverComponentsExternalPackages: ['isomorphic-dompurify']
   },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'items-images-production.s3.us-west-2.amazonaws.com'
-      },
-      {
-        protocol: 'https',
-        hostname: 'items-images-sandbox.s3.us-west-2.amazonaws.com'
-      }
-    ]
+    // No remote hosts: product art is served same-origin via the /api/art proxy
+    // (which downscales + hides the original Square url), and avatars / mockup
+    // scenes are local /public assets. Whitelisting the Square S3 hosts here
+    // would let /_next/image be abused to fetch the print-res originals.
+    remotePatterns: []
   }
 }
 

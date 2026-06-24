@@ -1,6 +1,7 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { productCache } from '@/lib/db/schema'
+import { artImageUrl } from '@/lib/images/art-url'
 import { getSquareClient } from '@/lib/square/client'
 import type {
   CachedItemOption,
@@ -34,7 +35,6 @@ interface OptionDef {
 
 interface DenormalizeContext {
   optionDefs: Map<string, OptionDef>
-  imageUrlById: Map<string, string>
 }
 
 /**
@@ -45,9 +45,12 @@ interface DenormalizeContext {
 export function denormalize(sdkItem: any, ctx: DenormalizeContext): CachedProduct {
   const itemData = sdkItem.itemData ?? {}
 
+  // Reference images by Square image id through the art proxy — the original
+  // Square url is never stored or sent to the client. Ids come from Square and
+  // are trusted here; the /api/art route validates on the untrusted boundary.
   const images: string[] = (itemData.imageIds ?? [])
-    .map((id: string) => ctx.imageUrlById.get(id))
-    .filter((u: string | undefined): u is string => typeof u === 'string')
+    .filter((id: unknown): id is string => typeof id === 'string')
+    .map((id: string) => artImageUrl(id))
 
   const categoryIds: string[] = (itemData.categories ?? [])
     // biome-ignore lint/suspicious/noExplicitAny: SDK
@@ -127,12 +130,11 @@ async function refreshFromSquare(itemId: string): Promise<CachedProduct | null> 
   // biome-ignore lint/suspicious/noExplicitAny: SDK
   const related: any[] = env.relatedObjects ?? env.result?.relatedObjects ?? []
 
-  const imageUrlById = new Map<string, string>()
+  // Images are referenced by id via the art proxy, so we only need ITEM_OPTION
+  // related objects here (not IMAGE urls).
   const optionDefs = new Map<string, OptionDef>()
   for (const r of related) {
-    if (r.type === 'IMAGE' && typeof r.imageData?.url === 'string') {
-      imageUrlById.set(r.id, r.imageData.url)
-    } else if (r.type === 'ITEM_OPTION') {
+    if (r.type === 'ITEM_OPTION') {
       const od = r.itemOptionData ?? {}
       // biome-ignore lint/suspicious/noExplicitAny: SDK
       const values = (od.values ?? []).map((v: any) => ({
@@ -147,7 +149,7 @@ async function refreshFromSquare(itemId: string): Promise<CachedProduct | null> 
     }
   }
 
-  return denormalize(sdkItem, { optionDefs, imageUrlById })
+  return denormalize(sdkItem, { optionDefs })
 }
 
 interface CacheRow {
@@ -165,7 +167,11 @@ async function readFresh(itemId: string): Promise<CacheRow | null> {
   if (!row) return null
   const age = Date.now() - row.updatedAt.getTime()
   if (age > PRODUCT_CACHE_TTL_MS) return null
-  return { data: row.data as CachedProduct, updatedAt: row.updatedAt }
+  const data = row.data as CachedProduct
+  // Bust pre-proxy rows (images stored as raw Square urls) so they repopulate as
+  // /api/art proxy urls — avoids a manual product_cache truncate at release.
+  if (data.images.some((u) => !u.startsWith('/api/art'))) return null
+  return { data, updatedAt: row.updatedAt }
 }
 
 async function writeCache(product: CachedProduct): Promise<void> {

@@ -47,9 +47,8 @@ describe('denormalize', () => {
       ['OPT_SIZE', { id: 'OPT_SIZE', name: 'Size', values: [{ id: 'VAL_SM', name: 'Small' }] }],
       ['OPT_MEDIA', { id: 'OPT_MEDIA', name: 'Media', values: [{ id: 'VAL_AC', name: 'Acrylic' }] }]
     ])
-    const imageUrlById = new Map([['IMG_1', 'https://cdn.example/img1.jpg']])
 
-    const product = denormalize(sdkItem, { optionDefs, imageUrlById })
+    const product = denormalize(sdkItem, { optionDefs })
 
     expect(product.id).toBe('ITEM_1')
     expect(product.itemOptions).toHaveLength(2)
@@ -61,7 +60,8 @@ describe('denormalize', () => {
     expect(product.variations).toHaveLength(1)
     expect(product.variations[0].optionValueIds).toEqual(['VAL_SM', 'VAL_AC'])
     expect(product.variations[0].price).toEqual({ amount: 2500, currency: 'USD' })
-    expect(product.images).toEqual(['https://cdn.example/img1.jpg'])
+    // Images are referenced by id through the art proxy, never the raw Square url.
+    expect(product.images).toEqual(['/api/art?id=IMG_1'])
     expect(product.categoryIds).toEqual(['CAT_1'])
   })
 
@@ -87,10 +87,7 @@ describe('denormalize', () => {
       }
     }
 
-    const product = denormalize(sdkItem, {
-      optionDefs: new Map(),
-      imageUrlById: new Map()
-    })
+    const product = denormalize(sdkItem, { optionDefs: new Map() })
 
     expect(product.itemOptions).toEqual([])
     expect(product.variations[0].optionValueIds).toEqual([])
