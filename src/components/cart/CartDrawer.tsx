@@ -142,6 +142,7 @@ export function CartDrawer(): JSX.Element {
               <span data-testid="cart-subtotal">${(subtotalCents / 100).toFixed(2)}</span>
             </div>
             <ul className={styles.badges}>
+              <li>$10 flat shipping · U.S. only (incl. PR &amp; AK)</li>
               <li>{CART_BADGE_DELIVERY}</li>
               <li>{CART_BADGE_HANGING_STRIPS}</li>
               <li>{CART_BADGE_SUPPORT_ARTIST}</li>

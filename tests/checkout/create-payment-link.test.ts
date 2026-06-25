@@ -90,6 +90,21 @@ describe('createPaymentLink', () => {
     expect(opts.redirectUrl).toBe('https://dev.animeniacs.shop/checkout/success')
   })
 
+  it('adds the flat $10 US shipping fee to checkoutOptions', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({
+      lines: LINES,
+      cartId: 'cart-uuid',
+      locationId: 'LOC_X',
+      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
+    })
+    const opts = mockCreate.mock.calls[0][0].checkoutOptions
+    expect(opts.shippingFee).toEqual({
+      name: 'Shipping',
+      charge: { amount: 1000n, currency: 'USD' }
+    })
+  })
+
   it('throws if Square response lacks paymentLink.url', async () => {
     mockCreate.mockResolvedValue({ paymentLink: { url: null, orderId: 'ORDER_X' } })
     await expect(

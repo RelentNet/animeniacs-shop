@@ -2,6 +2,16 @@ import 'server-only'
 import { getSquareClient } from '@/lib/square/client'
 import type { ValidatedLine } from './validate-cart'
 
+/**
+ * Interim flat shipping fee (cents), charged on every order. $10 flat for the
+ * US (incl. PR/AK); international is not offered yet and is communicated at
+ * checkout. This is the stopgap until the Shippo dynamic-rate integration —
+ * which will collect the address on-site, quote live carrier rates, and enforce
+ * shippable countries before payment. Square's hosted checkout has no country
+ * restriction, so hard international-blocking arrives with that on-site step.
+ */
+const FLAT_SHIPPING_CENTS = 1000n
+
 export interface CreatePaymentLinkArgs {
   /** Validated cart lines (post validateCart). */
   lines: ValidatedLine[]
@@ -38,7 +48,11 @@ export async function createPaymentLink(
       })),
       metadata: { cart_id: args.cartId }
     },
-    checkoutOptions: { redirectUrl: args.redirectUrl, askForShippingAddress: true }
+    checkoutOptions: {
+      redirectUrl: args.redirectUrl,
+      askForShippingAddress: true,
+      shippingFee: { name: 'Shipping', charge: { amount: FLAT_SHIPPING_CENTS, currency: 'USD' } }
+    }
   })
   // biome-ignore lint/suspicious/noExplicitAny: SDK return shape varies
   const link = (response as any).paymentLink
