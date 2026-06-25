@@ -20,6 +20,8 @@ import { buildClient, listAll, type CatalogObject } from './lib'
 
 const WOO = 'https://animeniacs.shop/wp-json/wc/store/v1/products'
 const APPLY = process.argv.includes('--apply')
+// Default sandbox; pass --prod to target production (requires SQUARE_PROD_ACCESS_TOKEN).
+const ENV: 'sandbox' | 'production' = process.argv.includes('--prod') ? 'production' : 'sandbox'
 
 // WooCommerce categories that are product-type / genre / style — NOT artists.
 const NON_ARTIST_WOO = new Set(
@@ -104,9 +106,11 @@ function itemCategoryIds(it: CatalogObject): string[] {
 }
 
 async function main() {
-  console.log(`ARTIST sandbox tagging — mode: ${APPLY ? 'APPLY (writes sandbox)' : 'DRY RUN'}\n`)
+  console.log(
+    `ARTIST ${ENV.toUpperCase()} tagging — mode: ${APPLY ? `APPLY (writes ${ENV})` : 'DRY RUN'}\n`
+  )
 
-  const client = buildClient('sandbox')
+  const client = buildClient(ENV)
   const cats = await listAll(client, 'CATEGORY')
   const allCats = cats.map((o) => ({
     id: o.id,
@@ -114,13 +118,13 @@ async function main() {
     parent: o.categoryData?.parentCategory?.id ?? null
   }))
   const artistParent = allCats.find((c) => c.name === 'Artist' && c.parent === null)
-  if (!artistParent) throw new Error('No sandbox Artist parent category found.')
+  if (!artistParent) throw new Error(`No ${ENV} Artist parent category found.`)
   let subs: Sub[] = allCats
     .filter((c) => c.parent === artistParent.id)
     .map((c) => ({ id: c.id, name: c.name }))
 
-  console.log(`Sandbox Artist parent: ${artistParent.id}`)
-  console.log(`Sandbox artist sub-categories present: ${subs.length}`)
+  console.log(`${ENV} Artist parent: ${artistParent.id}`)
+  console.log(`${ENV} artist sub-categories present: ${subs.length}`)
   if (subs.length <= 1) {
     console.log(
       '\n!! Only the merc category is present. Run `pnpm sq:mirror` first so the\n' +
@@ -136,7 +140,7 @@ async function main() {
       continue
     }
     if (!APPLY) {
-      console.log(`  [dry] would CREATE sandbox category "${name}" under Artist parent.`)
+      console.log(`  [dry] would CREATE ${ENV} category "${name}" under Artist parent.`)
       subs = [...subs, { id: `#new_${norm(name)}`, name }]
       continue
     }
@@ -227,6 +231,7 @@ async function main() {
   }
   console.log(`\n  total items to tag: ${total}`)
   console.log(`  skipped (DalynTnT): ${skipped.length}`)
+  for (const s of skipped) console.log(`     ~ ${s}`)
   console.log(`  unresolved (no artist / needs review): ${unresolved.length}`)
   for (const u of unresolved) console.log(`     ? ${u}`)
 
