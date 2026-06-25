@@ -1,6 +1,6 @@
 # RESUME HERE — Animeniacs Shop project state
 
-**Last updated:** 2026-06-16 (Mac Master orchestrator session).
+**Last updated:** 2026-06-25 (production cutover in progress).
 **Purpose:** the single "where are we / what's next" pickup doc, usable from any
 machine. Read this first, then the linked phase handoff.
 
@@ -10,6 +10,53 @@ machine. Read this first, then the linked phase handoff.
 ---
 
 ## Where we are right now
+
+> **2026-06-25 — PRODUCTION CUTOVER IN PROGRESS (staging-on-prod).** `main` @
+> `7570cdf`. **`dev.animeniacs.shop` now runs PRODUCTION Square** (`SQUARE_ENV=
+> production` + prod token/location/webhook key in Coolify) as the real-credentials
+> staging site. The actual `animeniacs.shop` DNS cutover off the live WooCommerce
+> store is still a LATER, separate step. ⚠️ This means CLAUDE.md's "`SQUARE_ENV=
+> sandbox` everywhere" no longer holds for the deployed app — the operator-gated
+> cutover happened.
+>
+> **Shipped this pass:**
+> - **Art-protection proxy** (the real wall): `/api/art?id=<squareImageId>`
+>   resolves id→Square url server-side + downscales via sharp to
+>   `ART_IMAGE_MAX_EDGE` (default 2048; longest edge, portrait+landscape). Product
+>   images now reference the proxy (never the Square url); Square hosts removed
+>   from `next.config` remotePatterns. Print-res original no longer downloadable.
+> - **Revalidate-on-deploy:** `POST /api/revalidate` (x-cron-secret) + `deploy.sh`
+>   now self-polls the deployment to `finished` then warms the ISR pages. Kills the
+>   ~5-min empty-shell. (First live fire confirmed.)
+> - **Description double-encode bug fixed:** `sanitize-html.ts` decodes one entity
+>   layer before sanitizing (Square descriptions were `<p>&lt;p&gt;…`).
+> - **PDP gallery:** glide-between-mockups motion (matches the original prototype)
+>   + interactive tilt/sheen on the clean artwork view.
+> - **Production catalog categorized:** `apply-artist-categories.ts --prod` tagged
+>   **215 items** to their Artist sub-categories (WooCommerce = item→artist source,
+>   by name); **AMR** sub-category created. 14 items unresolved (7 are products like
+>   Litbox/Custom that correctly stay untagged; 7 are artworks needing an artist:
+>   Brook, Band of the Hawk, Robo Vs Jim, Cpt Mario Vs Bat, Plant Vs Predator,
+>   Zybhorn Print, Juda Print). 2 DalynTnT skipped by policy. *Animeniacs Studios*
+>   shows 0 (its 2 items are archived).
+> - **Flat $10 US shipping (interim):** `CheckoutOptions.shippingFee` on the payment
+>   link; cart shows "$10 flat · U.S. only (incl. PR & AK)". International is NOT
+>   hard-blocked (Square hosted checkout has no country restriction) — real
+>   enforcement arrives with the Shippo build.
+>
+> **PENDING (operator):** ① re-link the **16 artist records** in `/admin/artists`
+> from sandbox → prod category IDs (they still point at sandbox; artist pages are
+> empty until done). ② **rotate the temp prod Square token** pasted in chat during
+> categorization. ③ the eventual `animeniacs.shop` **DNS cutover**. ④ optionally
+> resolve the 7 unmatched artworks + the archived Animeniacs Studios items.
+>
+> **NEXT SESSION = Shippo dynamic shipping** (replaces the flat-fee stopgap). Full
+> kickoff prompt: [`SHIPPO-SESSION.md`](./SHIPPO-SESSION.md).
+>
+> **Catalog mgmt note:** the storefront filters **`isArchived` only** — NOT location
+> availability. To remove a product from the site, **archive** it (location-hiding
+> does nothing). Propagation is TTL-based (shop ~1 min, artist/category ~5 min, PDP
+> up to ~1 hr); no catalog webhook, so nothing is instant. A redeploy clears caches.
 
 > **2026-06-17 session summary — DEV IS FEATURE-COMPLETE & VERIFIED.** `main` @
 > `4edb790`. Order chain fixed (BigInt recording + refund-by-payment); Phases
