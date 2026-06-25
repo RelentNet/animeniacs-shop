@@ -1,6 +1,7 @@
 'use client'
 
 import { CartButton } from '@/components/cart/CartButton'
+import { ComingSoonNavItem } from '@/components/layout/ComingSoonNavItem'
 import { Logo } from '@/components/layout/Logo'
 import { MobileNav } from '@/components/layout/MobileNav'
 import type { Route } from 'next'
@@ -8,11 +9,18 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
-const NAV: { href: Route; label: string }[] = [
+export interface NavItem {
+  href: Route
+  label: string
+  /** Section not built yet — render a "coming soon" affordance, not a link. */
+  comingSoon?: boolean
+}
+
+const NAV: NavItem[] = [
   { href: '/shop' as Route, label: 'Shop' },
   { href: '/artist' as Route, label: 'Artists' },
-  { href: '/custom/acrylic' as Route, label: 'Custom Acrylic' },
-  { href: '/custom/stickers' as Route, label: 'Custom Stickers' },
+  { href: '/custom/acrylic' as Route, label: 'Custom Acrylic', comingSoon: true },
+  { href: '/custom/stickers' as Route, label: 'Custom Stickers', comingSoon: true },
   { href: '/account' as Route, label: 'Account' }
 ]
 
@@ -25,7 +33,11 @@ function isActive(pathname: string, href: string): boolean {
  * below ~h-14); the duotone Logo recolors via the --logo-* vars in globals.css. */
 function Wordmark(): JSX.Element {
   return (
-    <Link href="/" aria-label="Animeniacs home" className="block transition-transform hover:scale-[1.03] hover:no-underline">
+    <Link
+      href="/"
+      aria-label="Animeniacs home"
+      className="block transition-transform hover:scale-[1.03] hover:no-underline"
+    >
       <Logo className="h-14 w-auto drop-shadow-[0_0_18px_rgba(139,61,255,0.45)]" />
     </Link>
   )
@@ -58,13 +70,17 @@ export function Header(): JSX.Element {
               const active = isActive(pathname, item.href)
               return (
                 <li key={item.href} className="hidden md:block">
-                  <Link
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={`link-neon${active ? ' is-active' : ''}`}
-                  >
-                    {item.label}
-                  </Link>
+                  {item.comingSoon ? (
+                    <ComingSoonNavItem label={item.label} className="link-neon p-0" />
+                  ) : (
+                    <Link
+                      href={item.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={`link-neon${active ? ' is-active' : ''}`}
+                    >
+                      {item.label}
+                    </Link>
+                  )}
                 </li>
               )
             })}
