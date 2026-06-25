@@ -14,6 +14,31 @@ vi.mock('next/font/google', () => {
 })
 
 /**
+ * Stub the `next/navigation` client hooks globally. The cart drawer (mounted by
+ * CartProvider, which many component tests render) now calls `useRouter()` for
+ * the /checkout navigation; the real hook throws without an App Router context
+ * under jsdom. We keep every real export (redirect/notFound/etc.) and override
+ * only the hooks with inert versions. Tests that need specific routing behavior
+ * still declare their own per-file `vi.mock('next/navigation', …)`, which wins.
+ */
+vi.mock('next/navigation', async (orig) => {
+  const actual = await orig<typeof import('next/navigation')>()
+  return {
+    ...actual,
+    useRouter: () => ({
+      push: vi.fn(),
+      replace: vi.fn(),
+      prefetch: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn()
+    }),
+    usePathname: () => '/',
+    useSearchParams: () => new URLSearchParams()
+  }
+})
+
+/**
  * Polyfill `window.localStorage` for jsdom tests.
  *
  * Why: Node 26+ ships native `localStorage` gated behind the

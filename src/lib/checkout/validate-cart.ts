@@ -14,6 +14,10 @@ export interface ValidatedLine {
   quantity: number
   unitPriceCents: number
   name: string
+  /** Chosen variation's display name (e.g. "Acrylic Wall Art" / "Vinyl Decal Prints"). */
+  variationName: string
+  /** Square category ids on the product — resolved to names for parcel classification. */
+  categoryIds: string[]
 }
 
 export interface ValidationMismatch {
@@ -75,7 +79,9 @@ export async function validateCart(items: CartLineInput[]): Promise<ValidationRe
       variationId: item.variationId,
       quantity: item.quantity,
       unitPriceCents: actual,
-      name: product.name
+      name: product.name,
+      variationName: variation.name,
+      categoryIds: product.categoryIds
     })
   }
 

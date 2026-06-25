@@ -1,16 +1,8 @@
 import 'server-only'
 import { getSquareClient } from '@/lib/square/client'
+import type { CheckoutAddress } from '@/lib/shipping/address'
+import { toSquareAddress } from '@/lib/shipping/address'
 import type { ValidatedLine } from './validate-cart'
-
-/**
- * Interim flat shipping fee (cents), charged on every order. $10 flat for the
- * US (incl. PR/AK); international is not offered yet and is communicated at
- * checkout. This is the stopgap until the Shippo dynamic-rate integration —
- * which will collect the address on-site, quote live carrier rates, and enforce
- * shippable countries before payment. Square's hosted checkout has no country
- * restriction, so hard international-blocking arrives with that on-site step.
- */
-const FLAT_SHIPPING_CENTS = 1000n
 
 export interface CreatePaymentLinkArgs {
   /** Validated cart lines (post validateCart). */
@@ -21,6 +13,14 @@ export interface CreatePaymentLinkArgs {
   locationId: string
   /** Where Square should redirect after payment — e.g. https://dev.animeniacs.shop/checkout/success */
   redirectUrl: string
+  /**
+   * Final shipping charge in cents (carrier rate + markup + decal fee, OR the
+   * flat fallback). Priced server-side from the buyer's chosen Shippo rate;
+   * Square folds it into the order total automatically.
+   */
+  shippingCents: number
+  /** Buyer shipping address, collected on-site → pre-fills Square so it isn't re-asked. */
+  shippingAddress: CheckoutAddress
   /** Square customer id to attribute the order to (logged-in buyers). Optional. */
   customerId?: string
 }
@@ -36,6 +36,16 @@ export async function createPaymentLink(
   args: CreatePaymentLinkArgs
 ): Promise<CreatePaymentLinkResult> {
   const client = getSquareClient()
+  const addr = args.shippingAddress
+  const buyerEmail = addr.email || undefined
+  const buyerPhone = addr.phone || undefined
+  // Square rejects a zero-amount shippingFee; omit it for free shipping.
+  const shippingCents = Math.max(0, Math.round(args.shippingCents))
+  const shippingFee =
+    shippingCents > 0
+      ? { name: 'Shipping', charge: { amount: BigInt(shippingCents), currency: 'USD' as const } }
+      : undefined
+
   const response = await client.checkout.paymentLinks.create({
     idempotencyKey: args.cartId,
     order: {
@@ -50,8 +60,19 @@ export async function createPaymentLink(
     },
     checkoutOptions: {
       redirectUrl: args.redirectUrl,
-      askForShippingAddress: true,
-      shippingFee: { name: 'Shipping', charge: { amount: FLAT_SHIPPING_CENTS, currency: 'USD' } }
+      // We already collected + validated the address on our site (Shippo step),
+      // so Square must NOT ask again. The chosen shipping is charged here.
+      askForShippingAddress: false,
+      ...(shippingFee ? { shippingFee } : {})
+    },
+    // Pre-fill the buyer's validated shipping address + contact on Square's page.
+    prePopulatedData: {
+      ...(buyerEmail ? { buyerEmail } : {}),
+      ...(buyerPhone ? { buyerPhoneNumber: buyerPhone } : {}),
+      // Square types Address.country as a Country enum; we pass a validated
+      // ISO-3166-1 alpha-2 string (same value space).
+      // biome-ignore lint/suspicious/noExplicitAny: SDK Country enum vs ISO string
+      buyerAddress: toSquareAddress(addr) as any
     }
   })
   // biome-ignore lint/suspicious/noExplicitAny: SDK return shape varies

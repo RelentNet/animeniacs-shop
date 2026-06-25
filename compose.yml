@@ -78,6 +78,9 @@ services:
       SQUARE_ACCESS_TOKEN: ${SQUARE_ACCESS_TOKEN}
       SQUARE_LOCATION_ID: ${SQUARE_LOCATION_ID}
       SQUARE_WEBHOOK_SIGNATURE_KEY: ${SQUARE_WEBHOOK_SIGNATURE_KEY:-}
+      # Shippo dynamic shipping (live rate quotes at checkout). Coolify only
+      # auto-lists vars referenced here; set the real token in Coolify at go-live.
+      SHIPPO_API_TOKEN: ${SHIPPO_API_TOKEN:-}
       DISCORD_ORDER_WEBHOOK_URL: ${DISCORD_ORDER_WEBHOOK_URL:-}
       SMSEDGE_TOKEN: ${SMSEDGE_TOKEN:-}
       SMSEDGE_BASE_URL: ${SMSEDGE_BASE_URL:-https://sms-edge.relentnet.dev}

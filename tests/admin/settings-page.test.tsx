@@ -15,7 +15,8 @@ vi.mock('@/lib/db/queries/site-settings', async (orig) => {
   return { ...actual, getSetting: mockGetSetting }
 })
 vi.mock('@/app/(admin)/admin/settings/actions', () => ({
-  savePromoBarAction: vi.fn()
+  savePromoBarAction: vi.fn(),
+  saveShippingAction: vi.fn()
 }))
 
 import SettingsPage from '@/app/(admin)/admin/settings/page'

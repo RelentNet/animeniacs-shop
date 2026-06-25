@@ -16,11 +16,24 @@ vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart 
 vi.mock('@/lib/square/customers', () => ({
   findOrCreateSquareCustomer: vi.fn().mockResolvedValue('sq_1')
 }))
+vi.mock('@/lib/shipping/quote', () => ({
+  priceShipping: vi.fn().mockResolvedValue({ amountCents: 1000, selection: null, fallbackUsed: false })
+}))
 
 const validBody = {
   items: [
     { catalogItemId: 'CAT_1', variationId: 'VAR_1', quantity: 1, expectedUnitPriceCents: 1000 }
-  ]
+  ],
+  // No email here so the guest case still resolves buyerEmail to null.
+  shippingAddress: {
+    firstName: 'Guest',
+    lastName: 'User',
+    line1: '1 St',
+    city: 'LA',
+    state: 'CA',
+    zip: '90012',
+    country: 'US'
+  }
 }
 
 describe('POST /api/checkout — buyer email capture', () => {

@@ -9,17 +9,30 @@ const mockCreatePaymentLink = vi.fn().mockResolvedValue({
 })
 const mockValidateCart = vi.fn().mockResolvedValue({ ok: true, lines: [] })
 const mockFindOrCreate = vi.fn()
+const mockPriceShipping = vi
+  .fn()
+  .mockResolvedValue({ amountCents: 1000, selection: null, fallbackUsed: false })
 
 vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePendingCart }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreatePaymentLink }))
 vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart }))
 vi.mock('@/lib/square/customers', () => ({ findOrCreateSquareCustomer: mockFindOrCreate }))
+vi.mock('@/lib/shipping/quote', () => ({ priceShipping: mockPriceShipping }))
 
 const validBody = {
   items: [
     { catalogItemId: 'CAT_1', variationId: 'VAR_1', quantity: 1, expectedUnitPriceCents: 1000 }
-  ]
+  ],
+  shippingAddress: {
+    firstName: 'Ada',
+    lastName: 'L',
+    line1: '1 St',
+    city: 'LA',
+    state: 'CA',
+    zip: '90012',
+    country: 'US'
+  }
 }
 
 function makeReq() {
@@ -38,6 +51,7 @@ beforeEach(() => {
   })
   mockValidateCart.mockReset().mockResolvedValue({ ok: true, lines: [] })
   mockFindOrCreate.mockReset()
+  mockPriceShipping.mockReset().mockResolvedValue({ amountCents: 1000, selection: null, fallbackUsed: false })
   vi.stubEnv('SQUARE_LOCATION_ID', 'LOC_1')
   vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://dev.animeniacs.shop')
 })

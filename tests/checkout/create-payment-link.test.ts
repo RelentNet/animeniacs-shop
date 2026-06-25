@@ -12,9 +12,47 @@ beforeEach(() => {
 })
 
 const LINES = [
-  { catalogItemId: 'A', variationId: 'V_A', quantity: 2, unitPriceCents: 2500, name: 'Item A' },
-  { catalogItemId: 'B', variationId: 'V_B', quantity: 1, unitPriceCents: 3000, name: 'Item B' }
+  {
+    catalogItemId: 'A',
+    variationId: 'V_A',
+    quantity: 2,
+    unitPriceCents: 2500,
+    name: 'Item A',
+    variationName: 'Acrylic Wall Art',
+    categoryIds: ['cat-acr']
+  },
+  {
+    catalogItemId: 'B',
+    variationId: 'V_B',
+    quantity: 1,
+    unitPriceCents: 3000,
+    name: 'Item B',
+    variationName: 'Acrylic Wall Art',
+    categoryIds: ['cat-acr']
+  }
 ]
+
+const ADDRESS = {
+  firstName: 'Buyer',
+  lastName: 'One',
+  line1: '500 W Temple St',
+  line2: 'Apt 4',
+  city: 'Los Angeles',
+  state: 'CA',
+  zip: '90012',
+  country: 'US',
+  phone: '4045550000',
+  email: 'buyer@example.com'
+}
+
+const BASE = {
+  lines: LINES,
+  cartId: 'cart-uuid',
+  locationId: 'LOC_X',
+  redirectUrl: 'https://dev.animeniacs.shop/checkout/success',
+  shippingCents: 1835,
+  shippingAddress: ADDRESS
+}
 
 const OK_RESPONSE = {
   paymentLink: { url: 'https://sandbox.squareup.com/checkout/abc', orderId: 'ORDER_X' }
@@ -23,12 +61,7 @@ const OK_RESPONSE = {
 describe('createPaymentLink', () => {
   it('returns checkoutUrl and orderId on success', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    const result = await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
-    })
+    const result = await createPaymentLink(BASE)
     expect(result).toEqual({
       checkoutUrl: 'https://sandbox.squareup.com/checkout/abc',
       orderId: 'ORDER_X'
@@ -37,23 +70,13 @@ describe('createPaymentLink', () => {
 
   it('uses idempotencyKey = cartId so retries do not double-create', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid-idem',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://example.com/done'
-    })
+    await createPaymentLink({ ...BASE, cartId: 'cart-uuid-idem' })
     expect(mockCreate.mock.calls[0][0].idempotencyKey).toBe('cart-uuid-idem')
   })
 
   it('embeds order inline with locationId, referenceId, lineItems, and metadata.cart_id', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid-abc',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://example.com/done'
-    })
+    await createPaymentLink({ ...BASE, cartId: 'cart-uuid-abc' })
     const call = mockCreate.mock.calls[0][0]
     expect(call.order.locationId).toBe('LOC_X')
     expect(call.order.referenceId).toBe('cart-uuid-abc')
@@ -65,69 +88,56 @@ describe('createPaymentLink', () => {
 
   it('passes checkoutOptions.redirectUrl to Square', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
-    })
+    await createPaymentLink(BASE)
     expect(mockCreate.mock.calls[0][0].checkoutOptions.redirectUrl).toBe(
       'https://dev.animeniacs.shop/checkout/success'
     )
   })
 
-  it('asks Square to collect the buyer shipping address (askForShippingAddress: true)', async () => {
+  it('does NOT ask Square for the address (we collected it) and pre-populates it', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
+    await createPaymentLink(BASE)
+    const call = mockCreate.mock.calls[0][0]
+    expect(call.checkoutOptions.askForShippingAddress).toBe(false)
+    expect(call.prePopulatedData.buyerEmail).toBe('buyer@example.com')
+    expect(call.prePopulatedData.buyerPhoneNumber).toBe('4045550000')
+    expect(call.prePopulatedData.buyerAddress).toEqual({
+      addressLine1: '500 W Temple St',
+      addressLine2: 'Apt 4',
+      locality: 'Los Angeles',
+      administrativeDistrictLevel1: 'CA',
+      postalCode: '90012',
+      country: 'US'
     })
-    const opts = mockCreate.mock.calls[0][0].checkoutOptions
-    expect(opts.askForShippingAddress).toBe(true)
-    // Still keeps the existing redirect (regression guard for the happy path).
-    expect(opts.redirectUrl).toBe('https://dev.animeniacs.shop/checkout/success')
   })
 
-  it('adds the flat $10 US shipping fee to checkoutOptions', async () => {
+  it('charges the priced shipping amount as the Square shippingFee (bigint cents)', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
-    await createPaymentLink({
-      lines: LINES,
-      cartId: 'cart-uuid',
-      locationId: 'LOC_X',
-      redirectUrl: 'https://dev.animeniacs.shop/checkout/success'
-    })
+    await createPaymentLink({ ...BASE, shippingCents: 1835 })
     const opts = mockCreate.mock.calls[0][0].checkoutOptions
     expect(opts.shippingFee).toEqual({
       name: 'Shipping',
-      charge: { amount: 1000n, currency: 'USD' }
+      charge: { amount: 1835n, currency: 'USD' }
     })
+  })
+
+  it('omits shippingFee entirely when shipping is free ($0)', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({ ...BASE, shippingCents: 0 })
+    const opts = mockCreate.mock.calls[0][0].checkoutOptions
+    expect(opts.shippingFee).toBeUndefined()
+    expect(opts.askForShippingAddress).toBe(false)
   })
 
   it('throws if Square response lacks paymentLink.url', async () => {
     mockCreate.mockResolvedValue({ paymentLink: { url: null, orderId: 'ORDER_X' } })
-    await expect(
-      createPaymentLink({
-        lines: LINES,
-        cartId: 'cart-uuid',
-        locationId: 'LOC_X',
-        redirectUrl: 'https://x'
-      })
-    ).rejects.toThrow(/payment link/i)
+    await expect(createPaymentLink(BASE)).rejects.toThrow(/payment link/i)
   })
 
   it('throws if Square response lacks paymentLink.orderId', async () => {
     mockCreate.mockResolvedValue({
       paymentLink: { url: 'https://sandbox.squareup.com/checkout/x', orderId: null }
     })
-    await expect(
-      createPaymentLink({
-        lines: LINES,
-        cartId: 'cart-uuid',
-        locationId: 'LOC_X',
-        redirectUrl: 'https://x'
-      })
-    ).rejects.toThrow(/order id/i)
+    await expect(createPaymentLink(BASE)).rejects.toThrow(/order id/i)
   })
 })
