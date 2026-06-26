@@ -1,5 +1,4 @@
 import { PromoBarValueSchema } from '@/lib/db/queries/site-settings'
-import { ShippingSettingsSchema } from '@/lib/db/queries/shipping-settings'
 import type { PromoBarFormError } from './PromoBarSettingsForm'
 
 function fieldErrors(issues: { path: (string | number)[]; message: string }[]): Record<string, string> {
@@ -19,19 +18,6 @@ export function validatePromoBarInput(
   | { ok: true; data: ReturnType<typeof PromoBarValueSchema.parse> }
   | { ok: false; error: PromoBarFormError } {
   const result = PromoBarValueSchema.safeParse(raw)
-  if (result.success) return { ok: true, data: result.data }
-  return {
-    ok: false,
-    error: { message: 'Please correct the highlighted fields.', fields: fieldErrors(result.error.issues) }
-  }
-}
-
-export function validateShippingInput(
-  raw: unknown
-):
-  | { ok: true; data: ReturnType<typeof ShippingSettingsSchema.parse> }
-  | { ok: false; error: PromoBarFormError } {
-  const result = ShippingSettingsSchema.safeParse(raw)
   if (result.success) return { ok: true, data: result.data }
   return {
     ok: false,

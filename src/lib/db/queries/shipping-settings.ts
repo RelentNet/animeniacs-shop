@@ -45,14 +45,34 @@ export const DEFAULT_SHIP_FROM: ShipFrom = {
   email: ''
 }
 
+const FeeCents = z.number().int().nonnegative().max(1_000_000)
+
+/**
+ * Flat packaging-material fee (cents) added on top of the carrier label, per
+ * BOX TYPE. Covers boxes/foam/tape the label doesn't — charged once per physical
+ * parcel used (a 2-acrylic order packs into 2 single-acrylic boxes → 2× the fee).
+ * Keys mirror the parcel `key`s in src/lib/shipping/parcels.ts.
+ */
+export const PackagingFeesSchema = z
+  .object({
+    single_acrylic: FeeCents.default(0),
+    frame: FeeCents.default(0),
+    '3_frames': FeeCents.default(0)
+  })
+  .default({ single_acrylic: 0, frame: 0, '3_frames': 0 })
+
+export type PackagingFees = z.infer<typeof PackagingFeesSchema>
+
 export const ShippingSettingsSchema = z.object({
   shipFrom: ShipFromSchema.default(DEFAULT_SHIP_FROM),
   /** Flat shipping for decals / stickers / posters / misc (not box-rated). */
-  decalFlatCents: z.number().int().nonnegative().max(1_000_000).default(500),
+  decalFlatCents: FeeCents.default(500),
   /** Fallback flat fee when live rating fails or returns nothing. */
-  fallbackFlatCents: z.number().int().nonnegative().max(1_000_000).default(1000),
+  fallbackFlatCents: FeeCents.default(1000),
   /** Percentage markup applied on top of carrier rates (0 = none). */
-  markupPercent: z.number().min(0).max(100).default(0)
+  markupPercent: z.number().min(0).max(100).default(0),
+  /** Flat packaging-material fee per box type, added on top of the label. */
+  packagingFeesCents: PackagingFeesSchema
 })
 
 export type ShippingSettings = z.infer<typeof ShippingSettingsSchema>

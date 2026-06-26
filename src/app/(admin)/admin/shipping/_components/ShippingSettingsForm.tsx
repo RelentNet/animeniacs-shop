@@ -2,10 +2,16 @@
 
 import type { ShippingSettings } from '@/lib/db/queries/shipping-settings'
 import { useFormState } from 'react-dom'
-import type { PromoBarFormState } from './PromoBarSettingsForm'
+
+export interface ShippingFormError {
+  message: string
+  fields?: Partial<Record<string, string>>
+}
+
+export type ShippingFormState = { error?: ShippingFormError; saved?: boolean } | undefined
 
 export interface ShippingSettingsFormProps {
-  action: (prev: PromoBarFormState, form: FormData) => Promise<PromoBarFormState>
+  action: (prev: ShippingFormState, form: FormData) => Promise<ShippingFormState>
   initial: ShippingSettings
 }
 
@@ -15,6 +21,7 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
   const [state, formAction] = useFormState(action, undefined)
   const v = initial
   const sf = v.shipFrom
+  const pkg = v.packagingFeesCents
   const err = state?.error
   const fieldErr = (name: string) => err?.fields?.[name]
 
@@ -91,6 +98,25 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
         hint="Added on top of each live carrier rate. 0 = none."
       >
         <input type="text" inputMode="decimal" name="markupPercent" defaultValue={String(v.markupPercent)} />
+      </Field>
+
+      <h3 style={{ margin: '0.75rem 0 0', fontSize: '1rem' }}>Packaging fees (per box)</h3>
+      <small style={{ color: '#666', marginTop: '-0.5rem' }}>
+        Flat material/handling fee added on top of the carrier label, charged once per physical box
+        used (a 2-acrylic order pays the single-acrylic fee twice). 0 = none.
+      </small>
+      <Field
+        label="Single acrylic box ($)"
+        error={fieldErr('packagingFeesCents')}
+        hint="22×20×2 in — one acrylic."
+      >
+        <input type="text" inputMode="decimal" name="pkg_single_acrylic" defaultValue={dollars(pkg.single_acrylic)} />
+      </Field>
+      <Field label="Frame box ($)" hint="30×20×2.5 in — one frame + up to 2 acrylics.">
+        <input type="text" inputMode="decimal" name="pkg_frame" defaultValue={dollars(pkg.frame)} />
+      </Field>
+      <Field label="3-frame box ($)" hint="30×20×7.5 in — three frames.">
+        <input type="text" inputMode="decimal" name="pkg_3_frames" defaultValue={dollars(pkg['3_frames'])} />
       </Field>
 
       <button type="submit" style={{ justifySelf: 'start', padding: '0.5rem 1rem' }}>

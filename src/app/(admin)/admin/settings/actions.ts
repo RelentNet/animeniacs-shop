@@ -1,11 +1,10 @@
 'use server'
 
-import { saveShippingSettings } from '@/lib/db/queries/shipping-settings'
 import { upsertSetting } from '@/lib/db/queries/site-settings'
 import { revalidatePath } from 'next/cache'
 import type { PromoBarFormState } from './_components/PromoBarSettingsForm'
-import { parsePromoBarForm, parseShippingForm } from './_components/formData'
-import { validatePromoBarInput, validateShippingInput } from './_components/validation'
+import { parsePromoBarForm } from './_components/formData'
+import { validatePromoBarInput } from './_components/validation'
 
 /**
  * Save the promo bar setting. updatedBy is null: the existing admin
@@ -29,27 +28,6 @@ export async function savePromoBarAction(
   await upsertSetting('promo_bar', validated.data, null)
 
   revalidatePath('/', 'layout')
-  revalidatePath('/admin/settings')
-  return { saved: true }
-}
-
-/**
- * Save the shipping settings (ship-from origin, decal flat fee, fallback flat
- * fee, markup %). Fees arrive in dollars and are stored as cents. The rate path
- * reads these via getShippingSettings (cached ~60s, so edits apply within a
- * minute). Stays on the page with a saved banner; updatedBy is null (parity
- * with the promo action — site_settings.updated_by is nullable).
- */
-export async function saveShippingAction(
-  _prev: PromoBarFormState,
-  form: FormData
-): Promise<PromoBarFormState> {
-  const input = parseShippingForm(form)
-  const validated = validateShippingInput(input)
-  if (!validated.ok) return { error: validated.error }
-
-  await saveShippingSettings(validated.data, null)
-
   revalidatePath('/admin/settings')
   return { saved: true }
 }

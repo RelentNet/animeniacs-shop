@@ -34,7 +34,8 @@ const SETTINGS = {
   shipFrom: { name: 'A', street1: '2 St', street2: '', city: 'ATL', state: 'GA', zip: '30303', country: 'US', phone: '', email: '' },
   decalFlatCents: 500,
   fallbackFlatCents: 1000,
-  markupPercent: 0
+  markupPercent: 0,
+  packagingFeesCents: { single_acrylic: 0, frame: 0, '3_frames': 0 }
 }
 
 function line(overrides: Partial<ValidatedLine>): ValidatedLine {
@@ -118,6 +119,31 @@ describe('quoteRates', () => {
     expect(result.options[0].amountCents).toBe(1100)
   })
 
+  it('adds the per-box packaging fee once per parcel', async () => {
+    // $3/box packaging; 2 acrylics → 2 single_acrylic boxes → +$6 on each rate.
+    mockGetSettings.mockResolvedValue({
+      ...SETTINGS,
+      packagingFeesCents: { single_acrylic: 300, frame: 0, '3_frames': 0 }
+    })
+    mockCreateShipment.mockResolvedValue({ shipmentId: 'shp_1', rates: [rate('r', '8.00')], messages: [] })
+    const result = await quoteRates(ADDRESS, [line({ quantity: 2 })])
+    if (result.kind !== 'rates') throw new Error('expected rates')
+    expect(result.options[0].amountCents).toBe(800 + 600)
+  })
+
+  it('adds packaging + decal fee to the fallback flat fee', async () => {
+    mockGetSettings.mockResolvedValue({
+      ...SETTINGS,
+      packagingFeesCents: { single_acrylic: 300, frame: 0, '3_frames': 0 }
+    })
+    mockCreateShipment.mockRejectedValue(new Error('network'))
+    const result = await quoteRates(ADDRESS, [
+      line({ quantity: 1 }), // acrylic → 1 box → +300 packaging
+      line({ variationName: 'Vinyl Decal Prints' }) // decal → +500
+    ])
+    expect(result).toEqual({ kind: 'flat', amountCents: 1000 + 500 + 300, reason: 'fallback' })
+  })
+
   it('falls back to the flat fee when Shippo throws', async () => {
     mockCreateShipment.mockRejectedValue(new Error('network'))
     const result = await quoteRates(ADDRESS, [line({})])
@@ -145,6 +171,18 @@ describe('priceShipping', () => {
     const result = await priceShipping([line({ variationName: 'Vinyl Decal Prints' })], null)
     expect(result).toEqual({ amountCents: 500, selection: null, fallbackUsed: false })
     expect(mockGetRate).not.toHaveBeenCalled()
+  })
+
+  it('re-priced selection includes the per-box packaging fee', async () => {
+    mockGetSettings.mockResolvedValue({
+      ...SETTINGS,
+      packagingFeesCents: { single_acrylic: 300, frame: 0, '3_frames': 0 }
+    })
+    mockGetRate.mockResolvedValue(rate('r_sel', '8.00'))
+    const result = await priceShipping([line({ quantity: 2 })], 'r_sel') // 2 boxes → +$6
+    expect(result.fallbackUsed).toBe(false)
+    expect(result.amountCents).toBe(800 + 600)
+    expect(result.selection?.amountCents).toBe(800 + 600)
   })
 
   it('falls back to the flat fee when the selected rate is missing/expired', async () => {

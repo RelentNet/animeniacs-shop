@@ -3,7 +3,7 @@ import type { ValidatedLine } from '@/lib/checkout/validate-cart'
 import { getShippingSettings } from '@/lib/db/queries/shipping-settings'
 import { getCategoryNameMap } from '@/lib/square/categories'
 import { classifyLine } from './classify'
-import { packCart } from './parcels'
+import { type Parcel, packCart } from './parcels'
 import { createShipment, getRate, type ShippoAddress } from './shippo'
 
 /**
@@ -22,7 +22,7 @@ export interface RateOption {
   shipmentId: string
   carrier: string
   service: string
-  /** All-in shipping cents for this option (carrier rate + markup + decal flat). */
+  /** All-in shipping cents for this option (carrier rate + markup + decal flat + packaging). */
   amountCents: number
   estimatedDays: number | null
 }
@@ -37,7 +37,7 @@ export interface ShippingSelection {
   shipmentId: string
   carrier: string
   service: string
-  /** All-in cents actually charged (markup + decal included). */
+  /** All-in cents actually charged (markup + decal + packaging included). */
   amountCents: number
 }
 
@@ -57,6 +57,18 @@ interface ClassCounts {
 export function applyMarkup(cents: number, markupPercent: number): number {
   if (!markupPercent) return cents
   return Math.round(cents * (1 + markupPercent / 100))
+}
+
+/**
+ * Flat packaging-material surcharge for a shipment: the per-box-type fee summed
+ * over every physical parcel (so a 2-acrylic order pays the single-acrylic fee
+ * twice). Independent of carrier/speed — added on top of every rate option.
+ */
+export function packagingTotalCents(
+  parcels: Parcel[],
+  fees: Record<string, number>
+): number {
+  return parcels.reduce((sum, p) => sum + (fees[p.key] ?? 0), 0)
 }
 
 /** Counts acrylic / frame / flat units across the cart (resolving category names). */
@@ -89,22 +101,25 @@ export async function quoteRates(
   const counts = await classifyCart(lines)
   const decalFlat = counts.flatUnits > 0 ? settings.decalFlatCents : 0
   const parcels = packCart({ acrylics: counts.acrylics, frames: counts.frames })
+  const packaging = packagingTotalCents(parcels, settings.packagingFeesCents)
 
   if (parcels.length === 0) {
     return { kind: 'flat', amountCents: decalFlat, reason: 'decals_only' }
   }
+
+  const fallbackCents = settings.fallbackFlatCents + decalFlat + packaging
 
   let result: Awaited<ReturnType<typeof createShipment>>
   try {
     result = await createShipment({ from: settings.shipFrom, to: address, parcels })
   } catch (err) {
     console.error('[shipping] rate fetch failed; using fallback flat fee:', err)
-    return { kind: 'flat', amountCents: settings.fallbackFlatCents + decalFlat, reason: 'fallback' }
+    return { kind: 'flat', amountCents: fallbackCents, reason: 'fallback' }
   }
 
   if (result.rates.length === 0) {
     console.warn('[shipping] no rates returned; using fallback flat fee. messages:', result.messages)
-    return { kind: 'flat', amountCents: settings.fallbackFlatCents + decalFlat, reason: 'fallback' }
+    return { kind: 'flat', amountCents: fallbackCents, reason: 'fallback' }
   }
 
   const options: RateOption[] = result.rates
@@ -114,7 +129,7 @@ export async function quoteRates(
       carrier: r.carrier,
       service: r.service,
       estimatedDays: r.estimatedDays,
-      amountCents: applyMarkup(r.amountCents, settings.markupPercent) + decalFlat
+      amountCents: applyMarkup(r.amountCents, settings.markupPercent) + decalFlat + packaging
     }))
     .sort((a, b) => a.amountCents - b.amountCents)
 
@@ -134,6 +149,7 @@ export async function priceShipping(
   const counts = await classifyCart(lines)
   const decalFlat = counts.flatUnits > 0 ? settings.decalFlatCents : 0
   const parcels = packCart({ acrylics: counts.acrylics, frames: counts.frames })
+  const packaging = packagingTotalCents(parcels, settings.packagingFeesCents)
 
   if (parcels.length === 0) {
     return { amountCents: decalFlat, selection: null, fallbackUsed: false }
@@ -142,7 +158,7 @@ export async function priceShipping(
   if (selectedRateId) {
     const rate = await getRate(selectedRateId)
     if (rate) {
-      const amountCents = applyMarkup(rate.amountCents, settings.markupPercent) + decalFlat
+      const amountCents = applyMarkup(rate.amountCents, settings.markupPercent) + decalFlat + packaging
       return {
         amountCents,
         selection: {
@@ -159,7 +175,7 @@ export async function priceShipping(
 
   console.warn('[shipping] selected rate missing/expired; using fallback flat fee')
   return {
-    amountCents: settings.fallbackFlatCents + decalFlat,
+    amountCents: settings.fallbackFlatCents + decalFlat + packaging,
     selection: null,
     fallbackUsed: true
   }

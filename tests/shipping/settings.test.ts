@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   parseShippingForm
-} from '@/app/(admin)/admin/settings/_components/formData'
-import { validateShippingInput } from '@/app/(admin)/admin/settings/_components/validation'
+} from '@/app/(admin)/admin/shipping/_components/formData'
+import { validateShippingInput } from '@/app/(admin)/admin/shipping/_components/validation'
 import {
   DEFAULT_SHIPPING_SETTINGS,
   ShippingSettingsSchema
@@ -35,10 +35,28 @@ describe('shipping settings', () => {
     expect(DEFAULT_SHIPPING_SETTINGS.fallbackFlatCents).toBe(1000)
     expect(DEFAULT_SHIPPING_SETTINGS.markupPercent).toBe(0)
     expect(DEFAULT_SHIPPING_SETTINGS.shipFrom.country).toBe('US')
+    expect(DEFAULT_SHIPPING_SETTINGS.packagingFeesCents).toEqual({
+      single_acrylic: 0,
+      frame: 0,
+      '3_frames': 0
+    })
   })
 
   it('parses {} to all-defaults (partial settings fill in)', () => {
     expect(ShippingSettingsSchema.parse({})).toEqual(DEFAULT_SHIPPING_SETTINGS)
+  })
+
+  it('parses per-box packaging fees: dollars→cents, blanks→0', () => {
+    const result = validateShippingInput(
+      parseShippingForm(form({ ...COMPLETE, pkg_single_acrylic: '2.50', pkg_3_frames: '4' }))
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.data.packagingFeesCents).toEqual({
+      single_acrylic: 250,
+      frame: 0, // left blank → 0
+      '3_frames': 400
+    })
   })
 
   it('parses a complete form: dollars→cents, country upper-cased', () => {
