@@ -1,5 +1,5 @@
 import { InstagramRedirect } from '@/components/InstagramRedirect'
 
-export default function QrInstaPage(): JSX.Element {
+export default function Qr1Page(): JSX.Element {
   return <InstagramRedirect />
 }
