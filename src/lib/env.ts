@@ -36,6 +36,12 @@ const envSchema = z.object({
   SQUARE_LOCATION_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
   SQUARE_WEBHOOK_SIGNATURE_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
 
+  // Shippo dynamic shipping (live rate quotes at checkout). Runtime-only secret;
+  // OPTIONAL here so the build never depends on it (cf. the Square keys). Runtime
+  // presence is required where rating happens — src/lib/shipping/shippo.ts throws
+  // if absent. Read via process.env there; this entry is for validation/docs.
+  SHIPPO_API_TOKEN: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+
   // Plausible analytics — script URL on the central instance.
   // Public (NEXT_PUBLIC_*) because the values end up in the
   // rendered <script> tag. Domain defaults to animeniacs.shop.

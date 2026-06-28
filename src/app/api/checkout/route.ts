@@ -3,6 +3,9 @@ import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { createPaymentLink } from '@/lib/checkout/create-payment-link'
 import { validateCart } from '@/lib/checkout/validate-cart'
 import { createPendingCart } from '@/lib/db/queries/abandoned-carts'
+import { CheckoutAddressSchema } from '@/lib/shipping/address'
+import { isShippable } from '@/lib/shipping/countries'
+import { priceShipping } from '@/lib/shipping/quote'
 import { findOrCreateSquareCustomer } from '@/lib/square/customers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -18,7 +21,11 @@ const RequestSchema = z.object({
       })
     )
     .min(1)
-    .max(50)
+    .max(50),
+  /** Buyer shipping address, collected on-site before payment. */
+  shippingAddress: CheckoutAddressSchema,
+  /** The Shippo rate the buyer picked (absent for decals-only / flat-fee carts). */
+  selectedRateId: z.string().min(1).optional()
 })
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -32,6 +39,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   const parsed = RequestSchema.safeParse(body)
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
+  }
+
+  // Country allowlist enforced BEFORE any payment link (Square's hosted checkout
+  // can't restrict countries). Defense-in-depth: the rates endpoint also checks.
+  const shippingAddress = parsed.data.shippingAddress
+  if (!isShippable(shippingAddress.country)) {
+    return NextResponse.json(
+      { error: 'country_not_shippable', message: 'We do not ship to that country yet.' },
+      { status: 422 }
+    )
   }
 
   const locationId = process.env.SQUARE_LOCATION_ID
@@ -78,20 +95,36 @@ export async function POST(request: Request): Promise<NextResponse> {
       )
     }
 
+    // Authoritatively price shipping from the buyer's chosen Shippo rate (never
+    // trust a client-sent amount). Decals-only carts get the flat decal fee; a
+    // missing/expired rate or a Shippo outage falls back to the flat fee.
+    const shipping = await priceShipping(validation.lines, parsed.data.selectedRateId ?? null)
+
     const cartId = randomUUID()
     const { checkoutUrl, orderId } = await createPaymentLink({
       lines: validation.lines,
       cartId,
       locationId,
       redirectUrl: `${siteUrl}/checkout/success?cartId=${cartId}`,
-      customerId
+      customerId,
+      shippingCents: shipping.amountCents,
+      shippingAddress
     })
 
     await createPendingCart({
       cartId,
       squareOrderId: orderId,
-      cartSnapshot: { items: parsed.data.items },
-      buyerEmail,
+      // Persist the captured address + priced rate so the webhook can copy it
+      // onto the recorded order (the team buys that exact Shippo label later).
+      cartSnapshot: {
+        items: parsed.data.items,
+        shipping: {
+          address: shippingAddress,
+          selection: shipping.selection,
+          fallbackUsed: shipping.fallbackUsed
+        }
+      },
+      buyerEmail: buyerEmail ?? (shippingAddress.email || null),
       buyerUserId,
       squareCustomerId: customerId ?? null
     })

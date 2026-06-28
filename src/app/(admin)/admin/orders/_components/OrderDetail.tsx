@@ -118,6 +118,56 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
         <p style={{ color: '#555' }}>No shipment details.</p>
       )}
 
+      {order.shipping && (
+        <>
+          <h2 style={{ marginTop: '1.5rem' }}>Shipping (Shippo)</h2>
+          <div style={{ maxWidth: '40rem' }}>
+            <Row label="Ship to">
+              <div>
+                {order.shipping.address.firstName} {order.shipping.address.lastName}
+              </div>
+              <div>{order.shipping.address.line1}</div>
+              {order.shipping.address.line2 && <div>{order.shipping.address.line2}</div>}
+              <div>
+                {order.shipping.address.city}
+                {order.shipping.address.state ? `, ${order.shipping.address.state}` : ''}{' '}
+                {order.shipping.address.zip}
+              </div>
+              <div>{order.shipping.address.country}</div>
+              {order.shipping.address.phone && <div>{order.shipping.address.phone}</div>}
+            </Row>
+            {order.shipping.selection ? (
+              <>
+                <Row label="Chosen rate">
+                  {order.shipping.selection.carrier} · {order.shipping.selection.service} ·{' '}
+                  {formatCents(order.shipping.selection.amountCents)}
+                </Row>
+                <Row label="Shippo shipment">
+                  {order.shipping.selection.shipmentId ? (
+                    <code>{order.shipping.selection.shipmentId}</code>
+                  ) : (
+                    '—'
+                  )}
+                </Row>
+                <Row label="Shippo rate">
+                  {order.shipping.selection.rateId ? (
+                    <code>{order.shipping.selection.rateId}</code>
+                  ) : (
+                    '—'
+                  )}
+                </Row>
+              </>
+            ) : (
+              <Row label="Rate">
+                {order.shipping.fallbackUsed
+                  ? 'Flat fallback fee (no live rate)'
+                  : 'Flat fee'}
+              </Row>
+            )}
+          </div>
+        </>
+      )}
+
       <h2 style={{ marginTop: '1.5rem' }}>Items</h2>
       <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: '40rem' }}>
         <thead>

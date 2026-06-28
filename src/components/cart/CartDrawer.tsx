@@ -3,10 +3,13 @@
 import {
   CART_BADGE_DELIVERY,
   CART_BADGE_HANGING_STRIPS,
+  CART_BADGE_SHIPPING,
   CART_BADGE_SUPPORT_ARTIST
 } from '@/lib/site-copy'
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect, useRef, useState } from 'react'
+import type { Route } from 'next'
+import { useRouter } from 'next/navigation'
+import { useEffect, useRef } from 'react'
 import styles from './CartDrawer.module.css'
 import { CartLine } from './CartLine'
 import { useCart } from './useCart'
@@ -18,12 +21,11 @@ function lineKey(catalogItemId: string, variationId: string): string {
 
 export function CartDrawer(): JSX.Element {
   const { items, isDrawerOpen, openDrawer, closeDrawer, totalQuantity, removeItem } = useCart()
-  const { products, isLoading, refresh } = useCartHydration()
+  const { products, isLoading } = useCartHydration()
+  const router = useRouter()
   const prevOpenRef = useRef(isDrawerOpen)
   const warnedKeysRef = useRef<Set<string>>(new Set())
   const processedThisOpenRef = useRef(false)
-  const [isCheckingOut, setIsCheckingOut] = useState(false)
-  const [checkoutError, setCheckoutError] = useState<string | null>(null)
 
   // Decision 9: auto-strip stale entries on the SECOND drawer open after
   // staleness is first detected. Mechanism:
@@ -71,47 +73,13 @@ export function CartDrawer(): JSX.Element {
     return sum + variation.price.amount * entry.quantity
   }, 0)
 
-  async function handleCheckout(): Promise<void> {
-    if (items.length === 0 || isCheckingOut) return
-    setIsCheckingOut(true)
-    setCheckoutError(null)
-    try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map((entry) => {
-            const product = products[entry.catalogItemId]
-            const variation = product?.variations.find((v) => v.id === entry.variationId)
-            return {
-              catalogItemId: entry.catalogItemId,
-              variationId: entry.variationId,
-              quantity: entry.quantity,
-              expectedUnitPriceCents: variation?.price?.amount ?? 0
-            }
-          })
-        })
-      })
-      if (res.status === 409) {
-        setCheckoutError('Some prices have changed. Please review your cart.')
-        refresh()
-        return
-      }
-      if (!res.ok) {
-        setCheckoutError('Could not start checkout. Please try again.')
-        return
-      }
-      const json = await res.json()
-      if (typeof json.checkoutUrl !== 'string') {
-        setCheckoutError('Unexpected checkout response. Please try again.')
-        return
-      }
-      window.location.href = json.checkoutUrl
-    } catch {
-      setCheckoutError('Network error. Please try again.')
-    } finally {
-      setIsCheckingOut(false)
-    }
+  // Address + live shipping rates are now collected on the dedicated /checkout
+  // page (Shippo dynamic shipping) before the Square redirect. The drawer just
+  // navigates there.
+  function goToCheckout(): void {
+    if (items.length === 0) return
+    closeDrawer()
+    router.push('/checkout' as Route)
   }
 
   return (
@@ -142,23 +110,18 @@ export function CartDrawer(): JSX.Element {
               <span data-testid="cart-subtotal">${(subtotalCents / 100).toFixed(2)}</span>
             </div>
             <ul className={styles.badges}>
-              <li>$10 flat shipping · U.S. only (incl. PR &amp; AK)</li>
+              <li>{CART_BADGE_SHIPPING}</li>
               <li>{CART_BADGE_DELIVERY}</li>
               <li>{CART_BADGE_HANGING_STRIPS}</li>
               <li>{CART_BADGE_SUPPORT_ARTIST}</li>
             </ul>
-            {checkoutError && (
-              <p role="alert" className={styles.checkoutError}>
-                {checkoutError}
-              </p>
-            )}
             <button
               type="button"
-              onClick={handleCheckout}
-              disabled={items.length === 0 || isCheckingOut}
+              onClick={goToCheckout}
+              disabled={items.length === 0}
               className={styles.checkout}
             >
-              {isCheckingOut ? 'Starting checkout…' : 'Checkout'}
+              Checkout
             </button>
           </footer>
 

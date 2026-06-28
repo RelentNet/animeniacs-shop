@@ -17,7 +17,8 @@ export default async function SettingsPage(): Promise<JSX.Element> {
       <header style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ margin: 0 }}>Settings</h1>
         <p style={{ color: '#555', marginTop: '0.5rem' }}>
-          Storefront promo bar. Shown at the very top of every page when enabled.
+          Storefront promo bar. Shown at the very top of every page when enabled. (Shipping moved
+          to its own <a href="/admin/shipping">Shipping</a> tab.)
         </p>
       </header>
 

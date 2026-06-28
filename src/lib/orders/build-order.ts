@@ -1,4 +1,4 @@
-import type { NewOrder } from '@/lib/db/schema'
+import type { NewOrder, OrderShipping } from '@/lib/db/schema'
 import { toJsonSafe } from '@/lib/orders/json-safe'
 
 export { toJsonSafe }
@@ -19,6 +19,8 @@ export interface OrderBridge {
   buyerEmail: string | null
   squareCustomerId: string | null
   squarePaymentId: string | null
+  /** Captured ship-to + chosen Shippo rate (from the pending cart). Optional. */
+  shipping?: OrderShipping | null
 }
 
 function toCents(amount: unknown): number {
@@ -109,6 +111,7 @@ export function buildOrder(
     lineItems,
     fulfillmentState: mostAdvancedFulfillmentState(squareOrder?.fulfillments),
     placedAt,
-    raw: toJsonSafe(squareOrder)
+    raw: toJsonSafe(squareOrder),
+    shipping: bridge.shipping ?? null
   }
 }

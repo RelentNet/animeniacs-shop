@@ -55,6 +55,11 @@ const SECTIONS: AdminSection[] = [
     description: 'Moderate held product reviews — publish or delete.'
   },
   {
+    href: '/admin/shipping' as Route,
+    title: 'Shipping',
+    description: 'Live carrier rates: origin, flat fees, markup, and per-box packaging fees.'
+  },
+  {
     href: '/admin/settings' as Route,
     title: 'Settings',
     description: 'Storefront promo bar and other site-wide settings.'

@@ -5,6 +5,7 @@ import { getOrderBySquareOrderId, upsertOrder } from '@/lib/db/queries/orders'
 import { sendDiscordOrderNotification } from '@/lib/notifications/discord'
 import { sendOrderConfirmationEmail, sendRefundEmail } from '@/lib/notifications/email'
 import { notifyEnabledRecipients } from '@/lib/notifications/sms'
+import type { OrderShipping } from '@/lib/db/schema'
 import { type OrderLineItem, buildOrder } from '@/lib/orders/build-order'
 import { getSquareClient } from '@/lib/square/client'
 import { reconcileFulfillmentFromSquare, reconcileRefundFromSquare } from '@/lib/webhooks/reconcile'
@@ -79,6 +80,21 @@ async function fetchSquareOrder(squareOrderId: string): Promise<unknown | null> 
 }
 
 /**
+ * Pulls the shipping snapshot ({address, selection, fallbackUsed}) the checkout
+ * route stashed on `abandoned_carts.cartSnapshot`. Tolerant of older carts that
+ * predate the field. Returns null when absent/malformed.
+ */
+function extractCartShipping(snapshot: unknown): OrderShipping | null {
+  if (!snapshot || typeof snapshot !== 'object') return null
+  // biome-ignore lint/suspicious/noExplicitAny: jsonb snapshot is loosely typed
+  const shipping = (snapshot as any).shipping
+  if (shipping && typeof shipping === 'object' && shipping.address) {
+    return shipping as OrderShipping
+  }
+  return null
+}
+
+/**
  * `payment.created`: mark the cart completed, fan out Discord + SMS, record the
  * order into our durable read model, and (NEW) email the buyer a receipt. Every
  * side effect is best-effort — failures log and continue, never throw.
@@ -127,7 +143,10 @@ async function handlePaymentCreated(
         userId: cart?.buyerUserId ?? null,
         buyerEmail: effectiveEmail,
         squareCustomerId: cart?.squareCustomerId ?? null,
-        squarePaymentId: extractPaymentId(event)
+        squarePaymentId: extractPaymentId(event),
+        // Copy the address + chosen Shippo rate captured at checkout onto the
+        // recorded order (so the team buys that exact label later).
+        shipping: extractCartShipping(cart?.cartSnapshot)
       })
       await upsertOrder(order)
 

@@ -11,6 +11,41 @@ machine. Read this first, then the linked phase handoff.
 
 ## Where we are right now
 
+> **2026-06-25 — SHIPPO DYNAMIC SHIPPING — BUILT on branch `feature/shippo`
+> (NOT yet merged/deployed).** Replaces the flat-$10 stopgap with on-site address
+> collection + live carrier rates before payment. Gates all green: typecheck
+> clean · **657 tests** · canaries 0/0 · unreachable-DB build ✓ (48/48). Live
+> Shippo API verified (rate quote + `getRate` re-price, US/CA/UK).
+>
+> **What it does:** `/checkout` page collects the buyer's address → `POST
+> /api/shipping/rates` packs the cart into the 3 Shippo boxes (acrylic / frame /
+> 3-frame) + quotes live rates (USPS/UPS/FedEx/DHL/etc.) with markup + flat decal
+> fee folded in → buyer picks → `POST /api/checkout` re-prices the chosen rate
+> **server-side** (never trusts the client $) → Square payment link with the rate
+> as `shippingFee`, address pre-filled (`prePopulatedData`, `askForShippingAddress:
+> false`). Country allowlist (US/CA/UK/EU-27) enforced before payment. Decals-only
+> carts + any Shippo outage fall back to a flat fee. The chosen rate + address are
+> persisted (`orders.shipping` jsonb, migration `0018`) and shown in `/admin/orders/
+> [id]` so the team buys that exact label in Shippo (label purchase stays a manual
+> post-order step). New **admin Shipping tab** (`/admin/settings`) edits the
+> ship-from origin, decal flat fee, fallback flat fee, and markup % on the fly.
+>
+> **Key files:** `src/lib/shipping/` (shippo/parcels/classify/quote/countries/
+> address), `src/lib/db/queries/shipping-settings.ts`, `src/app/checkout/` +
+> `src/app/api/shipping/rates/`, updated `create-payment-link.ts` + `api/checkout`
+> + `CartDrawer` + `build-order`/`handle-event` + `OrderDetail`.
+>
+> **PENDING (operator) before this ships:** ① **ship-from origin** — now seeded
+> to the real studio address (2048 Black Oak Drive, Marrero, LA 70072); optionally
+> add a phone/email in the admin Shipping tab for carriers that want one. ② add
+> **`SHIPPO_API_TOKEN`** to Coolify (test token is in local `.env.local`; rotate to
+> the **live** token at go-live). ③ run `feature/shippo` through the gate suite +
+> **live end-to-end test on `dev.animeniacs.shop`** (real prod Square — quote up to
+> the redirect; or a low-value order + refund). ④ migration `0018_bumpy_mimic.sql`
+> applies automatically on deploy (the `migrate-runtime` stage). ⑤ confirm Square
+> still records the ship-to with `askForShippingAddress:false` (we persist it
+> ourselves regardless). Not yet committed/pushed.
+
 > **2026-06-25 — PRODUCTION CUTOVER IN PROGRESS (staging-on-prod).** `main` @
 > `7570cdf`. **`dev.animeniacs.shop` now runs PRODUCTION Square** (`SQUARE_ENV=
 > production` + prod token/location/webhook key in Coolify) as the real-credentials

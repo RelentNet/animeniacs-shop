@@ -6,8 +6,10 @@ import '@testing-library/jest-dom/vitest'
 import { makeEntry, renderWithCart } from './helpers'
 
 const fetchMock = vi.fn()
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }))
 beforeEach(() => {
   global.fetch = fetchMock as unknown as typeof fetch
+  pushMock.mockReset()
 })
 afterEach(() => {
   fetchMock.mockReset()
@@ -16,6 +18,8 @@ afterEach(() => {
 vi.mock('next/image', () => ({
   default: ({ alt, src }: { alt: string; src: string }) => <img alt={alt} src={src} />
 }))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: pushMock }) }))
 
 function product(id: string, varId: string, name: string, priceCents: number): CachedProduct {
   return {
@@ -131,98 +135,24 @@ describe('<CartDrawer>', () => {
     expect(screen.getByRole('button', { name: /^checkout$/i })).not.toBeDisabled()
   })
 
-  it('Clicking Checkout POSTs to /api/checkout and redirects on success', async () => {
-    // Route by URL: hydrate vs checkout. Safer than mockResolvedValueOnce
-    // because hydration may fire additional times depending on render order.
-    fetchMock.mockImplementation(async (url: string) => {
-      if (typeof url === 'string' && url === '/api/checkout') {
-        return new Response(JSON.stringify({ checkoutUrl: 'https://square/co', cartId: 'c' }), {
-          status: 200
-        })
-      }
-      return new Response(JSON.stringify({ products: { A: product('A', 'V', 'Print A', 1500) } }), {
+  it('Clicking Checkout navigates to the /checkout page', async () => {
+    // Address + live shipping rates are collected on the dedicated /checkout
+    // page now, so the drawer just routes there (no direct /api/checkout POST).
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ products: { A: product('A', 'V', 'Print A', 1500) } }), {
         status: 200
       })
-    })
-
-    // Stub window.location with a custom href setter so we can capture the
-    // redirect without actually navigating in jsdom. jsdom forbids deleting
-    // window.location, so we replace via defineProperty.
-    const originalLocation = window.location
-    let capturedHref = ''
-    Object.defineProperty(window, 'location', {
-      value: {
-        get href() {
-          return capturedHref
-        },
-        set href(v: string) {
-          capturedHref = v
-        }
-      },
-      writable: true,
-      configurable: true
-    })
-
-    try {
-      renderWithCart(<DrawerOpener />, {
-        initialItems: [makeEntry({ catalogItemId: 'A', variationId: 'V', quantity: 1 })]
-      })
-      fireEvent.click(screen.getByText('open'))
-      await waitFor(() => expect(screen.getByText('Print A')).toBeInTheDocument())
-      fireEvent.click(screen.getByRole('button', { name: /^checkout$/i }))
-
-      await waitFor(() => expect(capturedHref).toBe('https://square/co'))
-      // Verify the POST shape.
-      const checkoutCall = fetchMock.mock.calls.find(([url]) => url === '/api/checkout')
-      expect(checkoutCall).toBeDefined()
-      expect((checkoutCall as [string, RequestInit])[1].method).toBe('POST')
-    } finally {
-      Object.defineProperty(window, 'location', {
-        value: originalLocation,
-        writable: true,
-        configurable: true
-      })
-    }
-  })
-
-  it('Shows error when /api/checkout returns 409 (price changed)', async () => {
-    // On 409 the drawer calls refresh() which re-fetches the hydrate endpoint.
-    // Provide a default that satisfies any extra hydration calls.
-    fetchMock.mockImplementation(async (url: string) => {
-      if (typeof url === 'string' && url === '/api/checkout') {
-        return new Response(JSON.stringify({ error: 'price_changed', mismatches: [] }), {
-          status: 409
-        })
-      }
-      return new Response(JSON.stringify({ products: { A: product('A', 'V', 'Print A', 1500) } }), {
-        status: 200
-      })
-    })
+    )
     renderWithCart(<DrawerOpener />, {
       initialItems: [makeEntry({ catalogItemId: 'A', variationId: 'V', quantity: 1 })]
     })
     fireEvent.click(screen.getByText('open'))
     await waitFor(() => expect(screen.getByText('Print A')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: /^checkout$/i }))
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/prices have changed/i))
-  })
 
-  it('Shows error when /api/checkout returns 500', async () => {
-    fetchMock.mockImplementation(async (url: string) => {
-      if (typeof url === 'string' && url === '/api/checkout') {
-        return new Response('error', { status: 500 })
-      }
-      return new Response(JSON.stringify({ products: { A: product('A', 'V', 'Print A', 1500) } }), {
-        status: 200
-      })
-    })
-    renderWithCart(<DrawerOpener />, {
-      initialItems: [makeEntry({ catalogItemId: 'A', variationId: 'V', quantity: 1 })]
-    })
-    fireEvent.click(screen.getByText('open'))
-    await waitFor(() => expect(screen.getByText('Print A')).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: /^checkout$/i }))
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/try again/i))
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/checkout'))
+    // The drawer must NOT POST to /api/checkout anymore.
+    expect(fetchMock.mock.calls.find(([url]) => url === '/api/checkout')).toBeUndefined()
   })
 
   it('shows "No longer available" badge first time stale entry appears', async () => {

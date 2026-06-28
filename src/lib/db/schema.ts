@@ -136,6 +136,37 @@ export const abandonedCarts = pgTable(
 export type AbandonedCart = typeof abandonedCarts.$inferSelect
 export type NewAbandonedCart = typeof abandonedCarts.$inferInsert
 
+/**
+ * Shippo dynamic-shipping snapshot persisted on a recorded order: the address we
+ * collected on-site + the carrier rate the buyer picked. The fulfillment team
+ * buys that exact label (by `shipmentId`/`rateId`) in Shippo later. `fallbackUsed`
+ * means the flat fallback fee was charged (live rate missing/expired/outage).
+ */
+export interface OrderShippingAddress {
+  firstName: string
+  lastName: string
+  line1: string
+  line2?: string
+  city: string
+  state?: string
+  zip: string
+  country: string
+  phone?: string
+  email?: string
+}
+export interface OrderShippingSelection {
+  rateId: string
+  shipmentId: string
+  carrier: string
+  service: string
+  amountCents: number
+}
+export interface OrderShipping {
+  address: OrderShippingAddress
+  selection: OrderShippingSelection | null
+  fallbackUsed: boolean
+}
+
 // Phase 11: durable read model of completed orders. Square stays the system of
 // record for money; this table powers the customer-facing /account order history.
 export const orders = pgTable(
@@ -163,6 +194,9 @@ export const orders = pgTable(
     refundedCents: integer('refunded_cents').notNull().default(0),
     placedAt: timestamp('placed_at', { withTimezone: true }),
     raw: jsonb('raw'), // full Square order snapshot (audit/debug)
+    // Shippo dynamic shipping: captured ship-to + the chosen carrier rate. Null
+    // for orders placed before this feature / via other paths.
+    shipping: jsonb('shipping').$type<OrderShipping>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
