@@ -244,6 +244,46 @@ describe('handleSquareEvent', () => {
     )
   })
 
+  it('skips a payment.created from a non-online-sales location (no record, no notifications)', async () => {
+    process.env.SQUARE_LOCATION_ID = 'ONLINE_LOC'
+    process.env.DISCORD_ORDER_WEBHOOK_URL = 'https://discord.test/webhook'
+    mockGetCart.mockResolvedValue(undefined)
+    // Order returned by Square belongs to the physical "Mobile" POS location.
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        locationId: 'MOBILE_LOC',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        lineItems: []
+      }
+    })
+    await handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockMarkCompleted).not.toHaveBeenCalled()
+    expect(mockDiscord).not.toHaveBeenCalled()
+    expect(mockSmsNotify).not.toHaveBeenCalled()
+    expect(mockUpsertOrder).not.toHaveBeenCalled()
+    expect(mockSendConfirmation).not.toHaveBeenCalled()
+    process.env.SQUARE_LOCATION_ID = undefined
+  })
+
+  it('records a payment.created from the configured online-sales location', async () => {
+    process.env.SQUARE_LOCATION_ID = 'ONLINE_LOC'
+    mockGetCart.mockResolvedValue(undefined)
+    mockOrdersGet.mockResolvedValue({
+      order: {
+        id: 'ORDER_X',
+        locationId: 'ONLINE_LOC',
+        totalMoney: { amount: BigInt(4500), currency: 'USD' },
+        lineItems: []
+      }
+    })
+    await handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })
+    expect(mockUpsertOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ squareOrderId: 'ORDER_X', totalCents: 4500 })
+    )
+    process.env.SQUARE_LOCATION_ID = undefined
+  })
+
   it('records a guest order (null userId) when there is no bridge cart', async () => {
     mockGetCart.mockResolvedValue(undefined)
     await handleSquareEvent({ event: paymentEvent(), webhookUrl: 'x', signatureKey: 'k' })

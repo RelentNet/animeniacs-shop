@@ -74,9 +74,34 @@ function shopUrl(): string {
 
 /** Fetch the authoritative Square order, or null on any failure. */
 async function fetchSquareOrder(squareOrderId: string): Promise<unknown | null> {
-  const resp = await getSquareClient().orders.get({ orderId: squareOrderId })
-  // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
-  return (resp as any).order ?? null
+  try {
+    const resp = await getSquareClient().orders.get({ orderId: squareOrderId })
+    // biome-ignore lint/suspicious/noExplicitAny: SDK response shape varies
+    return (resp as any).order ?? null
+  } catch (err) {
+    console.error('[webhook] failed to fetch square order:', err)
+    return null
+  }
+}
+
+/**
+ * True unless the Square order positively belongs to a location OTHER than the
+ * configured online-sales location. Animeniacs runs a second physical POS
+ * ("Mobile") location whose webhooks ALSO reach this endpoint (Square fans out
+ * events for every location in the merchant account); those must never enter
+ * the storefront read model or fire buyer notifications — only orders from
+ * SQUARE_LOCATION_ID (online sales) do. Lenient by design: when the env is
+ * unset, or the order carries no locationId, we don't filter (never drop a
+ * legit online order over a missing field). Only a confirmed location mismatch
+ * is excluded.
+ */
+function isOnlineSalesLocation(squareOrder: unknown): boolean {
+  const configured = process.env.SQUARE_LOCATION_ID
+  if (!configured) return true
+  // biome-ignore lint/suspicious/noExplicitAny: Square order shape is loose
+  const orderLocation = (squareOrder as any)?.locationId
+  if (typeof orderLocation !== 'string' || orderLocation.length === 0) return true
+  return orderLocation === configured
 }
 
 /**
@@ -104,6 +129,20 @@ async function handlePaymentCreated(
   event: any,
   squareOrderId: string
 ): Promise<void> {
+  // Enforce the online-sales location filter BEFORE any side effect. We fetch
+  // the authoritative Square order up front to read its locationId; a payment
+  // from the physical "Mobile" POS location is dropped here so it never enters
+  // the read model or fires notifications. The fetched order is reused below
+  // for recording (no second round-trip). A failed fetch (null) is treated as
+  // "can't tell" — notifications still fire, recording is skipped as before.
+  const squareOrder = await fetchSquareOrder(squareOrderId)
+  if (squareOrder && !isOnlineSalesLocation(squareOrder)) {
+    console.log(
+      `[webhook] skipping payment.created for ${squareOrderId}: order belongs to a non-online-sales location`
+    )
+    return
+  }
+
   await markCartCompleted(squareOrderId)
   const cart = await getCartBySquareOrderId(squareOrderId)
   const itemCount = cart ? countItemsInSnapshot(cart.cartSnapshot) : 0
@@ -136,7 +175,6 @@ async function handlePaymentCreated(
   // continue, never throw out of the webhook. Idempotent via upsert on
   // squareOrderId; duplicate deliveries are already filtered by alreadySeen.
   try {
-    const squareOrder = await fetchSquareOrder(squareOrderId)
     if (squareOrder) {
       const effectiveEmail = cart?.buyerEmail ?? buyerEmail
       const order = buildOrder(squareOrder, {
