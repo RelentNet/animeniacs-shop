@@ -54,7 +54,8 @@ for _ in $(seq 1 80); do
   STATUS="$(curl -fsS "$COOLIFY_BASE/api/v1/deployments/$DEPLOY_UUID" \
     -H "Authorization: Bearer $TOKEN" \
     | python3 -c "import sys,json;print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo '')"
-  if [[ "$STATUS" != "in_progress" && "$STATUS" != "queued" ]]; then break; fi
+  # Empty = transient API error (Coolify 504s while building); keep polling.
+  if [[ -n "$STATUS" && "$STATUS" != "in_progress" && "$STATUS" != "queued" ]]; then break; fi
 done
 echo "==> Deploy status: ${STATUS:-unknown}"
 

@@ -12,10 +12,12 @@ anime / art-print merch shop — replacing a live WooCommerce site at
 `animeniacs.shop`. Catalog + payments + orders run on **Square**; auth is
 **better-auth** (email+password, sessions in Postgres); data is **Drizzle ORM
 over Postgres**; transactional email is **Resend**; UI is **Tailwind** in the
-dark "Street Gallery" theme. Deployed to **Coolify** (dev FQDN
-`dev.animeniacs.shop`). Repo: `git@github.com:RelentNet/animeniacs-shop.git`.
+dark "Street Gallery" theme. Deployed to **Coolify** as two apps, both on `main`:
+**live `animeniacs.shop`** (WooCommerce cutover done) and staging
+`dev.animeniacs.shop`. Repo: `git@github.com:RelentNet/animeniacs-shop.git`.
 
-`SQUARE_ENV=sandbox` everywhere until the operator-gated production cutover.
+Both deployed apps run **`SQUARE_ENV=production`** (real money). Local dev/tests
+use sandbox.
 
 ## Stack / where things live
 
@@ -75,7 +77,7 @@ code) does not apply here.
 
 ## Hard constraints (do not violate)
 
-- **`SQUARE_ENV=sandbox`.** Never flip to production outside the gated cutover.
+- **Local = `SQUARE_ENV=sandbox`.** Never point local/test runs at production Square.
 - **Canaries stay 0:** no `logto` (auth is better-auth now) and no `goaffpro`
   (deferred, unused) references in `src/`/`tests/`.
 - **Deploy ONLY via `./scripts/deploy.sh`** — it pushes `main` then forces a
@@ -90,11 +92,13 @@ code) does not apply here.
 ## Deploy
 
 `./scripts/deploy.sh` → `git push origin main` (→ `RelentNet/animeniacs-shop`)
-→ `POST {COOLIFY_BASE}/api/v1/deploy?uuid=h4400cg04wg8www84ggks4sg&force=true`.
-Reads `COOLIFY_API_TOKEN_ANIMANIACS_TEAM` from `.env.local`. Base
-`https://empower.relentnet.com`, dev FQDN `dev.animeniacs.shop`. The script
-returns when the deploy is QUEUED — poll
-`GET /api/v1/deployments/{uuid}` for `finished`. Read-only Coolify checks: see the
+→ `POST {COOLIFY_BASE}/api/v1/deploy?uuid=h4400cg04wg8www84ggks4sg&force=true`
+→ polls to `finished` → warms ISR. **That uuid is the LIVE `animeniacs.shop` app.**
+Staging (`dev.animeniacs.shop`, uuid `m0k4ssowggkc0go04skkg04o`) has no push
+webhook — deploy it with the same POST + its uuid. Reads
+`COOLIFY_API_TOKEN_ANIMANIACS_TEAM` from `.env.local`; base
+`https://empower.relentnet.com`. The deploy endpoint is POST-only; a forced
+(uncached) build takes ~15 min on the shared host. Read-only Coolify checks: see the
 auto-memory note (the Sanctum token contains `|`, which breaks `source` — extract
 with `grep | cut`; the envs API returns duplicate empty `${VAR:-}` placeholders).
 
