@@ -38,7 +38,7 @@ echo "==> Waiting for Coolify to register the push…"
 sleep 5
 
 echo "==> Forcing deploy…"
-DEPLOY_RESP="$(curl -fsS "$COOLIFY_BASE/api/v1/deploy?uuid=$APP_UUID&force=true" \
+DEPLOY_RESP="$(curl -fsS -X POST "$COOLIFY_BASE/api/v1/deploy?uuid=$APP_UUID&force=true" \
   -H "Authorization: Bearer $TOKEN")"
 echo "$DEPLOY_RESP"
 DEPLOY_UUID="$(printf '%s' "$DEPLOY_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['deployments'][0]['deployment_uuid'])" 2>/dev/null || true)"
