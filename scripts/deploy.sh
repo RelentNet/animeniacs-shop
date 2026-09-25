@@ -11,7 +11,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$REPO_ROOT/.env.local"
 COOLIFY_BASE="https://empower.relentnet.com"
 APP_UUID="h4400cg04wg8www84ggks4sg"
-APP_FQDN="dev.animeniacs.shop"
+APP_FQDN="animeniacs.shop"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "error: .env.local not found at $ENV_FILE" >&2

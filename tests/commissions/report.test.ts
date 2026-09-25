@@ -1,13 +1,43 @@
-import { buildReport } from '@/lib/commissions/report'
+import { buildReport, pickYear } from '@/lib/commissions/report'
 import type { CommissionEarningView } from '@/lib/db/queries/commissions'
 import { describe, expect, it } from 'vitest'
 
 const rows: CommissionEarningView[] = [
-  { artistId: 'a1', artistName: 'Bxnny.Arts', payable: true, yearMonth: '2026-07', commissionCents: 300 },
-  { artistId: 'a1', artistName: 'Bxnny.Arts', payable: true, yearMonth: '2026-08', commissionCents: 800 },
-  { artistId: 'a2', artistName: 'Merc Da Artist', payable: true, yearMonth: '2026-08', commissionCents: 500 },
-  { artistId: 'a3', artistName: 'Animeniacs Studios', payable: false, yearMonth: '2026-08', commissionCents: 120 },
-  { artistId: null, artistName: 'Unattributed', payable: false, yearMonth: '2026-08', commissionCents: 900 }
+  {
+    artistId: 'a1',
+    artistName: 'Bxnny.Arts',
+    payable: true,
+    yearMonth: '2026-07',
+    commissionCents: 300
+  },
+  {
+    artistId: 'a1',
+    artistName: 'Bxnny.Arts',
+    payable: true,
+    yearMonth: '2026-08',
+    commissionCents: 800
+  },
+  {
+    artistId: 'a2',
+    artistName: 'Merc Da Artist',
+    payable: true,
+    yearMonth: '2026-08',
+    commissionCents: 500
+  },
+  {
+    artistId: 'a3',
+    artistName: 'Animeniacs Studios',
+    payable: false,
+    yearMonth: '2026-08',
+    commissionCents: 120
+  },
+  {
+    artistId: null,
+    artistName: 'Unattributed',
+    payable: false,
+    yearMonth: '2026-08',
+    commissionCents: 900
+  }
 ]
 
 describe('buildReport', () => {
@@ -47,9 +77,7 @@ describe('buildArtistStatement', () => {
         { yearMonth: '2026-07', commissionCents: 300 },
         { yearMonth: '2026-08', commissionCents: 800 }
       ],
-      [
-        { id: 'p1', amountCents: 500, paidAt: new Date('2026-08-01'), method: 'Venmo', note: null }
-      ]
+      [{ id: 'p1', amountCents: 500, paidAt: new Date('2026-08-01'), method: 'Venmo', note: null }]
     )
     expect(s.months).toEqual(['2026-07', '2026-08'])
     expect(s.byMonth).toEqual({ '2026-07': 300, '2026-08': 800 })
@@ -64,5 +92,22 @@ describe('buildArtistStatement', () => {
       [{ id: 'p1', amountCents: 500, paidAt: new Date(), method: null, note: 'advance' }]
     )
     expect(s.balanceCents).toBe(-300)
+  })
+})
+
+describe('pickYear', () => {
+  const months = ['2025-11', '2025-12', '2026-01', '2026-08']
+
+  it('defaults to the newest year and lists years newest first', () => {
+    expect(pickYear(months)).toEqual({
+      years: ['2026', '2025'],
+      year: '2026',
+      months: ['2026-01', '2026-08']
+    })
+  })
+
+  it('honors a requested year and falls back on an unknown one', () => {
+    expect(pickYear(months, '2025').months).toEqual(['2025-11', '2025-12'])
+    expect(pickYear(months, '1999').year).toBe('2026')
   })
 })

@@ -71,6 +71,16 @@ export function buildReport(rows: CommissionEarningView[]): CommissionReport {
   return { months: sortedMonths, artists, columnTotals, grandTotalCents, payableTotalCents }
 }
 
+/** Years present (newest first) + the chosen year's months. Missing/unknown year → newest. */
+export function pickYear(
+  months: string[],
+  requested?: string
+): { years: string[]; year: string | undefined; months: string[] } {
+  const years = [...new Set(months.map((m) => m.slice(0, 4)))].sort().reverse()
+  const year = requested && years.includes(requested) ? requested : years[0]
+  return { years, year, months: months.filter((m) => m.startsWith(`${year}-`)) }
+}
+
 // --- Single-artist statement (self-serve earnings page) ---
 
 export interface ArtistStatement {
