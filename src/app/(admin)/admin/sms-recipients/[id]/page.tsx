@@ -19,13 +19,18 @@ export default async function EditSmsRecipientPage({ params }: PageProps): Promi
   const boundAction = updateSmsRecipientAction.bind(null, recipient.id)
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Edit SMS recipient: {recipient.label ?? recipient.phone}</h1>
-      <p>
+    <div>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+        Edit SMS recipient: {recipient.label ?? recipient.phone}
+      </h1>
+      <p className="mt-2 max-w-2xl text-muted">
         Phone is read-only (delete + re-add if it needs to change). Toggle status to pause
         notifications without losing the row.
       </p>
-      <SmsRecipientForm action={boundAction} initial={recipient} mode="edit" />
+      <div className="mt-6">
+        <SmsRecipientForm action={boundAction} initial={recipient} mode="edit" />
+      </div>
     </div>
   )
 }

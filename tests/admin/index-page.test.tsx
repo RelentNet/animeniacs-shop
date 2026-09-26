@@ -39,12 +39,18 @@ describe('/admin index page', () => {
     expect(smsRecipients).toHaveAttribute('href', '/admin/sms-recipients')
   })
 
-  it('sets an explicit foreground/background so it survives dark mode', async () => {
+  it('inherits the Street Gallery dark theme instead of a local color override (DAN-21)', async () => {
+    // Pre-restyle, this page set its own inline color/background to survive
+    // dark mode because the admin shell was light-mode-only. Now the whole
+    // (admin) group is themed like the rest of the site (globals.css sets
+    // color-scheme: dark + body fg/bg), so a per-page override would be
+    // redundant — the heading picks up the shared `text-bone` color instead.
     const { default: AdminIndexPage } = await import('@/app/(admin)/admin/page')
     const { container } = render(await AdminIndexPage())
     const root = container.firstElementChild as HTMLElement
-    expect(root.style.color).not.toBe('')
-    expect(root.style.background).not.toBe('')
+    expect(root.style.color).toBe('')
+    expect(root.style.background).toBe('')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-bone')
   })
 
   it('renders the order dashboard stats strip from getOrderDashboardStats', async () => {

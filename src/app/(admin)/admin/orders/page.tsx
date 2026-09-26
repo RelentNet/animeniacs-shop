@@ -57,27 +57,21 @@ export default async function OrdersListPage({
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  const fieldClass =
+    'bg-ink-2 border border-line text-bone rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/60'
+
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ marginBottom: '1rem' }}>
-        <h1 style={{ margin: 0 }}>Orders ({total})</h1>
-      </header>
+    <div>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+        Orders ({total})
+      </h1>
 
       {/* biome-ignore lint/a11y/useSemanticElements: role="search" is the standard ARIA search landmark; there is no native HTML element for it. */}
-      <form
-        role="search"
-        method="get"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.75rem',
-          alignItems: 'flex-end',
-          marginBottom: '1rem'
-        }}
-      >
-        <label style={{ display: 'grid', gap: '0.25rem' }}>
+      <form role="search" method="get" className="mt-6 flex flex-wrap items-end gap-3">
+        <label className="grid gap-1 text-sm text-muted">
           <span>Status</span>
-          <select name="status" defaultValue={status ?? ''}>
+          <select name="status" defaultValue={status ?? ''} className={fieldClass}>
             <option value="">All</option>
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>
@@ -87,9 +81,9 @@ export default async function OrdersListPage({
           </select>
         </label>
 
-        <label style={{ display: 'grid', gap: '0.25rem' }}>
+        <label className="grid gap-1 text-sm text-muted">
           <span>Fulfillment</span>
-          <select name="fulfillment" defaultValue={fulfillmentState ?? ''}>
+          <select name="fulfillment" defaultValue={fulfillmentState ?? ''} className={fieldClass}>
             <option value="">All</option>
             {FULFILLMENT_OPTIONS.map((f) => (
               <option key={f} value={f}>
@@ -99,33 +93,52 @@ export default async function OrdersListPage({
           </select>
         </label>
 
-        <label style={{ display: 'grid', gap: '0.25rem' }}>
+        <label className="grid gap-1 text-sm text-muted">
           <span>Search</span>
-          <input type="search" name="q" defaultValue={q ?? ''} placeholder="order # or email" />
+          <input
+            type="search"
+            name="q"
+            defaultValue={q ?? ''}
+            placeholder="order # or email"
+            className={fieldClass}
+          />
         </label>
 
-        <button type="submit">Filter</button>
-        {(status || fulfillmentState || q) && <Link href={'/admin/orders' as Route}>Clear</Link>}
+        <button type="submit" className="btn-neon">
+          Filter
+        </button>
+        {(status || fulfillmentState || q) && (
+          <Link href={'/admin/orders' as Route} className="link-neon text-sm">
+            Clear
+          </Link>
+        )}
       </form>
 
       {orders.length === 0 ? (
-        <div style={{ padding: '2rem', textAlign: 'center', background: '#f7f7f7' }}>
+        <div className="panel mt-6 p-8 text-center text-muted">
           <p>No orders match.</p>
         </div>
       ) : (
-        <OrdersTable orders={orders} />
+        <div className="mt-6">
+          <OrdersTable orders={orders} />
+        </div>
       )}
 
       {totalPages > 1 && (
-        <nav
-          aria-label="Pagination"
-          style={{ display: 'flex', gap: '1rem', marginTop: '1rem', alignItems: 'center' }}
-        >
-          {page > 1 && <Link href={pageHref(searchParams, page - 1)}>← Previous</Link>}
-          <span>
+        <nav aria-label="Pagination" className="mt-6 flex items-center gap-4 text-sm">
+          {page > 1 && (
+            <Link href={pageHref(searchParams, page - 1)} className="link-neon">
+              ← Previous
+            </Link>
+          )}
+          <span className="text-muted">
             Page {page} of {totalPages}
           </span>
-          {page < totalPages && <Link href={pageHref(searchParams, page + 1)}>Next →</Link>}
+          {page < totalPages && (
+            <Link href={pageHref(searchParams, page + 1)} className="link-neon">
+              Next →
+            </Link>
+          )}
         </nav>
       )}
     </div>

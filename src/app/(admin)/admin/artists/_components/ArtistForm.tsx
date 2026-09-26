@@ -26,6 +26,9 @@ export interface ArtistFormProps {
 
 const PAYMENT_METHODS = ['paypal', 'venmo', 'check', 'zelle', 'other'] as const
 
+const fieldClass =
+  'bg-ink-2 border border-line text-bone rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/60'
+
 /**
  * Shared HTML form for both create and edit flows. Client component
  * so we can wire useFormState for inline server-action errors without
@@ -52,10 +55,10 @@ export function ArtistForm({
       action={formAction}
       method="post"
       encType="multipart/form-data"
-      style={{ display: 'grid', gap: '0.75rem', maxWidth: '40rem' }}
+      className="grid max-w-2xl gap-3"
     >
       {err?.message && (
-        <div role="alert" style={{ background: '#fee', padding: '0.5rem' }}>
+        <div role="alert" className="alert alert-error">
           {err.message}
         </div>
       )}
@@ -73,6 +76,7 @@ export function ArtistForm({
           pattern="^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$"
           defaultValue={a?.slug}
           readOnly={mode === 'edit'} // slug is identity; don't break old URLs
+          className={fieldClass}
         />
       </Field>
 
@@ -83,6 +87,7 @@ export function ArtistForm({
           required
           maxLength={120}
           defaultValue={a?.displayName}
+          className={fieldClass}
         />
       </Field>
 
@@ -91,7 +96,12 @@ export function ArtistForm({
         error={fieldErr('squareCategoryId')}
         hint="Choose from existing Artist > * categories in Square. Add new ones in the Square dashboard."
       >
-        <select name="squareCategoryId" defaultValue={a?.squareCategoryId ?? ''} required>
+        <select
+          name="squareCategoryId"
+          defaultValue={a?.squareCategoryId ?? ''}
+          required
+          className={fieldClass}
+        >
           <option value="" disabled>
             Select a sub-category...
           </option>
@@ -102,30 +112,30 @@ export function ArtistForm({
           ))}
         </select>
         {categoryOptions.length === 0 && (
-          <small style={{ color: '#a33' }}>
+          <small className="text-red-400">
             No Artist sub-categories found. Create one in the Square dashboard first.
           </small>
         )}
       </Field>
 
       <Field label="Status">
-        <span>
-          <label style={{ marginRight: '1rem' }}>
+        <span className="flex items-center gap-4 text-sm text-bone">
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="status"
               value="active"
               defaultChecked={(a?.status ?? 'active') === 'active'}
-            />{' '}
+            />
             Active
           </label>
-          <label>
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="status"
               value="inactive"
               defaultChecked={a?.status === 'inactive'}
-            />{' '}
+            />
             Inactive
           </label>
         </span>
@@ -140,15 +150,26 @@ export function ArtistForm({
         }
         error={fieldErr('avatarFile')}
       >
-        <input type="file" name="avatarFile" accept="image/png,image/jpeg,image/webp" />
+        <input
+          type="file"
+          name="avatarFile"
+          accept="image/png,image/jpeg,image/webp"
+          className="text-sm text-muted"
+        />
       </Field>
 
       <Field label="Bio" error={fieldErr('bio')}>
-        <textarea name="bio" maxLength={2000} rows={4} defaultValue={a?.bio ?? ''} />
+        <textarea
+          name="bio"
+          maxLength={2000}
+          rows={4}
+          defaultValue={a?.bio ?? ''}
+          className={fieldClass}
+        />
       </Field>
 
-      <fieldset style={{ display: 'grid', gap: '0.5rem' }}>
-        <legend>Social URLs (optional)</legend>
+      <fieldset className="grid gap-3 rounded-md border border-line p-3">
+        <legend className="eyebrow px-1 text-purple-soft">Social URLs (optional)</legend>
         <SocialField
           name="instagram"
           label="Instagram"
@@ -200,11 +221,12 @@ export function ArtistForm({
           max="1"
           defaultValue={a?.commissionRate ?? '0.2000'}
           required
+          className={fieldClass}
         />
       </Field>
 
       <Field label="Payment method" error={fieldErr('paymentMethod')}>
-        <select name="paymentMethod" defaultValue={a?.paymentMethod ?? ''}>
+        <select name="paymentMethod" defaultValue={a?.paymentMethod ?? ''} className={fieldClass}>
           <option value="">— None —</option>
           {PAYMENT_METHODS.map((m) => (
             <option key={m} value={m}>
@@ -220,24 +242,35 @@ export function ArtistForm({
           name="paymentEmail"
           maxLength={200}
           defaultValue={a?.paymentEmail ?? ''}
+          className={fieldClass}
         />
       </Field>
 
-      <Field label="Account login email (self-serve earnings page)" error={fieldErr('accountEmail')}>
+      <Field
+        label="Account login email (self-serve earnings page)"
+        error={fieldErr('accountEmail')}
+      >
         <input
           type="email"
           name="accountEmail"
           maxLength={200}
           placeholder="the email they log in with"
           defaultValue={a?.accountEmail ?? ''}
+          className={fieldClass}
         />
       </Field>
 
       <Field label="Admin notes (private)" error={fieldErr('notes')}>
-        <textarea name="notes" maxLength={4000} rows={3} defaultValue={a?.notes ?? ''} />
+        <textarea
+          name="notes"
+          maxLength={4000}
+          rows={3}
+          defaultValue={a?.notes ?? ''}
+          className={fieldClass}
+        />
       </Field>
 
-      <button type="submit" style={{ justifySelf: 'start', padding: '0.5rem 1rem' }}>
+      <button type="submit" className="btn-neon justify-self-start">
         {mode === 'create' ? 'Create artist' : 'Save changes'}
       </button>
     </form>
@@ -256,12 +289,12 @@ function Field({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ display: 'grid', gap: '0.25rem' }}>
-      <span style={{ fontWeight: 600 }}>{label}</span>
+    <div className="grid gap-1">
+      <span className="field-label">{label}</span>
       {children}
-      {hint && <small style={{ color: '#666' }}>{hint}</small>}
+      {hint && <small className="text-muted">{hint}</small>}
       {error && (
-        <span role="alert" style={{ color: '#a33', fontSize: '0.85em' }}>
+        <span role="alert" className="text-sm text-red-400">
           {error}
         </span>
       )}
@@ -282,11 +315,19 @@ function SocialField({
 }): JSX.Element {
   const id = `social-${name}`
   return (
-    <div style={{ display: 'grid', gap: '0.25rem' }}>
-      <label htmlFor={id}>{label}</label>
-      <input id={id} type="url" name={name} defaultValue={defaultValue ?? ''} />
+    <div className="grid gap-1">
+      <label htmlFor={id} className="field-label">
+        {label}
+      </label>
+      <input
+        id={id}
+        type="url"
+        name={name}
+        defaultValue={defaultValue ?? ''}
+        className={fieldClass}
+      />
       {error && (
-        <span role="alert" style={{ color: '#a33', fontSize: '0.85em' }}>
+        <span role="alert" className="text-sm text-red-400">
           {error}
         </span>
       )}

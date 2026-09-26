@@ -1,7 +1,9 @@
 import { PromoBarValueSchema } from '@/lib/db/queries/site-settings'
 import type { PromoBarFormError } from './PromoBarSettingsForm'
 
-function fieldErrors(issues: { path: (string | number)[]; message: string }[]): Record<string, string> {
+function fieldErrors(
+  issues: { path: (string | number)[]; message: string }[]
+): Record<string, string> {
   const fieldErrs: Record<string, string> = {}
   for (const issue of issues) {
     // Nested paths (e.g. shipFrom.zip) collapse to their top-level group key.
@@ -21,6 +23,9 @@ export function validatePromoBarInput(
   if (result.success) return { ok: true, data: result.data }
   return {
     ok: false,
-    error: { message: 'Please correct the highlighted fields.', fields: fieldErrors(result.error.issues) }
+    error: {
+      message: 'Please correct the highlighted fields.',
+      fields: fieldErrors(result.error.issues)
+    }
   }
 }

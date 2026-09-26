@@ -24,18 +24,24 @@ export default async function EditIpNicknamePage({ params }: PageProps): Promise
   const boundAction = updateIpNicknameAction.bind(null, nickname.id)
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Edit IP nickname: {nickname.nickname}</h1>
-      <p>
-        Slug is read-only here (changing it would break <code>/category/{nickname.slug}</code>).
-        Toggle visibility to hide the public page without deleting the row.
+    <div>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+        Edit IP nickname: {nickname.nickname}
+      </h1>
+      <p className="mt-2 max-w-2xl text-muted">
+        Slug is read-only here (changing it would break{' '}
+        <code className="font-mono text-purple-soft">/category/{nickname.slug}</code>). Toggle
+        visibility to hide the public page without deleting the row.
       </p>
-      <IpNicknameForm
-        action={boundAction}
-        categoryOptions={categoryOptions}
-        initial={nickname}
-        mode="edit"
-      />
+      <div className="mt-6">
+        <IpNicknameForm
+          action={boundAction}
+          categoryOptions={categoryOptions}
+          initial={nickname}
+          mode="edit"
+        />
+      </div>
     </div>
   )
 }

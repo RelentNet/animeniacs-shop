@@ -11,31 +11,31 @@ export default async function AdminIpNicknamesListPage(): Promise<JSX.Element> {
   const [nicknames, categoryNames] = await Promise.all([getAllIpNicknames(), getCategoryNameMap()])
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'baseline',
-          marginBottom: '1rem'
-        }}
-      >
-        <h1>IP nicknames ({nicknames.length})</h1>
-        <Link href={'/admin/ip-nicknames/new' as Route}>+ new nickname</Link>
+    <div>
+      <header className="flex items-baseline justify-between">
+        <div>
+          <p className="eyebrow">Admin</p>
+          <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+            IP nicknames ({nicknames.length})
+          </h1>
+        </div>
+        <Link href={'/admin/ip-nicknames/new' as Route} className="btn-neon">
+          + New nickname
+        </Link>
       </header>
 
       {nicknames.length === 0 ? (
         <EmptyState />
       ) : (
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <table className="mt-6 w-full border-collapse text-sm">
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-              <th style={cellStyle}>Public?</th>
-              <th style={cellStyle}>Nickname</th>
-              <th style={cellStyle}>Slug</th>
-              <th style={cellStyle}>Square category (staff-only)</th>
-              <th style={cellStyle}>Description</th>
-              <th style={cellStyle} />
+            <tr className="border-b border-line-strong text-left text-muted">
+              <th className={th}>Public?</th>
+              <th className={th}>Nickname</th>
+              <th className={th}>Slug</th>
+              <th className={th}>Square category (staff-only)</th>
+              <th className={th}>Description</th>
+              <th className={th} />
             </tr>
           </thead>
           <tbody>
@@ -47,18 +47,20 @@ export default async function AdminIpNicknamesListPage(): Promise<JSX.Element> {
                   : n.description
                 : ''
               return (
-                <tr key={n.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={cellStyle}>
+                <tr key={n.id} className="border-b border-line hover:bg-wall-2">
+                  <td className={td}>
                     <PublicBadge isPublic={n.isPublic} />
                   </td>
-                  <td style={cellStyle}>{n.nickname}</td>
-                  <td style={cellStyle}>
-                    <code>{n.slug}</code>
+                  <td className={`${td} text-bone`}>{n.nickname}</td>
+                  <td className={td}>
+                    <code className="font-mono text-purple-soft">{n.slug}</code>
                   </td>
-                  <td style={cellStyle}>{catName}</td>
-                  <td style={cellStyle}>{trimmedDesc}</td>
-                  <td style={cellStyle}>
-                    <Link href={`/admin/ip-nicknames/${n.id}` as Route}>edit</Link>
+                  <td className={`${td} text-muted`}>{catName}</td>
+                  <td className={`${td} text-muted`}>{trimmedDesc}</td>
+                  <td className={td}>
+                    <Link href={`/admin/ip-nicknames/${n.id}` as Route} className="link-neon">
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               )
@@ -70,23 +72,30 @@ export default async function AdminIpNicknamesListPage(): Promise<JSX.Element> {
   )
 }
 
-const cellStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', verticalAlign: 'top' }
+const th = 'py-2 px-3 font-medium'
+const td = 'py-2 px-3 align-top'
 
 function EmptyState(): JSX.Element {
   return (
-    <div style={{ padding: '2rem', textAlign: 'center', background: '#f7f7f7' }}>
-      <p>No nicknames yet.</p>
-      <Link href={'/admin/ip-nicknames/new' as Route}>Create the first one</Link>
+    <div className="panel mt-6 p-8 text-center">
+      <p className="text-muted">No nicknames yet.</p>
+      <Link href={'/admin/ip-nicknames/new' as Route} className="link-neon mt-2 inline-block">
+        Create the first one
+      </Link>
     </div>
   )
 }
 
 function PublicBadge({ isPublic }: { isPublic: boolean }): JSX.Element {
-  const bg = isPublic ? '#dfd' : '#eee'
-  const label = isPublic ? 'Public' : 'Hidden'
   return (
-    <span style={{ background: bg, padding: '0.15rem 0.5rem', borderRadius: '0.25rem' }}>
-      {label}
+    <span
+      className={
+        isPublic
+          ? 'rounded-full bg-neon/15 px-2 py-0.5 text-xs font-medium text-neon-soft'
+          : 'rounded-full bg-wall-2 px-2 py-0.5 text-xs font-medium text-muted'
+      }
+    >
+      {isPublic ? 'Public' : 'Hidden'}
     </span>
   )
 }

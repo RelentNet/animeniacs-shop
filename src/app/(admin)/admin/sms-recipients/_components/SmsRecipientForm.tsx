@@ -16,6 +16,9 @@ export interface SmsRecipientFormProps {
   mode: 'create' | 'edit'
 }
 
+const fieldClass =
+  'bg-ink-2 border border-line text-bone rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/60'
+
 export function SmsRecipientForm({ action, initial, mode }: SmsRecipientFormProps): JSX.Element {
   const [state, formAction] = useFormState(action, undefined)
   const r = initial
@@ -23,13 +26,9 @@ export function SmsRecipientForm({ action, initial, mode }: SmsRecipientFormProp
   const fieldErr = (name: string) => err?.fields?.[name]
 
   return (
-    <form
-      action={formAction}
-      method="post"
-      style={{ display: 'grid', gap: '0.75rem', maxWidth: '40rem' }}
-    >
+    <form action={formAction} method="post" className="grid max-w-2xl gap-3">
       {err?.message && (
-        <div role="alert" style={{ background: '#fee', padding: '0.5rem' }}>
+        <div role="alert" className="alert alert-error">
           {err.message}
         </div>
       )}
@@ -47,37 +46,44 @@ export function SmsRecipientForm({ action, initial, mode }: SmsRecipientFormProp
           pattern="^\+[1-9]\d{1,14}$"
           defaultValue={r?.phone}
           readOnly={mode === 'edit'}
+          className={fieldClass}
         />
       </Field>
 
       <Field label="Label" hint="Optional: e.g. Owner, Manager." error={fieldErr('label')}>
-        <input type="text" name="label" maxLength={60} defaultValue={r?.label ?? ''} />
+        <input
+          type="text"
+          name="label"
+          maxLength={60}
+          defaultValue={r?.label ?? ''}
+          className={fieldClass}
+        />
       </Field>
 
       <Field label="Status">
-        <span>
-          <label style={{ marginRight: '1rem' }}>
+        <span className="flex items-center gap-4 text-sm text-bone">
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="enabled"
               value="true"
               defaultChecked={(r?.enabled ?? true) === true}
-            />{' '}
+            />
             Enabled
           </label>
-          <label>
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="enabled"
               value="false"
               defaultChecked={r?.enabled === false}
-            />{' '}
+            />
             Disabled
           </label>
         </span>
       </Field>
 
-      <button type="submit" style={{ justifySelf: 'start', padding: '0.5rem 1rem' }}>
+      <button type="submit" className="btn-neon justify-self-start">
         {mode === 'create' ? 'Create recipient' : 'Save changes'}
       </button>
     </form>
@@ -96,12 +102,12 @@ function Field({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ display: 'grid', gap: '0.25rem' }}>
-      <span style={{ fontWeight: 600 }}>{label}</span>
+    <div className="grid gap-1">
+      <span className="field-label">{label}</span>
       {children}
-      {hint && <small style={{ color: '#666' }}>{hint}</small>}
+      {hint && <small className="text-muted">{hint}</small>}
       {error && (
-        <span role="alert" style={{ color: '#a33', fontSize: '0.85em' }}>
+        <span role="alert" className="text-sm text-red-400">
           {error}
         </span>
       )}

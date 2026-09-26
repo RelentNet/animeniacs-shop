@@ -28,6 +28,9 @@ function monthLabel(yearMonth: string): string {
   })
 }
 
+const th = 'px-3 py-2 font-medium whitespace-nowrap'
+const td = 'px-3 py-2 whitespace-nowrap'
+
 export default async function CommissionsPage({
   searchParams
 }: {
@@ -46,16 +49,6 @@ export default async function CommissionsPage({
   const yearTotal = (byMonth: Record<string, number>) =>
     months.reduce((s, m) => s + (byMonth[m] ?? 0), 0)
 
-  const cell: React.CSSProperties = {
-    padding: '0.4rem 0.7rem',
-    borderBottom: '1px solid #eee',
-    textAlign: 'right',
-    whiteSpace: 'nowrap'
-  }
-  const nameCell: React.CSSProperties = { ...cell, textAlign: 'left', fontWeight: 600 }
-  const th: React.CSSProperties = { ...cell, borderBottom: '2px solid #ccc', color: '#555' }
-  const totalCol: React.CSSProperties = { ...cell, borderLeft: '2px solid #ccc', fontWeight: 700 }
-
   // Grand totals across payable, real artists (exclude house + unattributed).
   let totMade = 0
   let totPaid = 0
@@ -68,71 +61,60 @@ export default async function CommissionsPage({
   }
 
   return (
-    <div
-      style={{
-        padding: '1.5rem',
-        fontFamily: 'system-ui, sans-serif',
-        color: '#111',
-        background: '#fff',
-        minHeight: '100vh'
-      }}
-    >
-      <p style={{ margin: 0 }}>
-        <a href="/admin" style={{ color: '#2563eb', textDecoration: 'none' }}>
-          ← Admin
-        </a>
-      </p>
-      <h1 style={{ margin: '0.5rem 0 0.25rem' }}>Artist commissions & payouts</h1>
-      <p style={{ margin: '0 0 1rem', color: '#666', fontSize: '0.9rem' }}>
+    <div>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+        Artist commissions &amp; payouts
+      </h1>
+      <p className="mt-2 max-w-3xl text-sm text-muted">
         Commission = each artist’s rate × net item sales (after discounts), both locations, all
-        history. <strong>Balance owed</strong> = made − paid (negative means you’ve advanced them).
-        House accounts are shown but not owed; “Unattributed” needs catalog cleanup.
+        history. <strong className="text-bone">Balance owed</strong> = made − paid (negative means
+        you’ve advanced them). House accounts are shown but not owed; “Unattributed” needs catalog
+        cleanup.
         {lastSync
           ? ` Last synced ${lastSync.toLocaleString('en-US', { timeZone: 'America/Chicago' })}.`
           : ' Never synced — run a sync to populate.'}
       </p>
 
-      <div style={{ margin: '0 0 1.25rem' }}>
+      <div className="mt-4">
         <SyncButton />
       </div>
 
       {report.artists.length === 0 ? (
-        <p style={{ color: '#666' }}>No commission data yet. Click “Sync from Square”.</p>
+        <p className="mt-6 text-muted">No commission data yet. Click “Sync from Square”.</p>
       ) : (
         <>
-          <nav style={{ display: 'flex', gap: '0.5rem', margin: '0 0 0.75rem' }}>
+          <nav className="mt-6 flex gap-2">
             {years.map((y) => (
               <Link
                 key={y}
                 href={`/admin/commissions?year=${y}` as Route}
-                style={{
-                  padding: '0.3rem 0.8rem',
-                  borderRadius: '999px',
-                  border: '1px solid #ccc',
-                  textDecoration: 'none',
-                  ...(y === year
-                    ? { background: '#111', color: '#fff', borderColor: '#111' }
-                    : { color: '#111' })
-                }}
+                className={
+                  y === year
+                    ? 'rounded-full border border-neon bg-neon/15 px-3 py-1 text-sm text-neon-soft hover:no-underline'
+                    : 'rounded-full border border-line px-3 py-1 text-sm text-muted transition-colors hover:border-line-strong hover:text-bone hover:no-underline'
+                }
               >
                 {y}
               </Link>
             ))}
           </nav>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: '760px' }}>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-[760px] border-collapse text-sm">
               <thead>
-                <tr>
-                  <th style={{ ...th, textAlign: 'left' }}>Artist</th>
+                <tr className="border-b-2 border-line-strong text-muted">
+                  <th className={`${th} text-left`}>Artist</th>
                   {months.map((m) => (
-                    <th key={m} style={th}>
+                    <th key={m} className={`${th} text-right`}>
                       {monthLabel(m)}
                     </th>
                   ))}
-                  <th style={{ ...th, borderLeft: '2px solid #ccc' }}>{year} total</th>
-                  <th style={{ ...th, borderLeft: '2px solid #ccc' }}>Total made (all-time)</th>
-                  <th style={th}>Total paid</th>
-                  <th style={th}>Balance owed</th>
+                  <th className={`${th} border-l-2 border-line-strong text-right`}>{year} total</th>
+                  <th className={`${th} border-l-2 border-line-strong text-right`}>
+                    Total made (all-time)
+                  </th>
+                  <th className={`${th} text-right`}>Total paid</th>
+                  <th className={`${th} text-right`}>Balance owed</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,30 +125,36 @@ export default async function CommissionsPage({
                   return (
                     <tr
                       key={a.artistId ?? a.artistName}
-                      style={muted ? { color: '#999' } : undefined}
+                      className={`border-b border-line hover:bg-wall-2 ${muted ? 'text-faint' : 'text-bone'}`}
                     >
-                      <td style={nameCell}>
+                      <td className={`${td} text-left font-semibold`}>
                         {a.artistName}
                         {!a.payable && a.artistName !== 'Unattributed' && (
-                          <span style={{ fontWeight: 400, fontSize: '0.75rem' }}> (house)</span>
+                          <span className="font-normal text-faint"> (house)</span>
                         )}
                       </td>
                       {months.map((m) => (
-                        <td key={m} style={cell}>
+                        <td key={m} className={`${td} text-right font-mono`}>
                           {a.byMonth[m] ? money(a.byMonth[m]) : '—'}
                         </td>
                       ))}
-                      <td style={{ ...totalCol, fontWeight: 600 }}>
+                      <td
+                        className={`${td} border-l-2 border-line-strong text-right font-mono font-semibold`}
+                      >
                         {money(yearTotal(a.byMonth))}
                       </td>
-                      <td style={totalCol}>{money(a.totalCents)}</td>
-                      <td style={{ ...cell, fontWeight: 600 }}>{paid ? money(paid) : '—'}</td>
                       <td
-                        style={{
-                          ...cell,
-                          fontWeight: 700,
-                          color: balance < 0 ? '#b45309' : muted ? '#999' : '#111'
-                        }}
+                        className={`${td} border-l-2 border-line-strong text-right font-mono font-semibold`}
+                      >
+                        {money(a.totalCents)}
+                      </td>
+                      <td className={`${td} text-right font-mono font-semibold`}>
+                        {paid ? money(paid) : '—'}
+                      </td>
+                      <td
+                        className={`${td} text-right font-mono font-bold ${
+                          balance < 0 ? 'text-amber-400' : muted ? 'text-faint' : 'text-bone'
+                        }`}
                         title={balance < 0 ? 'Advanced (artist owes shop)' : 'Owed to artist'}
                       >
                         {money(balance)}
@@ -176,23 +164,19 @@ export default async function CommissionsPage({
                 })}
               </tbody>
               <tfoot>
-                <tr>
-                  <td style={{ ...nameCell, borderTop: '2px solid #ccc' }}>Payable totals</td>
+                <tr className="border-t-2 border-line-strong font-bold text-bone">
+                  <td className={`${td} text-left`}>Payable totals</td>
                   {months.map((m) => (
-                    <td key={m} style={{ ...cell, borderTop: '2px solid #ccc' }} />
+                    <td key={m} className={td} />
                   ))}
-                  <td style={{ ...totalCol, borderTop: '2px solid #ccc', fontWeight: 800 }}>
+                  <td className={`${td} border-l-2 border-line-strong text-right font-mono`}>
                     {money(totYear)}
                   </td>
-                  <td style={{ ...totalCol, borderTop: '2px solid #ccc', fontWeight: 800 }}>
+                  <td className={`${td} border-l-2 border-line-strong text-right font-mono`}>
                     {money(totMade)}
                   </td>
-                  <td style={{ ...cell, borderTop: '2px solid #ccc', fontWeight: 800 }}>
-                    {money(totPaid)}
-                  </td>
-                  <td style={{ ...cell, borderTop: '2px solid #ccc', fontWeight: 800 }}>
-                    {money(totMade - totPaid)}
-                  </td>
+                  <td className={`${td} text-right font-mono`}>{money(totPaid)}</td>
+                  <td className={`${td} text-right font-mono`}>{money(totMade - totPaid)}</td>
                 </tr>
               </tfoot>
             </table>
@@ -200,32 +184,34 @@ export default async function CommissionsPage({
         </>
       )}
 
-      <h2 style={{ margin: '1.75rem 0 0.5rem', fontSize: '1.1rem' }}>Record a payout</h2>
-      <PayoutForm artists={payableArtists} />
+      <h2 className="eyebrow mt-8 text-purple-soft">Record a payout</h2>
+      <div className="mt-3">
+        <PayoutForm artists={payableArtists} />
+      </div>
 
       {recentPayouts.length > 0 && (
         <>
-          <h2 style={{ margin: '1.75rem 0 0.5rem', fontSize: '1.1rem' }}>Recent payouts</h2>
-          <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <h2 className="eyebrow mt-8 text-purple-soft">Recent payouts</h2>
+          <table className="mt-3 border-collapse text-sm">
             <thead>
-              <tr>
-                <th style={{ ...th, textAlign: 'left' }}>Date</th>
-                <th style={{ ...th, textAlign: 'left' }}>Artist</th>
-                <th style={th}>Amount</th>
-                <th style={{ ...th, textAlign: 'left' }}>Method</th>
-                <th style={{ ...th, textAlign: 'left' }}>Note</th>
+              <tr className="border-b border-line-strong text-left text-muted">
+                <th className={th}>Date</th>
+                <th className={th}>Artist</th>
+                <th className={`${th} text-right`}>Amount</th>
+                <th className={th}>Method</th>
+                <th className={th}>Note</th>
               </tr>
             </thead>
             <tbody>
               {recentPayouts.map((p) => (
-                <tr key={p.id}>
-                  <td style={{ ...cell, textAlign: 'left' }}>
+                <tr key={p.id} className="border-b border-line hover:bg-wall-2">
+                  <td className={`${td} text-muted`}>
                     {p.paidAt.toLocaleDateString('en-US', { timeZone: 'America/Chicago' })}
                   </td>
-                  <td style={{ ...cell, textAlign: 'left' }}>{p.artistName}</td>
-                  <td style={cell}>{money(p.amountCents)}</td>
-                  <td style={{ ...cell, textAlign: 'left' }}>{p.method ?? '—'}</td>
-                  <td style={{ ...cell, textAlign: 'left' }}>{p.note ?? '—'}</td>
+                  <td className={`${td} text-bone`}>{p.artistName}</td>
+                  <td className={`${td} text-right font-mono text-bone`}>{money(p.amountCents)}</td>
+                  <td className={`${td} text-muted`}>{p.method ?? '—'}</td>
+                  <td className={`${td} text-muted`}>{p.note ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -233,7 +219,7 @@ export default async function CommissionsPage({
         </>
       )}
 
-      <p style={{ marginTop: '1rem', color: '#999', fontSize: '0.8rem' }}>
+      <p className="mt-4 text-xs text-faint">
         Figures are pre-refund (refund clawback is a tracked follow-up).
       </p>
     </div>
