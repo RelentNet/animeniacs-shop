@@ -26,20 +26,14 @@ function formatDateTime(date: Date | null): string {
   })
 }
 
-const rowStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: '12rem 1fr',
-  gap: '0.5rem',
-  padding: '0.35rem 0'
-}
-const labelStyle: React.CSSProperties = { color: '#555' }
-const cellStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', verticalAlign: 'top' }
+const th = 'py-2 px-3 font-medium'
+const td = 'py-2 px-3 align-top'
 
 function Row({ label, children }: { label: string; children: React.ReactNode }): JSX.Element {
   return (
-    <div style={rowStyle}>
-      <span style={labelStyle}>{label}</span>
-      <span>{children}</span>
+    <div className="grid grid-cols-[12rem_1fr] gap-2 py-1.5 text-sm">
+      <span className="text-muted">{label}</span>
+      <span className="text-bone">{children}</span>
     </div>
   )
 }
@@ -57,38 +51,57 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
 
   return (
     <section>
-      <h1 style={{ margin: 0 }}>Order</h1>
-      <p style={{ marginTop: '0.25rem', color: '#555' }}>
-        Order #: <code>{order.squareOrderId}</code>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">Order</h1>
+      <p className="mt-1 text-sm text-muted">
+        Order #: <code className="font-mono text-purple-soft">{order.squareOrderId}</code>
       </p>
 
-      <div style={{ marginTop: '1rem', maxWidth: '40rem' }}>
+      <div className="panel mt-6 max-w-2xl p-4">
         <Row label="Placed">{formatDateTime(order.placedAt)}</Row>
         <Row label="Status">{statusLabel(order.status)}</Row>
-        <Row label="Square state">{sqState ? <code>{sqState}</code> : '—'}</Row>
-        <Row label="Fulfillment">
-          {fulfillmentLabel(order.fulfillmentState)}
-          {order.fulfillmentState ? <code> ({order.fulfillmentState})</code> : <code> (none)</code>}
+        <Row label="Square state">
+          {sqState ? <code className="font-mono">{sqState}</code> : '—'}
         </Row>
-        <Row label="Total">{formatCents(order.totalCents)}</Row>
+        <Row label="Fulfillment">
+          {fulfillmentLabel(order.fulfillmentState)}{' '}
+          <code className="font-mono text-muted">
+            ({order.fulfillmentState ? order.fulfillmentState : 'none'})
+          </code>
+        </Row>
+        <Row label="Total">
+          <span className="font-mono">{formatCents(order.totalCents)}</span>
+        </Row>
         {refundedCents > 0 && (
           <Row label="Refunded">
-            {formatCents(refundedCents)} of {formatCents(order.totalCents)}
+            <span className="font-mono">
+              {formatCents(refundedCents)} of {formatCents(order.totalCents)}
+            </span>
           </Row>
         )}
         <Row label="Buyer email">{order.buyerEmail ?? '—'}</Row>
-        <Row label="User id">{order.userId ? <code>{order.userId}</code> : '— (guest)'}</Row>
+        <Row label="User id">
+          {order.userId ? <code className="font-mono">{order.userId}</code> : '— (guest)'}
+        </Row>
         <Row label="Square customer">
-          {order.squareCustomerId ? <code>{order.squareCustomerId}</code> : '—'}
+          {order.squareCustomerId ? (
+            <code className="font-mono">{order.squareCustomerId}</code>
+          ) : (
+            '—'
+          )}
         </Row>
         <Row label="Square payment">
-          {order.squarePaymentId ? <code>{order.squarePaymentId}</code> : '— (no payment id)'}
+          {order.squarePaymentId ? (
+            <code className="font-mono">{order.squarePaymentId}</code>
+          ) : (
+            '— (no payment id)'
+          )}
         </Row>
       </div>
 
-      <h2 style={{ marginTop: '1.5rem' }}>Shipment</h2>
+      <h2 className="eyebrow mt-8 text-purple-soft">Shipment</h2>
       {shipment ? (
-        <div style={{ maxWidth: '40rem' }}>
+        <div className="panel mt-3 max-w-2xl p-4">
           {shipment.recipientName && <Row label="Recipient">{shipment.recipientName}</Row>}
           {shipment.addressLines.length > 0 && (
             <Row label="Address">
@@ -102,11 +115,16 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
           {shipment.trackingNumber && (
             <Row label="Tracking">
               {shipment.trackingUrl ? (
-                <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer">
-                  <code>{shipment.trackingNumber}</code>
+                <a
+                  href={shipment.trackingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link-neon"
+                >
+                  <code className="font-mono">{shipment.trackingNumber}</code>
                 </a>
               ) : (
-                <code>{shipment.trackingNumber}</code>
+                <code className="font-mono">{shipment.trackingNumber}</code>
               )}
             </Row>
           )}
@@ -115,13 +133,13 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
           )}
         </div>
       ) : (
-        <p style={{ color: '#555' }}>No shipment details.</p>
+        <p className="mt-3 text-muted">No shipment details.</p>
       )}
 
       {order.shipping && (
         <>
-          <h2 style={{ marginTop: '1.5rem' }}>Shipping (Shippo)</h2>
-          <div style={{ maxWidth: '40rem' }}>
+          <h2 className="eyebrow mt-8 text-purple-soft">Shipping (Shippo)</h2>
+          <div className="panel mt-3 max-w-2xl p-4">
             <Row label="Ship to">
               <div>
                 {order.shipping.address.firstName} {order.shipping.address.lastName}
@@ -139,19 +157,21 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
             {order.shipping.selection ? (
               <>
                 <Row label="Chosen rate">
-                  {order.shipping.selection.carrier} · {order.shipping.selection.service} ·{' '}
-                  {formatCents(order.shipping.selection.amountCents)}
+                  <span className="font-mono">
+                    {order.shipping.selection.carrier} · {order.shipping.selection.service} ·{' '}
+                    {formatCents(order.shipping.selection.amountCents)}
+                  </span>
                 </Row>
                 <Row label="Shippo shipment">
                   {order.shipping.selection.shipmentId ? (
-                    <code>{order.shipping.selection.shipmentId}</code>
+                    <code className="font-mono">{order.shipping.selection.shipmentId}</code>
                   ) : (
                     '—'
                   )}
                 </Row>
                 <Row label="Shippo rate">
                   {order.shipping.selection.rateId ? (
-                    <code>{order.shipping.selection.rateId}</code>
+                    <code className="font-mono">{order.shipping.selection.rateId}</code>
                   ) : (
                     '—'
                   )}
@@ -159,38 +179,36 @@ export function OrderDetail({ order }: { order: Order }): JSX.Element {
               </>
             ) : (
               <Row label="Rate">
-                {order.shipping.fallbackUsed
-                  ? 'Flat fallback fee (no live rate)'
-                  : 'Flat fee'}
+                {order.shipping.fallbackUsed ? 'Flat fallback fee (no live rate)' : 'Flat fee'}
               </Row>
             )}
           </div>
         </>
       )}
 
-      <h2 style={{ marginTop: '1.5rem' }}>Items</h2>
-      <table style={{ borderCollapse: 'collapse', width: '100%', maxWidth: '40rem' }}>
+      <h2 className="eyebrow mt-8 text-purple-soft">Items</h2>
+      <table className="mt-3 w-full max-w-2xl border-collapse text-sm">
         <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-            <th style={cellStyle}>Item</th>
-            <th style={cellStyle}>Qty</th>
-            <th style={cellStyle}>Unit</th>
-            <th style={cellStyle}>Total</th>
+          <tr className="border-b border-line-strong text-left text-muted">
+            <th className={th}>Item</th>
+            <th className={th}>Qty</th>
+            <th className={th}>Unit</th>
+            <th className={th}>Total</th>
           </tr>
         </thead>
         <tbody>
           {lineItems.map((item, i) => (
             <tr
               key={`${item.catalogObjectId ?? item.name}-${i}`}
-              style={{ borderBottom: '1px solid #eee' }}
+              className="border-b border-line hover:bg-wall-2"
             >
-              <td style={cellStyle}>
+              <td className={`${td} text-bone`}>
                 {item.name}
                 {item.variationName ? ` · ${item.variationName}` : ''}
               </td>
-              <td style={cellStyle}>{item.quantity}</td>
-              <td style={cellStyle}>{formatCents(item.unitPriceCents)}</td>
-              <td style={cellStyle}>{formatCents(item.totalCents)}</td>
+              <td className={`${td} text-muted`}>{item.quantity}</td>
+              <td className={`${td} font-mono text-bone`}>{formatCents(item.unitPriceCents)}</td>
+              <td className={`${td} font-mono text-bone`}>{formatCents(item.totalCents)}</td>
             </tr>
           ))}
         </tbody>

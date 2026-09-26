@@ -18,7 +18,7 @@ export default async function OrderDetailPage({
   if (!order) notFound()
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
+    <div>
       <OrderDetail order={order} />
     </div>
   )

@@ -11,20 +11,20 @@ export default async function AdminSmsRecipientsListPage(): Promise<JSX.Element>
   const recipients = await getAllSmsRecipients()
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'baseline',
-          marginBottom: '1rem'
-        }}
-      >
-        <h1>SMS recipients ({recipients.length})</h1>
-        <Link href={'/admin/sms-recipients/new' as Route}>+ new recipient</Link>
+    <div>
+      <header className="flex items-baseline justify-between">
+        <div>
+          <p className="eyebrow">Admin</p>
+          <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+            SMS recipients ({recipients.length})
+          </h1>
+        </div>
+        <Link href={'/admin/sms-recipients/new' as Route} className="btn-neon">
+          + New recipient
+        </Link>
       </header>
 
-      <p style={{ color: '#666' }}>
+      <p className="mt-2 max-w-2xl text-muted">
         Phone numbers that receive transactional SMS (e.g. order notifications). Disable to silence
         without losing the row; delete to remove permanently.
       </p>
@@ -32,43 +32,36 @@ export default async function AdminSmsRecipientsListPage(): Promise<JSX.Element>
       {recipients.length === 0 ? (
         <EmptyState />
       ) : (
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <table className="mt-6 w-full border-collapse text-sm">
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-              <th style={cellStyle}>Status</th>
-              <th style={cellStyle}>Label</th>
-              <th style={cellStyle}>Phone</th>
-              <th style={cellStyle}>Added</th>
-              <th style={cellStyle} />
+            <tr className="border-b border-line-strong text-left text-muted">
+              <th className={th}>Status</th>
+              <th className={th}>Label</th>
+              <th className={th}>Phone</th>
+              <th className={th}>Added</th>
+              <th className={th} />
             </tr>
           </thead>
           <tbody>
             {recipients.map((r) => (
-              <tr key={r.id} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={cellStyle}>
+              <tr key={r.id} className="border-b border-line hover:bg-wall-2">
+                <td className={td}>
                   <EnabledBadge enabled={r.enabled} />
                 </td>
-                <td style={cellStyle}>{r.label ?? <span style={{ color: '#999' }}>—</span>}</td>
-                <td style={cellStyle}>
-                  <code style={{ fontFamily: 'ui-monospace, monospace' }}>{r.phone}</code>
+                <td className={`${td} text-bone`}>
+                  {r.label ?? <span className="text-faint">—</span>}
                 </td>
-                <td style={cellStyle}>{r.createdAt.toISOString().slice(0, 10)}</td>
-                <td style={{ ...cellStyle, display: 'flex', gap: '0.75rem' }}>
-                  <Link href={`/admin/sms-recipients/${r.id}` as Route}>edit</Link>
-                  <form action={deleteSmsRecipientAction.bind(null, r.id)} style={{ margin: 0 }}>
-                    <button
-                      type="submit"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#a33',
-                        cursor: 'pointer',
-                        padding: 0,
-                        font: 'inherit',
-                        textDecoration: 'underline'
-                      }}
-                    >
-                      delete
+                <td className={td}>
+                  <code className="font-mono text-bone">{r.phone}</code>
+                </td>
+                <td className={`${td} text-muted`}>{r.createdAt.toISOString().slice(0, 10)}</td>
+                <td className={`${td} flex gap-3`}>
+                  <Link href={`/admin/sms-recipients/${r.id}` as Route} className="link-neon">
+                    Edit
+                  </Link>
+                  <form action={deleteSmsRecipientAction.bind(null, r.id)} className="m-0">
+                    <button type="submit" className="text-red-400 underline hover:text-red-300">
+                      Delete
                     </button>
                   </form>
                 </td>
@@ -81,23 +74,30 @@ export default async function AdminSmsRecipientsListPage(): Promise<JSX.Element>
   )
 }
 
-const cellStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', verticalAlign: 'top' }
+const th = 'py-2 px-3 font-medium'
+const td = 'py-2 px-3 align-top'
 
 function EmptyState(): JSX.Element {
   return (
-    <div style={{ padding: '2rem', textAlign: 'center', background: '#f7f7f7' }}>
-      <p>No SMS recipients yet.</p>
-      <Link href={'/admin/sms-recipients/new' as Route}>Add the first one</Link>
+    <div className="panel mt-6 p-8 text-center">
+      <p className="text-muted">No SMS recipients yet.</p>
+      <Link href={'/admin/sms-recipients/new' as Route} className="link-neon mt-2 inline-block">
+        Add the first one
+      </Link>
     </div>
   )
 }
 
 function EnabledBadge({ enabled }: { enabled: boolean }): JSX.Element {
-  const bg = enabled ? '#dfd' : '#eee'
-  const label = enabled ? 'Enabled' : 'Disabled'
   return (
-    <span style={{ background: bg, padding: '0.15rem 0.5rem', borderRadius: '0.25rem' }}>
-      {label}
+    <span
+      className={
+        enabled
+          ? 'rounded-full bg-neon/15 px-2 py-0.5 text-xs font-medium text-neon-soft'
+          : 'rounded-full bg-wall-2 px-2 py-0.5 text-xs font-medium text-muted'
+      }
+    >
+      {enabled ? 'Enabled' : 'Disabled'}
     </span>
   )
 }

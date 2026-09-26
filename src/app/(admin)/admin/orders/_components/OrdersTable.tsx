@@ -17,14 +17,15 @@ function formatDate(date: Date | null): string {
   })
 }
 
-const cellStyle: React.CSSProperties = { padding: '0.5rem 0.75rem', verticalAlign: 'top' }
-
 /** Square's literal order state (DRAFT/OPEN/COMPLETED/CANCELED) from raw, or null. */
 function squareState(raw: unknown): string | null {
   // biome-ignore lint/suspicious/noExplicitAny: stored Square order snapshot is loose
   const state = (raw as any)?.state
   return typeof state === 'string' && state.length > 0 ? state : null
 }
+
+const th = 'py-2 px-3 font-medium'
+const td = 'py-2 px-3 align-top'
 
 /**
  * Server-rendered admin order list. Each row links to the detail page by the
@@ -33,34 +34,34 @@ function squareState(raw: unknown): string | null {
  */
 export function OrdersTable({ orders }: { orders: Order[] }): JSX.Element {
   return (
-    <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+    <table className="w-full border-collapse text-sm">
       <thead>
-        <tr style={{ textAlign: 'left', borderBottom: '1px solid #ccc' }}>
-          <th style={cellStyle}>Order #</th>
-          <th style={cellStyle}>Placed</th>
-          <th style={cellStyle}>Buyer</th>
-          <th style={cellStyle}>Total</th>
-          <th style={cellStyle}>Status</th>
-          <th style={cellStyle}>Square</th>
-          <th style={cellStyle}>Fulfillment</th>
+        <tr className="border-b border-line-strong text-left text-muted">
+          <th className={th}>Order #</th>
+          <th className={th}>Placed</th>
+          <th className={th}>Buyer</th>
+          <th className={th}>Total</th>
+          <th className={th}>Status</th>
+          <th className={th}>Square</th>
+          <th className={th}>Fulfillment</th>
         </tr>
       </thead>
       <tbody>
         {orders.map((o) => (
-          <tr key={o.id} style={{ borderBottom: '1px solid #eee' }}>
-            <td style={cellStyle}>
-              <Link href={`/admin/orders/${o.id}` as Route}>
-                <code>{o.squareOrderId}</code>
+          <tr key={o.id} className="border-b border-line hover:bg-wall-2">
+            <td className={td}>
+              <Link href={`/admin/orders/${o.id}` as Route} className="link-neon">
+                <code className="font-mono text-purple-soft">{o.squareOrderId}</code>
               </Link>
             </td>
-            <td style={cellStyle}>{formatDate(o.placedAt)}</td>
-            <td style={cellStyle}>{o.buyerEmail ?? '—'}</td>
-            <td style={cellStyle}>{formatCents(o.totalCents)}</td>
-            <td style={cellStyle}>{statusLabel(o.status)}</td>
-            <td style={cellStyle}>
-              {squareState(o.raw) ? <code>{squareState(o.raw)}</code> : '—'}
+            <td className={`${td} text-muted`}>{formatDate(o.placedAt)}</td>
+            <td className={`${td} text-muted`}>{o.buyerEmail ?? '—'}</td>
+            <td className={`${td} font-mono text-bone`}>{formatCents(o.totalCents)}</td>
+            <td className={`${td} text-bone`}>{statusLabel(o.status)}</td>
+            <td className={`${td} text-muted`}>
+              {squareState(o.raw) ? <code className="font-mono">{squareState(o.raw)}</code> : '—'}
             </td>
-            <td style={cellStyle}>{fulfillmentLabel(o.fulfillmentState)}</td>
+            <td className={`${td} text-bone`}>{fulfillmentLabel(o.fulfillmentState)}</td>
           </tr>
         ))}
       </tbody>
