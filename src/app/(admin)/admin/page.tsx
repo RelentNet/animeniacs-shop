@@ -15,11 +15,6 @@ function formatCents(cents: number): string {
  * (artists, ip-nicknames, sms-recipients) but no index linking them
  * together, so operators had to know each URL by heart. This hub lists
  * every admin section.
- *
- * Styling note: unlike the older admin feature pages, this page sets
- * explicit `color` and `background` so it stays legible under a mobile
- * browser's dark color-scheme preference (those pages inherit dark text
- * on a dark default and appear blank). Phase 7.5/B.8 follow-up.
  */
 
 interface AdminSection {
@@ -75,30 +70,14 @@ export default async function AdminIndexPage(): Promise<JSX.Element> {
   const stats = await getOrderDashboardStats()
 
   return (
-    <div
-      style={{
-        padding: '1.5rem',
-        fontFamily: 'system-ui, sans-serif',
-        color: '#111',
-        background: '#fff',
-        minHeight: '100vh'
-      }}
-    >
-      <header style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>Admin</h1>
-        <p style={{ color: '#555', marginTop: '0.5rem' }}>
-          Internal tools for managing the Animeniacs storefront.
-        </p>
-      </header>
+    <div>
+      <p className="eyebrow">Internal tools</p>
+      <h1 className="mt-2 font-display text-4xl tracking-wide text-bone sm:text-5xl">Admin</h1>
+      <p className="mt-2 text-muted">Internal tools for managing the Animeniacs storefront.</p>
 
       <section
         aria-label="Order dashboard"
-        style={{
-          display: 'grid',
-          gap: '0.75rem',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(10rem, 1fr))',
-          marginBottom: '1.5rem'
-        }}
+        className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6"
       >
         <Stat label="Orders today" value={String(stats.ordersToday)} />
         <Stat label="Orders (7d)" value={String(stats.orders7d)} />
@@ -108,37 +87,13 @@ export default async function AdminIndexPage(): Promise<JSX.Element> {
         <Stat label="Needs fulfillment" value={String(stats.needsFulfillment)} />
       </section>
 
-      <nav aria-label="Admin sections">
-        <ul
-          style={{
-            listStyle: 'none',
-            padding: 0,
-            margin: 0,
-            display: 'grid',
-            gap: '1rem',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))'
-          }}
-        >
+      <nav aria-label="Admin sections" className="mt-8">
+        <ul className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
           {SECTIONS.map((section) => (
             <li key={section.href}>
-              <Link
-                href={section.href}
-                style={{
-                  display: 'block',
-                  padding: '1rem',
-                  border: '1px solid #ddd',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  color: '#111',
-                  background: '#fafafa'
-                }}
-              >
-                <span style={{ display: 'block', fontWeight: 600, fontSize: '1.05rem' }}>
-                  {section.title}
-                </span>
-                <span style={{ display: 'block', marginTop: '0.35rem', color: '#555' }}>
-                  {section.description}
-                </span>
+              <Link href={section.href} className="card-street block p-4 hover:no-underline">
+                <span className="block font-semibold text-bone">{section.title}</span>
+                <span className="mt-1 block text-sm text-muted">{section.description}</span>
               </Link>
             </li>
           ))}
@@ -151,16 +106,9 @@ export default async function AdminIndexPage(): Promise<JSX.Element> {
 /** Single read-only metric tile in the dashboard strip. */
 function Stat({ label, value }: { label: string; value: string }): JSX.Element {
   return (
-    <div
-      style={{
-        padding: '0.75rem 1rem',
-        border: '1px solid #ddd',
-        borderRadius: '0.5rem',
-        background: '#fafafa'
-      }}
-    >
-      <span style={{ display: 'block', color: '#555', fontSize: '0.85rem' }}>{label}</span>
-      <span style={{ display: 'block', fontWeight: 700, fontSize: '1.25rem' }}>{value}</span>
+    <div className="panel p-3">
+      <span className="block text-sm text-muted">{label}</span>
+      <span className="mt-1 block font-mono text-xl font-semibold text-bone">{value}</span>
     </div>
   )
 }
