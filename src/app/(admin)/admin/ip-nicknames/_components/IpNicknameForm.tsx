@@ -18,6 +18,9 @@ export interface IpNicknameFormProps {
   mode: 'create' | 'edit'
 }
 
+const fieldClass =
+  'bg-ink-2 border border-line text-bone rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/60'
+
 export function IpNicknameForm({
   action,
   categoryOptions,
@@ -30,13 +33,9 @@ export function IpNicknameForm({
   const fieldErr = (name: string) => err?.fields?.[name]
 
   return (
-    <form
-      action={formAction}
-      method="post"
-      style={{ display: 'grid', gap: '0.75rem', maxWidth: '40rem' }}
-    >
+    <form action={formAction} method="post" className="grid max-w-2xl gap-3">
       {err?.message && (
-        <div role="alert" style={{ background: '#fee', padding: '0.5rem' }}>
+        <div role="alert" className="alert alert-error">
           {err.message}
         </div>
       )}
@@ -54,11 +53,19 @@ export function IpNicknameForm({
           pattern="^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
           defaultValue={n?.slug}
           readOnly={mode === 'edit'}
+          className={fieldClass}
         />
       </Field>
 
       <Field label="Nickname (public)" error={fieldErr('nickname')}>
-        <input type="text" name="nickname" required maxLength={120} defaultValue={n?.nickname} />
+        <input
+          type="text"
+          name="nickname"
+          required
+          maxLength={120}
+          defaultValue={n?.nickname}
+          className={fieldClass}
+        />
       </Field>
 
       <Field
@@ -66,7 +73,12 @@ export function IpNicknameForm({
         error={fieldErr('squareCategoryId')}
         hint="Hierarchical label shows parent > child. Categories already mapped are hidden."
       >
-        <select name="squareCategoryId" defaultValue={n?.squareCategoryId ?? ''} required>
+        <select
+          name="squareCategoryId"
+          defaultValue={n?.squareCategoryId ?? ''}
+          required
+          className={fieldClass}
+        >
           <option value="" disabled>
             Select a Square category…
           </option>
@@ -77,7 +89,7 @@ export function IpNicknameForm({
           ))}
         </select>
         {categoryOptions.length === 0 && (
-          <small style={{ color: '#a33' }}>No unmapped non-artist categories available.</small>
+          <small className="text-red-400">No unmapped non-artist categories available.</small>
         )}
       </Field>
 
@@ -87,33 +99,34 @@ export function IpNicknameForm({
           maxLength={2000}
           rows={4}
           defaultValue={n?.description ?? ''}
+          className={fieldClass}
         />
       </Field>
 
       <Field label="Visibility">
-        <span>
-          <label style={{ marginRight: '1rem' }}>
+        <span className="flex items-center gap-4 text-sm text-bone">
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="isPublic"
               value="true"
               defaultChecked={(n?.isPublic ?? true) === true}
-            />{' '}
+            />
             Public
           </label>
-          <label>
+          <label className="flex items-center gap-1.5">
             <input
               type="radio"
               name="isPublic"
               value="false"
               defaultChecked={n?.isPublic === false}
-            />{' '}
+            />
             Hidden
           </label>
         </span>
       </Field>
 
-      <button type="submit" style={{ justifySelf: 'start', padding: '0.5rem 1rem' }}>
+      <button type="submit" className="btn-neon justify-self-start">
         {mode === 'create' ? 'Create nickname' : 'Save changes'}
       </button>
     </form>
@@ -132,12 +145,12 @@ function Field({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ display: 'grid', gap: '0.25rem' }}>
-      <span style={{ fontWeight: 600 }}>{label}</span>
+    <div className="grid gap-1">
+      <span className="field-label">{label}</span>
       {children}
-      {hint && <small style={{ color: '#666' }}>{hint}</small>}
+      {hint && <small className="text-muted">{hint}</small>}
       {error && (
-        <span role="alert" style={{ color: '#a33', fontSize: '0.85em' }}>
+        <span role="alert" className="text-sm text-red-400">
           {error}
         </span>
       )}

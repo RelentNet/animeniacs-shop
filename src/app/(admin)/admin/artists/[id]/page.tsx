@@ -25,18 +25,23 @@ export default async function EditArtistPage({ params }: PageProps): Promise<JSX
   const boundAction = updateArtistAction.bind(null, artist.id)
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Edit artist: {artist.displayName}</h1>
-      <p>
+    <div>
+      <p className="eyebrow">Admin</p>
+      <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">
+        Edit artist: {artist.displayName}
+      </h1>
+      <p className="mt-2 max-w-2xl text-muted">
         Slug is read-only here (changing it would break existing public URLs). Upload a new avatar
         file to replace the current one; leave the avatar field empty to keep what’s already there.
       </p>
-      <ArtistForm
-        action={boundAction}
-        categoryOptions={categoryOptions}
-        initial={artist}
-        mode="edit"
-      />
+      <div className="mt-6">
+        <ArtistForm
+          action={boundAction}
+          categoryOptions={categoryOptions}
+          initial={artist}
+          mode="edit"
+        />
+      </div>
     </div>
   )
 }

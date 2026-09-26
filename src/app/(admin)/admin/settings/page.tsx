@@ -13,17 +13,24 @@ export default async function SettingsPage(): Promise<JSX.Element> {
   const initial: PromoBarValue | null = parsed?.success ? parsed.data : null
 
   return (
-    <div style={{ padding: '1.5rem', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0 }}>Settings</h1>
-        <p style={{ color: '#555', marginTop: '0.5rem' }}>
-          Storefront promo bar. Shown at the very top of every page when enabled. (Shipping moved
-          to its own <a href="/admin/shipping">Shipping</a> tab.)
+    <div>
+      <header>
+        <p className="eyebrow">Admin</p>
+        <h1 className="mt-2 font-display text-3xl tracking-wide text-bone sm:text-4xl">Settings</h1>
+        <p className="mt-2 max-w-2xl text-muted">
+          Storefront promo bar. Shown at the very top of every page when enabled. (Shipping moved to
+          its own{' '}
+          <a href="/admin/shipping" className="link-neon">
+            Shipping
+          </a>{' '}
+          tab.)
         </p>
       </header>
 
-      <h2 style={{ fontSize: '1.1rem' }}>Promo bar</h2>
-      <PromoBarSettingsForm action={savePromoBarAction} initial={initial} />
+      <h2 className="eyebrow mt-6 text-purple-soft">Promo bar</h2>
+      <div className="mt-3">
+        <PromoBarSettingsForm action={savePromoBarAction} initial={initial} />
+      </div>
     </div>
   )
 }

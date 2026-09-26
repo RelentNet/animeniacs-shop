@@ -1,24 +1,12 @@
 'use client'
 
-import { type SyncState, syncCommissionsAction } from '../actions'
 import { useFormState, useFormStatus } from 'react-dom'
+import { type SyncState, syncCommissionsAction } from '../actions'
 
 function SubmitButton(): JSX.Element {
   const { pending } = useFormStatus()
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      style={{
-        padding: '0.5rem 1rem',
-        fontWeight: 600,
-        cursor: pending ? 'wait' : 'pointer',
-        background: pending ? '#999' : '#111',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '0.4rem'
-      }}
-    >
+    <button type="submit" disabled={pending} className="btn-neon">
       {pending ? 'Syncing from Square…' : 'Sync from Square'}
     </button>
   )
@@ -31,10 +19,10 @@ export function SyncButton(): JSX.Element {
     {}
   )
   return (
-    <form action={formAction} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+    <form action={formAction} className="flex items-center gap-3">
       <SubmitButton />
-      {state.ok && <span style={{ color: '#15803d', fontSize: '0.85rem' }}>{state.ok}</span>}
-      {state.error && <span style={{ color: '#b91c1c', fontSize: '0.85rem' }}>{state.error}</span>}
+      {state.ok && <span className="text-sm text-neon-soft">{state.ok}</span>}
+      {state.error && <span className="text-sm text-red-400">{state.error}</span>}
     </form>
   )
 }

@@ -15,6 +15,9 @@ export interface PromoBarSettingsFormProps {
   initial?: PromoBarValue | null
 }
 
+const fieldClass =
+  'bg-ink-2 border border-line text-bone rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neon/60'
+
 export function PromoBarSettingsForm({ action, initial }: PromoBarSettingsFormProps): JSX.Element {
   const [state, formAction] = useFormState(action, undefined)
   const v = initial
@@ -22,29 +25,29 @@ export function PromoBarSettingsForm({ action, initial }: PromoBarSettingsFormPr
   const fieldErr = (name: string) => err?.fields?.[name]
 
   return (
-    <form
-      action={formAction}
-      method="post"
-      style={{ display: 'grid', gap: '0.75rem', maxWidth: '40rem' }}
-    >
+    <form action={formAction} method="post" className="grid max-w-2xl gap-3">
       {err?.message && (
-        <div role="alert" style={{ background: '#fee', padding: '0.5rem' }}>
+        <div role="alert" className="alert alert-error">
           {err.message}
         </div>
       )}
-      {state?.saved && !err && (
-        <output style={{ display: 'block', background: '#dfd', padding: '0.5rem' }}>Saved.</output>
-      )}
+      {state?.saved && !err && <output className="alert alert-ok block">Saved.</output>}
 
       <Field label="Enabled" hint="When off, the bar is hidden on the storefront.">
-        <label>
-          <input type="checkbox" name="enabled" defaultChecked={v?.enabled ?? false} /> Show promo
-          bar
+        <label className="flex items-center gap-2 text-sm text-bone">
+          <input type="checkbox" name="enabled" defaultChecked={v?.enabled ?? false} />
+          Show promo bar
         </label>
       </Field>
 
       <Field label="Text" error={fieldErr('text')} hint="Up to 200 characters.">
-        <input type="text" name="text" maxLength={200} defaultValue={v?.text ?? ''} />
+        <input
+          type="text"
+          name="text"
+          maxLength={200}
+          defaultValue={v?.text ?? ''}
+          className={fieldClass}
+        />
       </Field>
 
       <Field
@@ -52,18 +55,28 @@ export function PromoBarSettingsForm({ action, initial }: PromoBarSettingsFormPr
         error={fieldErr('link')}
         hint="Full URL, e.g. https://… Leave blank for no link."
       >
-        <input type="text" name="link" defaultValue={v?.link ?? ''} />
+        <input type="text" name="link" defaultValue={v?.link ?? ''} className={fieldClass} />
       </Field>
 
       <Field label="Background color" error={fieldErr('bgColor')} hint="Hex, e.g. #1a1a2e">
-        <input type="text" name="bgColor" defaultValue={v?.bgColor ?? '#1a1a2e'} />
+        <input
+          type="text"
+          name="bgColor"
+          defaultValue={v?.bgColor ?? '#1a1a2e'}
+          className={fieldClass}
+        />
       </Field>
 
       <Field label="Text color" error={fieldErr('textColor')} hint="Hex, e.g. #ffffff">
-        <input type="text" name="textColor" defaultValue={v?.textColor ?? '#ffffff'} />
+        <input
+          type="text"
+          name="textColor"
+          defaultValue={v?.textColor ?? '#ffffff'}
+          className={fieldClass}
+        />
       </Field>
 
-      <button type="submit" style={{ justifySelf: 'start', padding: '0.5rem 1rem' }}>
+      <button type="submit" className="btn-neon justify-self-start">
         Save
       </button>
     </form>
@@ -82,12 +95,12 @@ function Field({
   children: React.ReactNode
 }): JSX.Element {
   return (
-    <div style={{ display: 'grid', gap: '0.25rem' }}>
-      <span style={{ fontWeight: 600 }}>{label}</span>
+    <div className="grid gap-1">
+      <span className="field-label">{label}</span>
       {children}
-      {hint && <small style={{ color: '#666' }}>{hint}</small>}
+      {hint && <small className="text-muted">{hint}</small>}
       {error && (
-        <span role="alert" style={{ color: '#a33', fontSize: '0.85em' }}>
+        <span role="alert" className="text-sm text-red-400">
           {error}
         </span>
       )}

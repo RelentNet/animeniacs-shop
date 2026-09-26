@@ -24,6 +24,9 @@ export function validateShippingInput(
   if (result.success) return { ok: true, data: result.data }
   return {
     ok: false,
-    error: { message: 'Please correct the highlighted fields.', fields: fieldErrors(result.error.issues) }
+    error: {
+      message: 'Please correct the highlighted fields.',
+      fields: fieldErrors(result.error.issues)
+    }
   }
 }
