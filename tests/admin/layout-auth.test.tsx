@@ -19,7 +19,12 @@ vi.mock('@/lib/db/queries/user', () => ({
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`__REDIRECT__:${path}`)
 })
-vi.mock('next/navigation', () => ({ redirect: redirectMock }))
+// AdminNav (rendered inside the layout's admin shell) is a client component
+// that calls usePathname to highlight the active tab.
+vi.mock('next/navigation', () => ({
+  redirect: redirectMock,
+  usePathname: () => '/admin'
+}))
 
 async function loadLayout() {
   const mod = await import('@/app/(admin)/layout')
@@ -75,7 +80,8 @@ describe('(admin) route group auth gate', () => {
     const element = await Layout({ children: <div>admin-only content</div> })
     const { container, getByText } = render(element)
     expect(getByText('admin-only content')).toBeTruthy()
-    expect(container.querySelector('.admin-shell')).toBeTruthy()
+    // Themed admin shell: header with the site nav wraps the page content.
+    expect(container.querySelector('header')).toBeTruthy()
     // A signed-in admin never triggers the "no admin" lookup.
     expect(hasAnyAdminMock).not.toHaveBeenCalled()
   })
