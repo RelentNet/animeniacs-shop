@@ -10,6 +10,7 @@ const TABS = [
   { href: '/admin/ip-nicknames', label: 'IP nicknames' },
   { href: '/admin/sms-recipients', label: 'SMS recipients' },
   { href: '/admin/reviews', label: 'Reviews' },
+  { href: '/admin/users', label: 'Users' },
   { href: '/admin/shipping', label: 'Shipping' },
   { href: '/admin/settings', label: 'Settings' }
 ]
