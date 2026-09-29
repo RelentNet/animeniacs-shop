@@ -28,6 +28,12 @@ const envSchema = z.object({
   // internal to Coolify). Empty/absent = disabled; the role column still works.
   ADMIN_EMAILS: z.preprocess(emptyToUndefined, z.string().optional()),
 
+  // Cloudflare Turnstile captcha (DAN-115). Both optional; unset = captcha off.
+  // SECRET registers the better-auth captcha plugin; SITE_KEY (read server-side,
+  // passed to the forms as a prop) renders the widget. Runtime-only.
+  TURNSTILE_SITE_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  TURNSTILE_SECRET_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+
   // Square (Phase 3)
   // Sandbox keys are required for any dev where the SDK is touched.
   // Production keys arrive at Phase 17.

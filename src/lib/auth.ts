@@ -6,7 +6,7 @@ import { sendPasswordResetEmail } from '@/lib/notifications/email'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { nextCookies } from 'better-auth/next-js'
-import { admin } from 'better-auth/plugins'
+import { admin, captcha } from 'better-auth/plugins'
 
 /**
  * better-auth (Phase 15) — email + password, sessions + users in our own
@@ -76,5 +76,13 @@ export const auth = betterAuth({
     '/admin/stop-impersonating',
     '/admin/update-user'
   ],
-  plugins: [admin(), nextCookies()]
+  plugins: [
+    admin(),
+    // Off unless the secret is set. Defaults protect /sign-up/email, /sign-in/email
+    // and /request-password-reset via the x-captcha-response header.
+    ...(env.TURNSTILE_SECRET_KEY
+      ? [captcha({ provider: 'cloudflare-turnstile', secretKey: env.TURNSTILE_SECRET_KEY })]
+      : []),
+    nextCookies()
+  ]
 })

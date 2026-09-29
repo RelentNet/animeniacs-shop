@@ -13,7 +13,9 @@ beforeEach(() => {
 })
 
 async function fillAndSubmit(email = 'a@b.com') {
-  const { default: ForgotPasswordPage } = await import('@/app/forgot-password/page')
+  const { ForgotPasswordForm: ForgotPasswordPage } = await import(
+    '@/components/auth/ForgotPasswordForm'
+  )
   render(<ForgotPasswordPage />)
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: email } })
   fireEvent.click(screen.getByRole('button', { name: /send reset link/i }))
@@ -24,10 +26,13 @@ describe('forgot-password page', () => {
     mockRequestPasswordReset.mockResolvedValue({ data: { status: true }, error: null })
     await fillAndSubmit()
     await waitFor(() =>
-      expect(mockRequestPasswordReset).toHaveBeenCalledWith({
-        email: 'a@b.com',
-        redirectTo: '/reset-password'
-      })
+      expect(mockRequestPasswordReset).toHaveBeenCalledWith(
+        {
+          email: 'a@b.com',
+          redirectTo: '/reset-password'
+        },
+        undefined
+      )
     )
   })
 
@@ -59,7 +64,9 @@ describe('forgot-password page', () => {
   })
 
   it('links back to /sign-in', async () => {
-    const { default: ForgotPasswordPage } = await import('@/app/forgot-password/page')
+    const { ForgotPasswordForm: ForgotPasswordPage } = await import(
+      '@/components/auth/ForgotPasswordForm'
+    )
     render(<ForgotPasswordPage />)
     const link = screen.getByRole('link', { name: /back to sign in/i })
     expect(link).toHaveAttribute('href', '/sign-in')

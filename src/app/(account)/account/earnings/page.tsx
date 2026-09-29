@@ -1,5 +1,5 @@
-import { buildArtistStatement } from '@/lib/commissions/report'
 import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { buildArtistStatement } from '@/lib/commissions/report'
 import {
   getArtistByAccountEmail,
   getArtistEarnings,
@@ -24,9 +24,8 @@ export default async function EarningsPage(): Promise<JSX.Element> {
       <section>
         <h1 className="font-display text-4xl text-bone">Your earnings</h1>
         <p className="mt-4 max-w-prose text-muted">
-          This account isn’t linked to an artist profile yet. If you’re one of our
-          artists, let us know the email you signed up with and we’ll connect your
-          earnings here.
+          This account isn’t linked to an artist profile yet. If you’re one of our artists, let us
+          know the email you signed up with and we’ll connect your earnings here.
         </p>
       </section>
     )
@@ -60,7 +59,9 @@ export default async function EarningsPage(): Promise<JSX.Element> {
         </div>
         <div className="rounded-lg border border-line bg-wall p-5">
           <p className="text-xs uppercase tracking-wide text-muted">{balanceLabel}</p>
-          <p className={`mt-1 font-mono text-2xl ${balanceColor}`}>{money(Math.abs(s.balanceCents))}</p>
+          <p className={`mt-1 font-mono text-2xl ${balanceColor}`}>
+            {money(Math.abs(s.balanceCents))}
+          </p>
         </div>
       </div>
 
@@ -79,7 +80,9 @@ export default async function EarningsPage(): Promise<JSX.Element> {
               ))}
               <tr>
                 <td className="py-2 font-semibold text-bone">Total</td>
-                <td className="py-2 text-right font-mono font-bold text-bone">{money(s.madeCents)}</td>
+                <td className="py-2 text-right font-mono font-bold text-bone">
+                  {money(s.madeCents)}
+                </td>
               </tr>
             </tbody>
           </table>
@@ -118,7 +121,8 @@ export default async function EarningsPage(): Promise<JSX.Element> {
 
       <p className="mt-8 text-xs text-faint">
         Commission is your agreed rate of net sales (after discounts), updated when we sync from
-        Square{lastSync
+        Square
+        {lastSync
           ? ` (last updated ${lastSync.toLocaleDateString('en-US', { timeZone: 'America/Chicago' })})`
           : ''}
         . Figures are pre-refund. Questions? Reach out any time.

@@ -207,8 +207,16 @@ export function CheckoutFlow(): JSX.Element {
       <section className="panel p-6">
         <p className="eyebrow">Ship to</p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="First name" value={address.firstName} onChange={(v) => update('firstName', v)} />
-          <Field label="Last name" value={address.lastName} onChange={(v) => update('lastName', v)} />
+          <Field
+            label="First name"
+            value={address.firstName}
+            onChange={(v) => update('firstName', v)}
+          />
+          <Field
+            label="Last name"
+            value={address.lastName}
+            onChange={(v) => update('lastName', v)}
+          />
           <div className="sm:col-span-2">
             <Field label="Address" value={address.line1} onChange={(v) => update('line1', v)} />
           </div>
@@ -220,7 +228,11 @@ export function CheckoutFlow(): JSX.Element {
             />
           </div>
           <Field label="City" value={address.city} onChange={(v) => update('city', v)} />
-          <Field label="State / Province" value={address.state} onChange={(v) => update('state', v)} />
+          <Field
+            label="State / Province"
+            value={address.state}
+            onChange={(v) => update('state', v)}
+          />
           <Field label="ZIP / Postal code" value={address.zip} onChange={(v) => update('zip', v)} />
           <label className="block">
             <span className="field-label">Country</span>
@@ -236,7 +248,11 @@ export function CheckoutFlow(): JSX.Element {
               ))}
             </select>
           </label>
-          <Field label="Phone (optional)" value={address.phone} onChange={(v) => update('phone', v)} />
+          <Field
+            label="Phone (optional)"
+            value={address.phone}
+            onChange={(v) => update('phone', v)}
+          />
           <Field
             label="Email (for order updates)"
             value={address.email}
@@ -273,7 +289,10 @@ export function CheckoutFlow(): JSX.Element {
                     <span className="text-sm text-bone">
                       {o.carrier} · {o.service}
                       {o.estimatedDays ? (
-                        <span className="text-muted"> · ~{o.estimatedDays} day{o.estimatedDays === 1 ? '' : 's'}</span>
+                        <span className="text-muted">
+                          {' '}
+                          · ~{o.estimatedDays} day{o.estimatedDays === 1 ? '' : 's'}
+                        </span>
                       ) : null}
                     </span>
                   </span>
@@ -313,7 +332,9 @@ export function CheckoutFlow(): JSX.Element {
           {shippingCents !== null && (
             <div className="mt-1 flex justify-between border-t border-line pt-2">
               <dt className="text-bone">Total</dt>
-              <dd className="font-display text-lg text-bone">{money(subtotalCents + shippingCents)}</dd>
+              <dd className="font-display text-lg text-bone">
+                {money(subtotalCents + shippingCents)}
+              </dd>
             </div>
           )}
         </dl>

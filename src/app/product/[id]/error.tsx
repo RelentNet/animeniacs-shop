@@ -10,7 +10,9 @@ export default function ProductError({
   return (
     <div className="mx-auto max-w-md px-4 py-16 text-center md:py-24">
       <p className="eyebrow">Something went wrong</p>
-      <h1 className="font-display mt-2 text-4xl text-bone md:text-5xl">Couldn't load this product</h1>
+      <h1 className="font-display mt-2 text-4xl text-bone md:text-5xl">
+        Couldn't load this product
+      </h1>
       <p className="mt-4 text-muted">
         Something went wrong fetching this product. Try again, or come back later.
       </p>

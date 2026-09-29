@@ -11,7 +11,7 @@ beforeEach(() => {
 })
 
 async function fillAndSubmit() {
-  const { default: SignInPage } = await import('@/app/sign-in/page')
+  const { SignInForm: SignInPage } = await import('@/components/auth/SignInForm')
   render(<SignInPage />)
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'a@b.com' } })
   fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'hunter2pw' } })
@@ -24,7 +24,10 @@ describe('sign-in page', () => {
     mockSignInEmail.mockResolvedValue({ data: null, error: { message: 'nope' } })
     await fillAndSubmit()
     await waitFor(() =>
-      expect(mockSignInEmail).toHaveBeenCalledWith({ email: 'a@b.com', password: 'hunter2pw' })
+      expect(mockSignInEmail).toHaveBeenCalledWith(
+        { email: 'a@b.com', password: 'hunter2pw' },
+        undefined
+      )
     )
   })
 
@@ -35,7 +38,7 @@ describe('sign-in page', () => {
   })
 
   it('links to /forgot-password', async () => {
-    const { default: SignInPage } = await import('@/app/sign-in/page')
+    const { SignInForm: SignInPage } = await import('@/components/auth/SignInForm')
     render(<SignInPage />)
     expect(screen.getByRole('link', { name: /forgot password/i })).toHaveAttribute(
       'href',
