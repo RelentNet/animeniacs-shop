@@ -397,6 +397,10 @@ export const user = pgTable('user', {
   // additionalFields (better-auth `user.additionalFields`):
   squareCustomerId: text('square_customer_id'),
   role: text('role').notNull().default('user'),
+  // better-auth `admin` plugin ban fields (DAN-114). Enforced at session creation.
+  banned: boolean('banned').notNull().default(false),
+  banReason: text('ban_reason'),
+  banExpires: timestamp('ban_expires', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
 })
@@ -410,6 +414,7 @@ export const session = pgTable('session', {
   token: text('token').notNull().unique(),
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
+  impersonatedBy: text('impersonated_by'), // admin plugin schema; unused (impersonation disabled)
   userId: text('user_id')
     .notNull()
     .references(() => user.id, { onDelete: 'cascade' }),

@@ -6,6 +6,7 @@ import { sendPasswordResetEmail } from '@/lib/notifications/email'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { nextCookies } from 'better-auth/next-js'
+import { admin } from 'better-auth/plugins'
 
 /**
  * better-auth (Phase 15) — email + password, sessions + users in our own
@@ -54,5 +55,26 @@ export const auth = betterAuth({
       role: { type: 'string', required: false, input: false, defaultValue: 'user' }
     }
   },
-  plugins: [nextCookies()]
+  // The admin plugin is registered ONLY for ban enforcement (it rejects session
+  // creation for banned users). Its HTTP endpoints are all disabled: the plugin
+  // grants them to role=admin, which is not our admin gate (ADMIN_EMAILS is).
+  // Bans are written by our own guarded server actions instead.
+  disabledPaths: [
+    '/admin/ban-user',
+    '/admin/unban-user',
+    '/admin/create-user',
+    '/admin/get-user',
+    '/admin/has-permission',
+    '/admin/impersonate-user',
+    '/admin/list-user-sessions',
+    '/admin/list-users',
+    '/admin/remove-user',
+    '/admin/revoke-user-session',
+    '/admin/revoke-user-sessions',
+    '/admin/set-role',
+    '/admin/set-user-password',
+    '/admin/stop-impersonating',
+    '/admin/update-user'
+  ],
+  plugins: [admin(), nextCookies()]
 })
