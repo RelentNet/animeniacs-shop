@@ -58,7 +58,9 @@ function ArtistHeader({ artist }: { artist: Artist }): JSX.Element {
       <div className="flex-1">
         <p className="eyebrow">Artist</p>
         <h1 className="font-display mt-1 text-5xl text-bone md:text-6xl">{artist.displayName}</h1>
-        {artist.bio && <p className="mt-3 whitespace-pre-line text-muted">{artist.bio}</p>}
+        {artist.bio && (
+          <p className="mt-3 whitespace-pre-line text-muted">{artist.bio}</p>
+        )}
         <SocialLinks artist={artist} />
       </div>
     </header>
@@ -112,12 +114,7 @@ function SocialLinks({ artist }: { artist: Artist }): JSX.Element | null {
     <ul className="mt-4 flex flex-wrap justify-center gap-4 text-sm sm:justify-start">
       {links.map((l) => (
         <li key={l.label}>
-          <a
-            href={l.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link-neon font-medium"
-          >
+          <a href={l.url} target="_blank" rel="noopener noreferrer" className="link-neon font-medium">
             {l.label}
           </a>
         </li>

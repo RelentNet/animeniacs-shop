@@ -36,24 +36,9 @@ const MARQUEE = [
 ]
 
 const LANES: { href: Route; kicker: string; title: string; blurb: string }[] = [
-  {
-    href: '/shop' as Route,
-    kicker: '01',
-    title: 'Anime art',
-    blurb: 'The heroes, the arcs, the moments — framed.'
-  },
-  {
-    href: '/shop' as Route,
-    kicker: '02',
-    title: 'Gaming gear',
-    blurb: 'Setup-ready pieces for the grind.'
-  },
-  {
-    href: '/shop' as Route,
-    kicker: '03',
-    title: 'Custom & stickers',
-    blurb: 'Bring the idea, we bring the glow.'
-  }
+  { href: '/shop' as Route, kicker: '01', title: 'Anime art', blurb: 'The heroes, the arcs, the moments — framed.' },
+  { href: '/shop' as Route, kicker: '02', title: 'Gaming gear', blurb: 'Setup-ready pieces for the grind.' },
+  { href: '/shop' as Route, kicker: '03', title: 'Custom & stickers', blurb: 'Bring the idea, we bring the glow.' }
 ]
 
 /** A single neon-framed art print used in the hero gallery-wall cluster. */
@@ -143,8 +128,8 @@ export default async function HomePage(): Promise<JSX.Element> {
               className="enter mt-6 max-w-md text-lg leading-relaxed text-muted"
               style={{ animationDelay: '380ms' }}
             >
-              Original anime &amp; gaming art from a scrappy crew of independent artists — printed
-              on premium backlit acrylic and built to glow on your wall.
+              Original anime &amp; gaming art from a scrappy crew of independent artists — printed on
+              premium backlit acrylic and built to glow on your wall.
             </p>
 
             {/* Mobile-only hero art — desktop gets the gallery-wall cluster instead. */}
@@ -154,12 +139,7 @@ export default async function HomePage(): Promise<JSX.Element> {
                 style={{ animationDelay: '320ms' }}
               >
                 <div className="float-slow">
-                  <FramedArt
-                    src={heroArt[0].imageUrl}
-                    alt={heroArt[0].name}
-                    sticker="New drop"
-                    priority
-                  />
+                  <FramedArt src={heroArt[0].imageUrl} alt={heroArt[0].name} sticker="New drop" priority />
                 </div>
               </div>
             )}
@@ -234,10 +214,7 @@ export default async function HomePage(): Promise<JSX.Element> {
         </div>
 
         {/* Marquee ticker pinned to the hero base */}
-        <div
-          className="enter border-t border-line bg-ink-2/60 py-3"
-          style={{ animationDelay: '680ms' }}
-        >
+        <div className="enter border-t border-line bg-ink-2/60 py-3" style={{ animationDelay: '680ms' }}>
           <Marquee items={MARQUEE} />
         </div>
       </section>
@@ -308,10 +285,7 @@ export default async function HomePage(): Promise<JSX.Element> {
                         <p className="mt-2 max-w-[24ch] text-sm text-muted">{lane.blurb}</p>
                         <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-purple-soft transition-colors group-hover:text-neon">
                           Shop now
-                          <span
-                            aria-hidden="true"
-                            className="transition-transform group-hover:translate-x-1"
-                          >
+                          <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">
                             →
                           </span>
                         </span>
