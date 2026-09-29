@@ -14,9 +14,9 @@ async function requireAdmin() {
   return me
 }
 
-function done(notice: string): never {
+function done(notice: string, view: 'active' | 'banned' = 'active'): never {
   revalidatePath('/admin/users')
-  redirect(`/admin/users?notice=${encodeURIComponent(notice)}`)
+  redirect(`/admin/users?view=${view}&notice=${encodeURIComponent(notice)}`)
 }
 
 const cleanReason = (v: FormDataEntryValue | null) =>
@@ -51,7 +51,7 @@ export async function unbanUserAction(formData: FormData): Promise<void> {
   const target = await getUserById(String(formData.get('userId') ?? ''))
   if (!target) return done('User not found.')
   await unbanOne(target.id)
-  return done(`Unbanned ${target.email}.`)
+  return done(`Unbanned ${target.email}.`, 'banned')
 }
 
 const IdsSchema = z.array(z.string().min(1).max(100)).min(1).max(USERS_PAGE_SIZE)
@@ -77,7 +77,7 @@ async function bulk(formData: FormData, ban: boolean): Promise<void> {
   const tail = skipped.length
     ? ` · skipped ${skipped.length} (${[...new Set(skipped)].join(', ')})`
     : ''
-  return done(`${ban ? 'Banned' : 'Unbanned'} ${n}${tail}`)
+  return done(`${ban ? 'Banned' : 'Unbanned'} ${n}${tail}`, ban ? 'active' : 'banned')
 }
 
 export async function banSelectedAction(formData: FormData): Promise<void> {
