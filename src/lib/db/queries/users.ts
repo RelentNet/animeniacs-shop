@@ -1,22 +1,28 @@
 import 'server-only'
 import { db } from '@/lib/db/client'
 import { orders, session, user } from '@/lib/db/schema'
-import { count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 
+export const USERS_PAGE_SIZE = 25
+
 export const UsersQuerySchema = z.object({
+  view: z.enum(['active', 'banned']).default('active'),
   q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(25)
+  pageSize: z.coerce.number().int().min(1).max(100).default(USERS_PAGE_SIZE)
 })
 export type UsersQuery = z.input<typeof UsersQuerySchema>
 
 /** One page of accounts, newest sign-up first, searchable by email/name. */
 export async function listUsers(input: UsersQuery = {}) {
-  const { q, page, pageSize } = UsersQuerySchema.parse(input)
+  const { q, view, page, pageSize } = UsersQuerySchema.parse(input)
   // Escape LIKE wildcards so a search for "%" or "_" is literal.
   const like = q ? `%${q.replace(/[\\%_]/g, '\\$&')}%` : null
-  const where = like ? or(ilike(user.email, like), ilike(user.name, like)) : undefined
+  const where = and(
+    eq(user.banned, view === 'banned'),
+    like ? or(ilike(user.email, like), ilike(user.name, like)) : undefined
+  )
 
   const rows = await db
     .select({
@@ -26,6 +32,7 @@ export async function listUsers(input: UsersQuery = {}) {
       role: user.role,
       banned: user.banned,
       banReason: user.banReason,
+      updatedAt: user.updatedAt,
       createdAt: user.createdAt,
       lastSignIn: sql<Date | null>`(select max(${session.createdAt}) from ${session} where ${session.userId} = "user"."id")`,
       orderCount: sql<number>`(select count(*)::int from ${orders} where ${orders.userId} = "user"."id")`
@@ -49,10 +56,11 @@ export async function getUserSummary(now: Date = new Date()) {
       total: count(),
       last24h: sql<number>`(count(*) filter (where ${user.createdAt} >= ${d1.toISOString()}))::int`,
       last7d: sql<number>`(count(*) filter (where ${user.createdAt} >= ${d7.toISOString()}))::int`,
+      banned: sql<number>`(count(*) filter (where ${user.banned}))::int`,
       noOrders: sql<number>`(count(*) filter (where not exists (select 1 from ${orders} where ${orders.userId} = "user"."id")))::int`
     })
     .from(user)
-  return row ?? { total: 0, last24h: 0, last7d: 0, noOrders: 0 }
+  return row ?? { total: 0, last24h: 0, last7d: 0, banned: 0, noOrders: 0 }
 }
 
 export async function getUserById(id: string) {
@@ -62,4 +70,11 @@ export async function getUserById(id: string) {
     .where(eq(user.id, id))
     .limit(1)
   return rows[0] ?? null
+}
+
+export async function getUsersByIds(ids: string[]) {
+  return db
+    .select({ id: user.id, email: user.email, role: user.role, banned: user.banned })
+    .from(user)
+    .where(inArray(user.id, ids))
 }
