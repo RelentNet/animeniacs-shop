@@ -1,4 +1,5 @@
 import { buildBreakdown, buildReport, pickYear } from '@/lib/commissions/report'
+import { getPaymentReviewArtistIds } from '@/lib/db/queries/artist-changes'
 import {
   getCommissionBreakdownRows,
   getCommissionEarningRows,
@@ -66,14 +67,15 @@ export default async function CommissionsPage({
 }: {
   searchParams: { year?: string | string[] }
 }): Promise<JSX.Element> {
-  const [rows, breakdownRows, lastSync, paidByArtist, payableArtists, recentPayouts] =
+  const [rows, breakdownRows, lastSync, paidByArtist, payableArtists, recentPayouts, reviewIds] =
     await Promise.all([
       getCommissionEarningRows(),
       getCommissionBreakdownRows(),
       getLastCommissionSyncAt(),
       getPaidCentsByArtist(),
       getPayableArtists(),
-      getRecentPayouts()
+      getRecentPayouts(),
+      getPaymentReviewArtistIds()
     ])
   const report = buildReport(rows)
   const breakdown = buildBreakdown(breakdownRows)
@@ -164,6 +166,14 @@ export default async function CommissionsPage({
                     >
                       <td className={`${td} text-left font-semibold`}>
                         {a.artistName}
+                        {a.artistId && reviewIds.has(a.artistId) && (
+                          <Link
+                            href={`/admin/artists/${a.artistId}` as Route}
+                            className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-medium text-amber-400 hover:no-underline"
+                          >
+                            Payment details changed — review
+                          </Link>
+                        )}
                         {!a.payable && a.artistName !== 'Unattributed' && (
                           <span className="font-normal text-faint"> (house)</span>
                         )}

@@ -18,7 +18,11 @@ const BASE_TABS = [
 export function AccountNav({ isArtist = false }: { isArtist?: boolean }): JSX.Element {
   const pathname = usePathname()
   const TABS = isArtist
-    ? [...BASE_TABS, { href: '/account/earnings', label: 'Earnings' }]
+    ? [
+        ...BASE_TABS,
+        { href: '/account/earnings', label: 'Earnings' },
+        { href: '/account/profile', label: 'Artist profile' }
+      ]
     : BASE_TABS
 
   function isActive(href: string): boolean {

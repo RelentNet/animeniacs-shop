@@ -276,6 +276,9 @@ export const artists = pgTable(
     paymentMethod: text('payment_method'),
     paymentEmail: text('payment_email'),
     notes: text('notes'),
+    // DAN-140: set when the ARTIST changes payout details; cleared by an admin
+    // ("Mark reviewed"). Never blocks payouts, it's only a flag.
+    paymentReviewPendingAt: timestamp('payment_review_pending_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow()
   },
@@ -350,6 +353,34 @@ export const artistCommissionRates = pgTable(
     )
   })
 )
+
+// DAN-140: append-only audit log of artist profile changes (artist + admin).
+// No update/delete query exists by design.
+export const artistProfileChanges = pgTable(
+  'artist_profile_changes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    artistId: uuid('artist_id')
+      .notNull()
+      .references(() => artists.id, { onDelete: 'cascade' }),
+    field: text('field').notNull(),
+    oldValue: text('old_value'),
+    newValue: text('new_value'),
+    changedByUserId: text('changed_by_user_id'),
+    changedByEmail: text('changed_by_email'),
+    source: text('source', { enum: ['artist', 'admin'] }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    byArtist: index('artist_profile_changes_artist_idx').on(table.artistId, table.createdAt),
+    sourceValid: check(
+      'artist_profile_changes_source_valid',
+      sql`${table.source} IN ('artist', 'admin')`
+    )
+  })
+)
+
+export type ArtistProfileChange = typeof artistProfileChanges.$inferSelect
 
 export type ArtistCommissionRate = typeof artistCommissionRates.$inferSelect
 

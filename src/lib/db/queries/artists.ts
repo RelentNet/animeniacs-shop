@@ -1,6 +1,12 @@
 import 'server-only'
 import { rateForMonth, yearMonthInZone } from '@/lib/commissions/calc'
 import { db } from '@/lib/db/client'
+import {
+  ARTIST_EDITABLE_FIELDS,
+  type ChangeActor,
+  diffFields,
+  insertChangeRows
+} from '@/lib/db/queries/artist-changes'
 import { type Artist, type NewArtist, artistCommissionRates, artists } from '@/lib/db/schema'
 import { asc, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -58,6 +64,18 @@ export const ArtistInputSchema = z.object({
   accountEmail: z.string().email().max(200).nullable().optional(),
   notes: z.string().max(4000).nullable().optional()
 })
+
+/**
+ * Artist self-serve input (DAN-140): the same Zod rules as the admin form,
+ * restricted to the allowlist. `.strict()` makes any admin-only or unknown key
+ * a validation error, so the restriction is server-enforced.
+ */
+export const ArtistSelfInputSchema = ArtistInputSchema.pick(
+  Object.fromEntries(ARTIST_EDITABLE_FIELDS.map((f) => [f, true])) as Record<
+    (typeof ARTIST_EDITABLE_FIELDS)[number],
+    true
+  >
+).strict()
 
 /** The shape callers supply. Defaults (e.g. status, commissionRate) are optional here. */
 export type ArtistInput = z.input<typeof ArtistInputSchema>
@@ -129,7 +147,8 @@ export async function getArtistRateHistory(artistId: string) {
 export async function setArtistRate(
   artistId: string,
   rate: string,
-  effectiveFrom: string
+  effectiveFrom: string,
+  audit?: ChangeActor
 ): Promise<void> {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(effectiveFrom)) throw new Error('invalid effective month')
   await db.transaction(async (tx) => {
@@ -173,18 +192,51 @@ export async function setArtistRate(
       .update(artists)
       .set({ commissionRate: current.toFixed(4), updatedAt: new Date() })
       .where(eq(artists.id, artistId))
+    if (audit) {
+      await insertChangeRows(
+        tx,
+        artistId,
+        [
+          {
+            field: 'commissionRate',
+            oldValue: artist.commissionRate,
+            newValue: `${rate} (from ${effectiveFrom})`
+          }
+        ],
+        audit,
+        'admin'
+      )
+    }
   })
 }
 
-export async function updateArtist(id: string, input: Partial<ArtistInput>): Promise<Artist> {
+/** With `audit`, the change is logged (source 'admin') in the same transaction. */
+export async function updateArtist(
+  id: string,
+  input: Partial<ArtistInput>,
+  audit?: ChangeActor
+): Promise<Artist> {
   const parsed = ArtistInputSchema.partial().parse(input)
-  const [row] = await db
-    .update(artists)
-    .set({ ...parsed, updatedAt: new Date() })
-    .where(eq(artists.id, id))
-    .returning()
-  if (!row) throw new Error(`artist ${id} not found`)
-  return row
+  if (!audit) {
+    const [row] = await db
+      .update(artists)
+      .set({ ...parsed, updatedAt: new Date() })
+      .where(eq(artists.id, id))
+      .returning()
+    if (!row) throw new Error(`artist ${id} not found`)
+    return row
+  }
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(artists).where(eq(artists.id, id)).limit(1)
+    if (!before) throw new Error(`artist ${id} not found`)
+    const [row] = await tx
+      .update(artists)
+      .set({ ...parsed, updatedAt: new Date() })
+      .where(eq(artists.id, id))
+      .returning()
+    await insertChangeRows(tx, id, diffFields(before, parsed), audit, 'admin')
+    return row
+  })
 }
 
 export async function setArtistStatus(id: string, status: 'active' | 'inactive'): Promise<Artist> {

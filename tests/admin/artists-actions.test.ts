@@ -26,6 +26,11 @@ vi.mock('@/lib/db/queries/artists', async () => {
   }
 })
 
+vi.mock('@/lib/db/client', () => ({ db: {} }))
+vi.mock('@/lib/auth/get-current-user', () => ({
+  getCurrentUser: async () => ({ userId: 'u-admin', email: 'admin@example.com', roles: ['admin'] })
+}))
+
 const saveAvatarMock = vi.fn()
 vi.mock('@/lib/images/upload', async () => {
   const actual = await vi.importActual<typeof import('@/lib/images/upload')>('@/lib/images/upload')
