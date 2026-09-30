@@ -162,6 +162,13 @@
       "when": 1790733643286,
       "tag": "0022_fresh_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790780233178,
+      "tag": "0023_brainy_captain_universe",
+      "breakpoints": true
     }
   ]
 }

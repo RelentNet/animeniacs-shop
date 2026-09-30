@@ -62,7 +62,17 @@ export default async function AdminArtistsListPage({
                   <td className={td}>
                     <StatusBadge status={a.status} />
                   </td>
-                  <td className={`${td} text-bone`}>{a.displayName}</td>
+                  <td className={`${td} text-bone`}>
+                    {a.displayName}
+                    {a.paymentReviewPendingAt && (
+                      <Link
+                        href={`/admin/artists/${a.id}` as Route}
+                        className="ml-2 rounded-full bg-amber-400/15 px-2 py-0.5 text-xs font-medium text-amber-400 hover:no-underline"
+                      >
+                        Payment details changed — review
+                      </Link>
+                    )}
+                  </td>
                   <td className={td}>
                     <code className="font-mono text-purple-soft">{a.slug}</code>
                   </td>

@@ -6,6 +6,8 @@ import {
   isUniqueSlugViolation,
   validateArtistInput
 } from '@/app/(admin)/admin/artists/_components/validation'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
+import { markPaymentReviewed } from '@/lib/db/queries/artist-changes'
 import { getArtistById, setArtistRate, updateArtist } from '@/lib/db/queries/artists'
 import { AvatarValidationError, saveAvatar } from '@/lib/images/upload'
 import { revalidatePath } from 'next/cache'
@@ -32,6 +34,8 @@ export async function updateArtistAction(
   form: FormData
 ): Promise<ArtistFormState> {
   const { input, avatarFile } = parseArtistForm(form)
+  const { userId, email } = await getCurrentUser()
+  const audit = { userId: userId ?? null, email }
 
   const validated = validateArtistInput(input)
   if (!validated.ok) {
@@ -76,8 +80,8 @@ export async function updateArtistAction(
   }
 
   try {
-    await updateArtist(id, patch)
-    if (rateChanged) await setArtistRate(id, String(commissionRate), effectiveFrom)
+    await updateArtist(id, patch, audit)
+    if (rateChanged) await setArtistRate(id, String(commissionRate), effectiveFrom, audit)
   } catch (err) {
     if (isUniqueSlugViolation(err)) {
       return {
@@ -93,4 +97,14 @@ export async function updateArtistAction(
   revalidatePath('/artist')
   revalidatePath(`/artist/${validated.data.slug}`)
   redirect(rateChanged ? '/admin/artists?rateChanged=1' : '/admin/artists')
+}
+
+/** Clears the "payment details changed" flag. Admin re-checked; logged as source=admin. */
+export async function markPaymentReviewedAction(id: string): Promise<void> {
+  const { roles, userId, email } = await getCurrentUser()
+  if (!roles.includes('admin')) throw new Error('Not authorized.')
+  await markPaymentReviewed(id, { userId: userId ?? null, email })
+  revalidatePath('/admin/artists')
+  revalidatePath('/admin/commissions')
+  revalidatePath(`/admin/artists/${id}`)
 }
