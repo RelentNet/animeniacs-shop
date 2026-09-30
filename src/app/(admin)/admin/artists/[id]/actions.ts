@@ -6,7 +6,7 @@ import {
   isUniqueSlugViolation,
   validateArtistInput
 } from '@/app/(admin)/admin/artists/_components/validation'
-import { updateArtist } from '@/lib/db/queries/artists'
+import { getArtistById, setArtistRate, updateArtist } from '@/lib/db/queries/artists'
 import { AvatarValidationError, saveAvatar } from '@/lib/images/upload'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -58,10 +58,26 @@ export async function updateArtistAction(
   // Build the patch: only include avatarUrl in the update if the
   // operator uploaded a new file. Otherwise leave it untouched so
   // existing avatars survive an edit.
-  const patch = avatarUrl !== undefined ? { ...input, avatarUrl } : input
+  // commissionRate is written via rate history (setArtistRate), never patched directly.
+  const { commissionRate, ...rest } = input
+  const patch = avatarUrl !== undefined ? { ...rest, avatarUrl } : rest
+
+  const current = await getArtistById(id)
+  const rateChanged =
+    current !== undefined && Number(commissionRate) !== Number(current.commissionRate)
+  const effectiveFrom = String(form.get('rateEffectiveFrom') ?? '').trim()
+  if (rateChanged && !/^\d{4}-(0[1-9]|1[0-2])$/.test(effectiveFrom)) {
+    return {
+      error: {
+        message: 'Pick the month the new commission rate takes effect.',
+        fields: { rateEffectiveFrom: 'Required when the rate changes (YYYY-MM).' }
+      }
+    }
+  }
 
   try {
     await updateArtist(id, patch)
+    if (rateChanged) await setArtistRate(id, String(commissionRate), effectiveFrom)
   } catch (err) {
     if (isUniqueSlugViolation(err)) {
       return {
@@ -76,5 +92,5 @@ export async function updateArtistAction(
 
   revalidatePath('/artist')
   revalidatePath(`/artist/${validated.data.slug}`)
-  redirect('/admin/artists')
+  redirect(rateChanged ? '/admin/artists?rateChanged=1' : '/admin/artists')
 }

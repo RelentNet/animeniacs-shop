@@ -43,6 +43,25 @@ export function commissionCents(netCents: number, rate: number): number {
   return Math.round(netCents * rate)
 }
 
+export interface RatePoint {
+  /** 'YYYY-MM' the rate takes effect (inclusive). */
+  effectiveFrom: string
+  rate: number
+}
+
+/**
+ * Rate in force for `yearMonth`: the latest history row with effectiveFrom <=
+ * yearMonth (zero-padded 'YYYY-MM' compares lexically), else `fallback`
+ * (artists.commission_rate). Order of `history` doesn't matter.
+ */
+export function rateForMonth(history: RatePoint[], yearMonth: string, fallback: number): number {
+  let best: RatePoint | undefined
+  for (const h of history) {
+    if (h.effectiveFrom <= yearMonth && (!best || h.effectiveFrom > best.effectiveFrom)) best = h
+  }
+  return best ? best.rate : fallback
+}
+
 /**
  * Calendar `YYYY-MM` for an ISO timestamp in the given IANA zone (shop default
  * America/Chicago). Uses Intl so DST is handled; deterministic (no clock read).

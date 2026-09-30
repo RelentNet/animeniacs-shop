@@ -1,7 +1,9 @@
 import 'server-only'
+import type { RatePoint } from '@/lib/commissions/calc'
 import { db } from '@/lib/db/client'
 import {
   type NewCommissionEarning,
+  artistCommissionRates,
   artistPayouts,
   artists,
   commissionEarnings
@@ -56,7 +58,17 @@ export async function ensureArtistsForCategories(
         payable: !HOUSE_ARTIST_NAMES.has(c.name)
       }
     })
-  if (toInsert.length > 0) await db.insert(artists).values(toInsert)
+  if (toInsert.length > 0) {
+    const created = await db.insert(artists).values(toInsert).returning({
+      id: artists.id,
+      rate: artists.commissionRate
+    })
+    // History row so a later rate change can't re-rate these artists' past months
+    // via the fallback (2000-01 = before any sales, same as the migration backfill).
+    await db
+      .insert(artistCommissionRates)
+      .values(created.map((c) => ({ artistId: c.id, rate: c.rate, effectiveFrom: '2000-01' })))
+  }
 
   const all = toInsert.length > 0 ? await db.select().from(artists) : existing
   const map = new Map<string, ArtistCatInfo>()
@@ -67,6 +79,18 @@ export async function ensureArtistsForCategories(
       payable: a.payable,
       name: a.displayName
     })
+  }
+  return map
+}
+
+/** artistId → rate history rows (any order). */
+export async function getRateHistoryByArtist(): Promise<Map<string, RatePoint[]>> {
+  const rows = await db.select().from(artistCommissionRates)
+  const map = new Map<string, RatePoint[]>()
+  for (const r of rows) {
+    const list = map.get(r.artistId) ?? []
+    list.push({ effectiveFrom: r.effectiveFrom, rate: Number(r.rate) })
+    map.set(r.artistId, list)
   }
   return map
 }

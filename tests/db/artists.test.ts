@@ -3,7 +3,9 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 const mockDb = {
   insert: vi.fn(),
   values: vi.fn(),
-  returning: vi.fn()
+  returning: vi.fn(),
+  // createArtist wraps insert + rate-history row in a transaction (DAN-122).
+  transaction: vi.fn((cb: (tx: unknown) => unknown) => cb(mockDb))
 }
 
 vi.mock('@/lib/db/client', () => ({ db: mockDb }))
