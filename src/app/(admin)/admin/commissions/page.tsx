@@ -1,5 +1,6 @@
-import { buildReport, pickYear } from '@/lib/commissions/report'
+import { buildBreakdown, buildReport, pickYear } from '@/lib/commissions/report'
 import {
+  getCommissionBreakdownRows,
   getCommissionEarningRows,
   getLastCommissionSyncAt,
   getPaidCentsByArtist,
@@ -8,6 +9,7 @@ import {
 } from '@/lib/db/queries/commissions'
 import type { Route } from 'next'
 import Link from 'next/link'
+import { Fragment } from 'react'
 import { PayoutForm } from './_components/PayoutForm'
 import { SyncButton } from './_components/SyncButton'
 
@@ -28,6 +30,34 @@ function monthLabel(yearMonth: string): string {
   })
 }
 
+function Cells({
+  c,
+  rate
+}: {
+  c: {
+    grossCents: number
+    discountCents: number
+    refundCents: number
+    netCents: number
+    commissionCents: number
+    orderCount: number
+  }
+  rate: number | null
+}): JSX.Element {
+  const n = `${td} text-right font-mono`
+  return (
+    <>
+      <td className={n}>{money(c.grossCents)}</td>
+      <td className={n}>{money(-c.discountCents)}</td>
+      <td className={n}>{money(-c.refundCents)}</td>
+      <td className={n}>{money(c.netCents)}</td>
+      <td className={n}>{rate === null ? '—' : `${(rate * 100).toFixed(2)}%`}</td>
+      <td className={n}>{money(c.commissionCents)}</td>
+      <td className={n}>{c.orderCount}</td>
+    </>
+  )
+}
+
 const th = 'px-3 py-2 font-medium whitespace-nowrap'
 const td = 'px-3 py-2 whitespace-nowrap'
 
@@ -36,14 +66,17 @@ export default async function CommissionsPage({
 }: {
   searchParams: { year?: string | string[] }
 }): Promise<JSX.Element> {
-  const [rows, lastSync, paidByArtist, payableArtists, recentPayouts] = await Promise.all([
-    getCommissionEarningRows(),
-    getLastCommissionSyncAt(),
-    getPaidCentsByArtist(),
-    getPayableArtists(),
-    getRecentPayouts()
-  ])
+  const [rows, breakdownRows, lastSync, paidByArtist, payableArtists, recentPayouts] =
+    await Promise.all([
+      getCommissionEarningRows(),
+      getCommissionBreakdownRows(),
+      getLastCommissionSyncAt(),
+      getPaidCentsByArtist(),
+      getPayableArtists(),
+      getRecentPayouts()
+    ])
   const report = buildReport(rows)
+  const breakdown = buildBreakdown(breakdownRows)
   const requested = Array.isArray(searchParams.year) ? searchParams.year[0] : searchParams.year
   const { years, year, months } = pickYear(report.months, requested)
   const yearTotal = (byMonth: Record<string, number>) =>
@@ -67,10 +100,12 @@ export default async function CommissionsPage({
         Artist commissions &amp; payouts
       </h1>
       <p className="mt-2 max-w-3xl text-sm text-muted">
-        Commission = each artist’s rate × net item sales (after discounts), both locations, all
-        history. <strong className="text-bone">Balance owed</strong> = made − paid (negative means
-        you’ve advanced them). House accounts are shown but not owed; “Unattributed” needs catalog
-        cleanup.
+        Commission = the artist’s rate for that month × net item sales (after discounts), both
+        locations, all history. The rate comes from each artist’s rate history (change it on the
+        artist’s page; it applies from the month you pick, after the next sync) — expand “Show the
+        working” below to audit any month. <strong className="text-bone">Balance owed</strong> =
+        made − paid (negative means you’ve advanced them). House accounts are shown but not owed;
+        “Unattributed” needs catalog cleanup.
         {lastSync
           ? ` Last synced ${lastSync.toLocaleString('en-US', { timeZone: 'America/Chicago' })}.`
           : ' Never synced — run a sync to populate.'}
@@ -180,6 +215,85 @@ export default async function CommissionsPage({
                 </tr>
               </tfoot>
             </table>
+          </div>
+        </>
+      )}
+
+      {report.artists.length > 0 && year && (
+        <>
+          <h2 className="eyebrow mt-8 text-purple-soft">Show the working — {year}</h2>
+          <p className="mt-1 max-w-3xl text-xs text-muted">
+            Net sales × rate = commission, per month, split by item type and location. Month totals
+            equal the table above. Orders spanning several buckets count once per bucket.
+          </p>
+          <div className="mt-3 grid gap-2">
+            {report.artists.map((a) => {
+              const monthsData = (breakdown.get(a.artistId ?? 'unattributed') ?? []).filter((m) =>
+                m.yearMonth.startsWith(`${year}-`)
+              )
+              if (monthsData.length === 0) return null
+              return (
+                <details
+                  key={a.artistId ?? a.artistName}
+                  className="rounded-md border border-line bg-wall"
+                >
+                  <summary className="cursor-pointer px-3 py-2 text-bone">
+                    <span className="font-semibold">{a.artistName}</span>{' '}
+                    <span className="font-mono text-muted">
+                      {money(monthsData.reduce((t, m) => t + m.commissionCents, 0))}
+                    </span>
+                    {a.artistId && (
+                      <Link
+                        href={`/admin/artists/${a.artistId}` as Route}
+                        className="link-neon ml-3 text-xs"
+                      >
+                        rate history
+                      </Link>
+                    )}
+                  </summary>
+                  <div className="overflow-x-auto px-3 pb-3">
+                    <table className="min-w-[760px] border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-line-strong text-muted">
+                          <th className={`${th} text-left`}>Month</th>
+                          <th className={`${th} text-left`}>Type / location</th>
+                          <th className={`${th} text-right`}>Gross</th>
+                          <th className={`${th} text-right`}>Discounts</th>
+                          <th className={`${th} text-right`}>Refunds</th>
+                          <th className={`${th} text-right`}>Net</th>
+                          <th className={`${th} text-right`}>Rate</th>
+                          <th className={`${th} text-right`}>Commission</th>
+                          <th className={`${th} text-right`}>Orders</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {monthsData.map((m) => (
+                          <Fragment key={m.yearMonth}>
+                            <tr className="border-b border-line font-semibold text-bone">
+                              <td className={td}>{m.yearMonth}</td>
+                              <td className={`${td} text-muted`}>All</td>
+                              <Cells c={m} rate={m.rate} />
+                            </tr>
+                            {m.lines.map((l) => (
+                              <tr
+                                key={`${l.itemType}|${l.location}`}
+                                className="border-b border-line text-muted"
+                              >
+                                <td className={td} />
+                                <td className={`${td} pl-6`}>
+                                  {l.itemType} · {l.location}
+                                </td>
+                                <Cells c={l} rate={l.rate} />
+                              </tr>
+                            ))}
+                          </Fragment>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              )
+            })}
           </div>
         </>
       )}
