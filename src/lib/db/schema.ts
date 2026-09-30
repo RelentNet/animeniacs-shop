@@ -308,6 +308,8 @@ export const commissionEarnings = pgTable(
     refundCents: integer('refund_cents').notNull().default(0),
     netCents: integer('net_cents').notNull().default(0),
     commissionCents: integer('commission_cents').notNull().default(0),
+    // Rate applied to this row (from artist_commission_rates); null on rows written pre-DAN-122.
+    rate: numeric('rate', { precision: 5, scale: 4 }),
     orderCount: integer('order_count').notNull().default(0),
     computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow()
   },
@@ -320,10 +322,36 @@ export const commissionEarnings = pgTable(
       'commission_earnings_location_valid',
       sql`${table.location} IN ('online', 'mobile')`
     ),
-    artistMonthIdx: index('commission_earnings_artist_month_idx').on(table.artistId, table.yearMonth),
+    artistMonthIdx: index('commission_earnings_artist_month_idx').on(
+      table.artistId,
+      table.yearMonth
+    ),
     monthIdx: index('commission_earnings_month_idx').on(table.yearMonth)
   })
 )
+
+// Rate history (DAN-122): the rate for a month is the latest row with
+// effective_from <= 'YYYY-MM'. `artists.commission_rate` mirrors the current month's rate.
+export const artistCommissionRates = pgTable(
+  'artist_commission_rates',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    artistId: uuid('artist_id')
+      .notNull()
+      .references(() => artists.id, { onDelete: 'cascade' }),
+    rate: numeric('rate', { precision: 5, scale: 4 }).notNull(),
+    effectiveFrom: text('effective_from').notNull(), // 'YYYY-MM'
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  (table) => ({
+    uniqueFrom: unique('artist_commission_rates_artist_from_unique').on(
+      table.artistId,
+      table.effectiveFrom
+    )
+  })
+)
+
+export type ArtistCommissionRate = typeof artistCommissionRates.$inferSelect
 
 export const commissionOverrides = pgTable(
   'commission_overrides',

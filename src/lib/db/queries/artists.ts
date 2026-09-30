@@ -1,7 +1,8 @@
 import 'server-only'
+import { rateForMonth, yearMonthInZone } from '@/lib/commissions/calc'
 import { db } from '@/lib/db/client'
-import { type Artist, type NewArtist, artists } from '@/lib/db/schema'
-import { asc, eq } from 'drizzle-orm'
+import { type Artist, type NewArtist, artistCommissionRates, artists } from '@/lib/db/schema'
+import { asc, desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 /**
@@ -94,13 +95,85 @@ export async function getArtistById(id: string): Promise<Artist | undefined> {
   return rows[0]
 }
 
+/** Baseline history start: before any sales, so it covers all swept history. */
+export const RATE_EPOCH = '2000-01'
+
 export async function createArtist(input: ArtistInput): Promise<Artist> {
   const parsed = ArtistInputSchema.parse(input)
-  const [row] = await db
-    .insert(artists)
-    .values(parsed satisfies NewArtist)
-    .returning()
-  return row
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(artists)
+      .values(parsed satisfies NewArtist)
+      .returning()
+    // 2000-01, not the creation month: the sync sweeps ALL Square history for the
+    // category, and the mirror column would otherwise price pre-creation months.
+    await tx
+      .insert(artistCommissionRates)
+      .values({ artistId: row.id, rate: row.commissionRate, effectiveFrom: RATE_EPOCH })
+    return row
+  })
+}
+
+export async function getArtistRateHistory(artistId: string) {
+  return db
+    .select()
+    .from(artistCommissionRates)
+    .where(eq(artistCommissionRates.artistId, artistId))
+    .orderBy(desc(artistCommissionRates.effectiveFrom))
+}
+
+/**
+ * Upsert a rate-history row and re-mirror `artists.commission_rate` to the rate
+ * in force for the current (Chicago) month. Does NOT re-run the commission sync.
+ */
+export async function setArtistRate(
+  artistId: string,
+  rate: string,
+  effectiveFrom: string
+): Promise<void> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(effectiveFrom)) throw new Error('invalid effective month')
+  await db.transaction(async (tx) => {
+    const [artist] = await tx.select().from(artists).where(eq(artists.id, artistId)).limit(1)
+    if (!artist) throw new Error(`artist ${artistId} not found`)
+    const existing = await tx
+      .select()
+      .from(artistCommissionRates)
+      .where(eq(artistCommissionRates.artistId, artistId))
+    // Artist predates history (should not happen post-backfill): pin the old rate
+    // first, else the fallback (= the new mirror) would re-rate past months.
+    if (existing.length === 0) {
+      await tx
+        .insert(artistCommissionRates)
+        .values({ artistId, rate: artist.commissionRate, effectiveFrom: RATE_EPOCH })
+      existing.push({
+        id: '',
+        artistId,
+        rate: artist.commissionRate,
+        effectiveFrom: RATE_EPOCH,
+        createdAt: new Date()
+      })
+    }
+    await tx
+      .insert(artistCommissionRates)
+      .values({ artistId, rate, effectiveFrom })
+      .onConflictDoUpdate({
+        target: [artistCommissionRates.artistId, artistCommissionRates.effectiveFrom],
+        set: { rate }
+      })
+    const points = [
+      ...existing.filter((e) => e.effectiveFrom !== effectiveFrom),
+      { effectiveFrom, rate }
+    ].map((e) => ({ effectiveFrom: e.effectiveFrom, rate: Number(e.rate) }))
+    const current = rateForMonth(
+      points,
+      yearMonthInZone(new Date().toISOString()),
+      Number(artist.commissionRate)
+    )
+    await tx
+      .update(artists)
+      .set({ commissionRate: current.toFixed(4), updatedAt: new Date() })
+      .where(eq(artists.id, artistId))
+  })
 }
 
 export async function updateArtist(id: string, input: Partial<ArtistInput>): Promise<Artist> {

@@ -22,6 +22,8 @@ export interface ArtistFormProps {
   initial?: Artist
   /** Form mode — affects button label and a couple of validations. */
   mode: 'create' | 'edit'
+  /** Edit mode: 'YYYY-MM' (America/Chicago) prefilled into "Effective from". */
+  defaultEffectiveFrom?: string
 }
 
 const PAYMENT_METHODS = ['paypal', 'venmo', 'check', 'zelle', 'other'] as const
@@ -43,7 +45,8 @@ export function ArtistForm({
   action,
   categoryOptions,
   initial,
-  mode
+  mode,
+  defaultEffectiveFrom
 }: ArtistFormProps): JSX.Element {
   const [state, formAction] = useFormState(action, undefined)
   const a = initial
@@ -210,7 +213,7 @@ export function ArtistForm({
 
       <Field
         label="Commission rate"
-        hint="Decimal between 0 and 1 (e.g., 0.2 = 20%). Reference for the monthly Square dashboard report."
+        hint="Decimal between 0 and 1 (e.g., 0.2 = 20%). On create this covers all history; on edit, a change applies from the month below."
         error={fieldErr('commissionRate')}
       >
         <input
@@ -224,6 +227,21 @@ export function ArtistForm({
           className={fieldClass}
         />
       </Field>
+
+      {mode === 'edit' && (
+        <Field
+          label="Effective from (month)"
+          hint="Used only if the rate above changed; the new rate applies from this month forward. Picking an earlier month deliberately re-rates past months (retroactive). Click Sync on /admin/commissions afterwards to apply."
+          error={fieldErr('rateEffectiveFrom')}
+        >
+          <input
+            type="month"
+            name="rateEffectiveFrom"
+            defaultValue={defaultEffectiveFrom}
+            className={fieldClass}
+          />
+        </Field>
+      )}
 
       <Field label="Payment method" error={fieldErr('paymentMethod')}>
         <select name="paymentMethod" defaultValue={a?.paymentMethod ?? ''} className={fieldClass}>

@@ -7,7 +7,11 @@ export const metadata = {
   title: 'Artists — admin'
 }
 
-export default async function AdminArtistsListPage(): Promise<JSX.Element> {
+export default async function AdminArtistsListPage({
+  searchParams
+}: {
+  searchParams: { rateChanged?: string }
+}): Promise<JSX.Element> {
   const [artists, categoryNames] = await Promise.all([getAllArtists(), getCategoryNameMap()])
 
   return (
@@ -23,6 +27,17 @@ export default async function AdminArtistsListPage(): Promise<JSX.Element> {
           + New artist
         </Link>
       </header>
+
+      {searchParams.rateChanged && (
+        <output className="mt-4 block rounded-md border border-neon/40 bg-neon/10 p-3 text-sm text-bone">
+          Rate saved to the artist’s history. Commission totals are not recalculated yet: click Sync
+          on{' '}
+          <Link href={'/admin/commissions' as Route} className="link-neon">
+            /admin/commissions
+          </Link>{' '}
+          to apply it.
+        </output>
+      )}
 
       {artists.length === 0 ? (
         <EmptyState />
