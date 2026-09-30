@@ -1,5 +1,6 @@
 import 'server-only'
 import type { RatePoint } from '@/lib/commissions/calc'
+import type { BreakdownRow } from '@/lib/commissions/report'
 import { db } from '@/lib/db/client'
 import {
   type NewCommissionEarning,
@@ -131,6 +132,24 @@ export async function getCommissionEarningRows(): Promise<CommissionEarningView[
     payable: r.artistName ? (r.payable ?? true) : false,
     yearMonth: r.yearMonth,
     commissionCents: r.commissionCents
+  }))
+}
+
+/** Every unaggregated earnings row, for the /admin/commissions audit breakdown. */
+export async function getCommissionBreakdownRows(): Promise<BreakdownRow[]> {
+  const rows = await db.select().from(commissionEarnings)
+  return rows.map((r) => ({
+    artistId: r.artistId,
+    yearMonth: r.yearMonth,
+    itemType: r.itemType,
+    location: r.location,
+    grossCents: r.grossCents,
+    discountCents: r.discountCents,
+    refundCents: r.refundCents,
+    netCents: r.netCents,
+    commissionCents: r.commissionCents,
+    rate: r.rate === null ? null : Number(r.rate),
+    orderCount: r.orderCount
   }))
 }
 
