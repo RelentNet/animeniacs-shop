@@ -1,7 +1,8 @@
 import 'server-only'
-import { getSquareClient } from '@/lib/square/client'
 import type { CheckoutAddress } from '@/lib/shipping/address'
 import { toSquareAddress } from '@/lib/shipping/address'
+import { toE164Phone } from '@/lib/shipping/phone'
+import { getSquareClient } from '@/lib/square/client'
 import type { ValidatedLine } from './validate-cart'
 
 export interface CreatePaymentLinkArgs {
@@ -15,8 +16,9 @@ export interface CreatePaymentLinkArgs {
   redirectUrl: string
   /**
    * Final shipping charge in cents (carrier rate + markup + decal fee, OR the
-   * flat fallback). Priced server-side from the buyer's chosen Shippo rate;
-   * Square folds it into the order total automatically.
+   * flat fallback). Priced server-side from the buyer's chosen Shippo rate and
+   * attached to the Order as a fixed "Shipping" service charge, so Square folds
+   * it into the order total.
    */
   shippingCents: number
   /** Buyer shipping address, collected on-site → pre-fills Square so it isn't re-asked. */
@@ -38,12 +40,28 @@ export async function createPaymentLink(
   const client = getSquareClient()
   const addr = args.shippingAddress
   const buyerEmail = addr.email || undefined
-  const buyerPhone = addr.phone || undefined
-  // Square rejects a zero-amount shippingFee; omit it for free shipping.
+  // Square only accepts E.164 (`+1404…`); a bare "4045550000" is rejected with
+  // INVALID_PHONE_NUMBER and would fail the whole checkout. The phone is an
+  // optional pre-fill, so normalize it and DROP it rather than ever block payment.
+  const buyerPhone = toE164Phone(addr.phone, addr.country)
+  // Shipping rides on the Order as a fixed TOTAL_PHASE service charge — NOT as
+  // `checkoutOptions.shippingFee`. Square now rejects a checkout-level shipping
+  // fee combined with `askForShippingAddress: false` ("AskForShippingAddress
+  // cannot be set to 'false' if ShippingFee is present"), and we must keep the
+  // address prompt off because we already collected + validated the ship-to.
+  // The order total is identical either way (Square booked the old shippingFee
+  // as a service charge internally too). Omit it entirely for free shipping.
   const shippingCents = Math.max(0, Math.round(args.shippingCents))
-  const shippingFee =
+  const serviceCharges =
     shippingCents > 0
-      ? { name: 'Shipping', charge: { amount: BigInt(shippingCents), currency: 'USD' as const } }
+      ? [
+          {
+            name: 'Shipping',
+            amountMoney: { amount: BigInt(shippingCents), currency: 'USD' as const },
+            calculationPhase: 'TOTAL_PHASE' as const,
+            taxable: false
+          }
+        ]
       : undefined
 
   const response = await client.checkout.paymentLinks.create({
@@ -56,14 +74,14 @@ export async function createPaymentLink(
         catalogObjectId: line.variationId,
         quantity: String(line.quantity)
       })),
+      ...(serviceCharges ? { serviceCharges } : {}),
       metadata: { cart_id: args.cartId }
     },
     checkoutOptions: {
       redirectUrl: args.redirectUrl,
       // We already collected + validated the address on our site (Shippo step),
-      // so Square must NOT ask again. The chosen shipping is charged here.
-      askForShippingAddress: false,
-      ...(shippingFee ? { shippingFee } : {})
+      // so Square must NOT ask again. The chosen shipping is charged on the order.
+      askForShippingAddress: false
     },
     // Pre-fill the buyer's validated shipping address + contact on Square's page.
     prePopulatedData: {

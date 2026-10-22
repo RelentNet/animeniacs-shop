@@ -100,7 +100,8 @@ describe('createPaymentLink', () => {
     const call = mockCreate.mock.calls[0][0]
     expect(call.checkoutOptions.askForShippingAddress).toBe(false)
     expect(call.prePopulatedData.buyerEmail).toBe('buyer@example.com')
-    expect(call.prePopulatedData.buyerPhoneNumber).toBe('4045550000')
+    // Square only accepts E.164 — a bare US number must be prefixed, not passed through.
+    expect(call.prePopulatedData.buyerPhoneNumber).toBe('+14045550000')
     expect(call.prePopulatedData.buyerAddress).toEqual({
       addressLine1: '500 W Temple St',
       addressLine2: 'Apt 4',
@@ -111,22 +112,49 @@ describe('createPaymentLink', () => {
     })
   })
 
-  it('charges the priced shipping amount as the Square shippingFee (bigint cents)', async () => {
+  it('drops an un-normalizable phone instead of failing the checkout', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({ ...BASE, shippingAddress: { ...ADDRESS, phone: '555' } })
+    const pre = mockCreate.mock.calls[0][0].prePopulatedData
+    expect(pre).not.toHaveProperty('buyerPhoneNumber')
+    expect(pre.buyerEmail).toBe('buyer@example.com')
+  })
+
+  it('omits buyerPhoneNumber when the buyer left the phone blank', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({ ...BASE, shippingAddress: { ...ADDRESS, phone: '' } })
+    expect(mockCreate.mock.calls[0][0].prePopulatedData).not.toHaveProperty('buyerPhoneNumber')
+  })
+
+  it('charges the priced shipping as a fixed "Shipping" service charge on the ORDER (bigint cents)', async () => {
+    mockCreate.mockResolvedValue(OK_RESPONSE)
+    await createPaymentLink({ ...BASE, shippingCents: 1835 })
+    const call = mockCreate.mock.calls[0][0]
+    expect(call.order.serviceCharges).toEqual([
+      {
+        name: 'Shipping',
+        amountMoney: { amount: 1835n, currency: 'USD' },
+        calculationPhase: 'TOTAL_PHASE',
+        taxable: false
+      }
+    ])
+  })
+
+  it('NEVER sets checkoutOptions.shippingFee (Square rejects it with askForShippingAddress=false)', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
     await createPaymentLink({ ...BASE, shippingCents: 1835 })
     const opts = mockCreate.mock.calls[0][0].checkoutOptions
-    expect(opts.shippingFee).toEqual({
-      name: 'Shipping',
-      charge: { amount: 1835n, currency: 'USD' }
-    })
+    expect(opts).not.toHaveProperty('shippingFee')
+    expect(opts.askForShippingAddress).toBe(false)
   })
 
-  it('omits shippingFee entirely when shipping is free ($0)', async () => {
+  it('omits the service charge entirely when shipping is free ($0)', async () => {
     mockCreate.mockResolvedValue(OK_RESPONSE)
     await createPaymentLink({ ...BASE, shippingCents: 0 })
-    const opts = mockCreate.mock.calls[0][0].checkoutOptions
-    expect(opts.shippingFee).toBeUndefined()
-    expect(opts.askForShippingAddress).toBe(false)
+    const call = mockCreate.mock.calls[0][0]
+    expect(call.order).not.toHaveProperty('serviceCharges')
+    expect(call.checkoutOptions).not.toHaveProperty('shippingFee')
+    expect(call.checkoutOptions.askForShippingAddress).toBe(false)
   })
 
   it('throws if Square response lacks paymentLink.url', async () => {
