@@ -3,6 +3,7 @@ import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { createPaymentLink } from '@/lib/checkout/create-payment-link'
 import { validateCart } from '@/lib/checkout/validate-cart'
 import { createPendingCart } from '@/lib/db/queries/abandoned-carts'
+import { getShippingSettings } from '@/lib/db/queries/shipping-settings'
 import { CheckoutAddressSchema } from '@/lib/shipping/address'
 import { isShippable } from '@/lib/shipping/countries'
 import { priceShipping } from '@/lib/shipping/quote'
@@ -41,10 +42,21 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  // Country allowlist enforced BEFORE any payment link (Square's hosted checkout
-  // can't restrict countries). Defense-in-depth: the rates endpoint also checks.
+  // Admin-managed country list enforced BEFORE any payment link (Square's hosted
+  // checkout can't restrict countries). Defense-in-depth: the rates endpoint
+  // also checks.
   const shippingAddress = parsed.data.shippingAddress
-  if (!isShippable(shippingAddress.country)) {
+  let shippable: boolean
+  try {
+    shippable = isShippable((await getShippingSettings()).countries, shippingAddress.country)
+  } catch (err) {
+    console.error('[checkout] could not read shipping settings:', err)
+    return NextResponse.json(
+      { error: 'Could not start checkout. Please try again.' },
+      { status: 500 }
+    )
+  }
+  if (!shippable) {
     return NextResponse.json(
       { error: 'country_not_shippable', message: 'We do not ship to that country yet.' },
       { status: 422 }
@@ -97,8 +109,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // Authoritatively price shipping from the buyer's chosen Shippo rate (never
     // trust a client-sent amount). Decals-only carts get the flat decal fee; a
-    // missing/expired rate or a Shippo outage falls back to the flat fee.
-    const shipping = await priceShipping(validation.lines, parsed.data.selectedRateId ?? null)
+    // missing/expired rate gets the destination's flat no-live-rate fee, or is
+    // BLOCKED (422, no payment link) when the destination has none.
+    const shipping = await priceShipping(
+      validation.lines,
+      parsed.data.selectedRateId ?? null,
+      shippingAddress.country
+    )
+    if ('blocked' in shipping) {
+      return NextResponse.json(
+        {
+          error: 'no_live_rate',
+          message: 'We could not get a shipping rate for this address. Please contact us.'
+        },
+        { status: 422 }
+      )
+    }
 
     const cartId = randomUUID()
     const { checkoutUrl, orderId } = await createPaymentLink({

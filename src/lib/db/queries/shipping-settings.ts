@@ -1,4 +1,9 @@
 import 'server-only'
+import {
+  CANDIDATE_COUNTRIES,
+  type CountryConfigMap,
+  defaultCountryConfig
+} from '@/lib/shipping/countries'
 import { z } from 'zod'
 import { getSetting, upsertSetting } from './site-settings'
 
@@ -63,6 +68,43 @@ export const PackagingFeesSchema = z
 
 export type PackagingFees = z.infer<typeof PackagingFeesSchema>
 
+/**
+ * One country's stored config. Every field is optional so a partially stored
+ * entry fills in from that country's defaults.
+ */
+const StoredCountryConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  decalFlatCents: FeeCents.nullable().optional(),
+  noLiveRate: z.enum(['flat', 'block']).optional(),
+  noLiveRateFlatCents: FeeCents.nullable().optional()
+})
+
+/**
+ * Per-country shipping config (DAN-490), keyed by ISO alpha-2. Always parses to
+ * a full map over CANDIDATE_COUNTRIES: missing countries (including every
+ * settings row saved before this field existed) get their defaults — US, PR, CA
+ * open; US + PR fall back to the global flat fee; everything else blocks.
+ * Unknown keys are dropped (admin cannot add countries outside the candidates).
+ */
+export const CountriesSchema = z
+  .record(z.string(), StoredCountryConfigSchema)
+  .optional()
+  .transform((stored): CountryConfigMap => {
+    const out: CountryConfigMap = {}
+    for (const { code } of CANDIDATE_COUNTRIES) {
+      const def = defaultCountryConfig(code)
+      const s = stored?.[code] ?? {}
+      out[code] = {
+        enabled: s.enabled ?? def.enabled,
+        decalFlatCents: s.decalFlatCents === undefined ? def.decalFlatCents : s.decalFlatCents,
+        noLiveRate: s.noLiveRate ?? def.noLiveRate,
+        noLiveRateFlatCents:
+          s.noLiveRateFlatCents === undefined ? def.noLiveRateFlatCents : s.noLiveRateFlatCents
+      }
+    }
+    return out
+  })
+
 export const ShippingSettingsSchema = z.object({
   shipFrom: ShipFromSchema.default(DEFAULT_SHIP_FROM),
   /** Flat shipping for decals / stickers / posters / misc (not box-rated). */
@@ -72,7 +114,9 @@ export const ShippingSettingsSchema = z.object({
   /** Percentage markup applied on top of carrier rates (0 = none). */
   markupPercent: z.number().min(0).max(100).default(0),
   /** Flat packaging-material fee per box type, added on top of the label. */
-  packagingFeesCents: PackagingFeesSchema
+  packagingFeesCents: PackagingFeesSchema,
+  /** Which candidate countries are open + their decal / no-live-rate fees. */
+  countries: CountriesSchema
 })
 
 export type ShippingSettings = z.infer<typeof ShippingSettingsSchema>

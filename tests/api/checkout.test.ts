@@ -11,6 +11,10 @@ vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidate }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreateLink }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePending }))
 vi.mock('@/lib/shipping/quote', () => ({ priceShipping: mockPriceShipping }))
+vi.mock('@/lib/db/queries/shipping-settings', async (orig) => {
+  const actual = await orig<typeof import('@/lib/db/queries/shipping-settings')>()
+  return { ...actual, getShippingSettings: vi.fn().mockResolvedValue(actual.DEFAULT_SHIPPING_SETTINGS) }
+})
 // Anonymous session here so buyerEmail resolves to null — signed-in capture is
 // covered by checkout-buyer-email.test.ts.
 vi.mock('@/lib/auth/get-current-user', () => ({
@@ -76,23 +80,53 @@ describe('POST /api/checkout', () => {
     const json = await res.json()
     expect(json.checkoutUrl).toBe('https://square/checkout')
     expect(typeof json.cartId).toBe('string')
-    expect(mockPriceShipping).toHaveBeenCalledWith(expect.anything(), 'rate_123')
+    expect(mockPriceShipping).toHaveBeenCalledWith(expect.anything(), 'rate_123', 'US')
     expect(mockCreateLink).toHaveBeenCalledWith(
       expect.objectContaining({ shippingCents: 1835, shippingAddress: expect.objectContaining({ country: 'US' }) })
     )
   })
 
-  it('rejects an un-shippable country with 422 before any payment link', async () => {
+  it.each(['JP', 'GB', 'DE'])(
+    'rejects %s (not enabled by default) with 422 before any payment link',
+    async (country) => {
+      process.env.SQUARE_LOCATION_ID = 'LOC_X'
+      process.env.NEXT_PUBLIC_SITE_URL = 'https://dev.animeniacs.shop'
+      const { POST } = await import('@/app/api/checkout/route')
+      const res = await POST(
+        makeRequest(validBody({ shippingAddress: { ...ADDRESS, country, state: '' } }))
+      )
+      expect(res.status).toBe(422)
+      const json = await res.json()
+      expect(json.error).toBe('country_not_shippable')
+      expect(mockPriceShipping).not.toHaveBeenCalled()
+      expect(mockCreateLink).not.toHaveBeenCalled()
+    }
+  )
+
+  it('Canada with a missing/expired rate is blocked: 422, never creates a payment link', async () => {
+    mockValidate.mockResolvedValue({
+      ok: true,
+      lines: [
+        { catalogItemId: 'A', variationId: 'V', quantity: 1, unitPriceCents: 2500, name: 'A' }
+      ]
+    })
+    mockPriceShipping.mockResolvedValue({ blocked: true, reason: 'no_live_rate' })
     process.env.SQUARE_LOCATION_ID = 'LOC_X'
     process.env.NEXT_PUBLIC_SITE_URL = 'https://dev.animeniacs.shop'
     const { POST } = await import('@/app/api/checkout/route')
     const res = await POST(
-      makeRequest(validBody({ shippingAddress: { ...ADDRESS, country: 'JP', state: '' } }))
+      makeRequest(
+        validBody({
+          selectedRateId: 'r_expired',
+          shippingAddress: { ...ADDRESS, city: 'Toronto', state: 'ON', zip: 'M5V 2T6', country: 'CA' }
+        })
+      )
     )
     expect(res.status).toBe(422)
-    const json = await res.json()
-    expect(json.error).toBe('country_not_shippable')
+    expect((await res.json()).error).toBe('no_live_rate')
+    expect(mockPriceShipping).toHaveBeenCalledWith(expect.anything(), 'r_expired', 'CA')
     expect(mockCreateLink).not.toHaveBeenCalled()
+    expect(mockCreatePending).not.toHaveBeenCalled()
   })
 
   it('returns 409 with mismatches when validateCart rejects', async () => {

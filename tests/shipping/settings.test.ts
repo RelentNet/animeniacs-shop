@@ -77,6 +77,82 @@ describe('shipping settings', () => {
     expect(result.error.fields?.shipFrom).toBeTruthy()
   })
 
+  it('a row saved before DAN-490 (no countries field) parses to the default countries', () => {
+    const legacy = {
+      shipFrom: DEFAULT_SHIPPING_SETTINGS.shipFrom,
+      decalFlatCents: 500,
+      fallbackFlatCents: 1000,
+      markupPercent: 0,
+      packagingFeesCents: { single_acrylic: 0, frame: 0, '3_frames': 0 }
+    }
+    const parsed = ShippingSettingsSchema.parse(legacy)
+    expect(Object.keys(parsed.countries)).toHaveLength(31) // US, PR, CA, GB + EU-27
+    const open = Object.entries(parsed.countries)
+      .filter(([, c]) => c.enabled)
+      .map(([code]) => code)
+    expect(open.sort()).toEqual(['CA', 'PR', 'US'])
+    expect(parsed.countries.US).toEqual({
+      enabled: true,
+      decalFlatCents: null,
+      noLiveRate: 'flat',
+      noLiveRateFlatCents: null
+    })
+    expect(parsed.countries.PR.noLiveRate).toBe('flat')
+    expect(parsed.countries.CA.noLiveRate).toBe('block')
+    expect(parsed.countries.GB).toEqual({
+      enabled: false,
+      decalFlatCents: null,
+      noLiveRate: 'block',
+      noLiveRateFlatCents: null
+    })
+  })
+
+  it('partially stored countries fill from defaults; unknown codes are dropped', () => {
+    const parsed = ShippingSettingsSchema.parse({ countries: { GB: { enabled: true }, JP: { enabled: true } } })
+    expect(parsed.countries.GB).toEqual({
+      enabled: true,
+      decalFlatCents: null,
+      noLiveRate: 'block',
+      noLiveRateFlatCents: null
+    })
+    expect(parsed.countries.US.enabled).toBe(true)
+    expect(parsed.countries).not.toHaveProperty('JP')
+  })
+
+  it('parses the countries table: checkbox, fee overrides (blank = global), mode', () => {
+    const result = validateShippingInput(
+      parseShippingForm(
+        form({
+          ...COMPLETE,
+          c_US_enabled: 'on',
+          c_US_mode: 'flat',
+          c_GB_enabled: 'on',
+          c_GB_decal: '7.50',
+          c_GB_mode: 'flat',
+          c_GB_flat: '25',
+          c_CA_mode: 'block'
+        })
+      )
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const c = result.data.countries
+    expect(c.US).toEqual({ enabled: true, decalFlatCents: null, noLiveRate: 'flat', noLiveRateFlatCents: null })
+    expect(c.GB).toEqual({ enabled: true, decalFlatCents: 750, noLiveRate: 'flat', noLiveRateFlatCents: 2500 })
+    // Unchecked box → closed; missing mode → block (safe side).
+    expect(c.CA.enabled).toBe(false)
+    expect(c.PR).toEqual({ enabled: false, decalFlatCents: null, noLiveRate: 'block', noLiveRateFlatCents: null })
+  })
+
+  it('rejects a non-numeric country fee and names the country', () => {
+    const result = validateShippingInput(
+      parseShippingForm(form({ ...COMPLETE, c_GB_enabled: 'on', c_GB_flat: 'abc' }))
+    )
+    expect(result.ok).toBe(false)
+    if (result.ok) return
+    expect(result.error.fields?.countries).toMatch(/^GB:/)
+  })
+
   it('rejects a non-numeric fee', () => {
     const result = validateShippingInput(parseShippingForm(form({ ...COMPLETE, decalFlatDollars: 'abc' })))
     expect(result.ok).toBe(false)

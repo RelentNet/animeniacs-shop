@@ -1,4 +1,5 @@
 import { validateCart } from '@/lib/checkout/validate-cart'
+import { getShippingSettings } from '@/lib/db/queries/shipping-settings'
 import { CheckoutAddressSchema, toShippoAddress } from '@/lib/shipping/address'
 import { isShippable } from '@/lib/shipping/countries'
 import { quoteRates } from '@/lib/shipping/quote'
@@ -7,9 +8,11 @@ import { z } from 'zod'
 
 /**
  * Live shipping rates for the on-site checkout step. The buyer's address +
- * current cart come in; we enforce the shippable-country allowlist, re-validate
+ * current cart come in; we enforce the admin-managed country list, re-validate
  * prices, then return live carrier rates (markup + decal fee folded in) for the
- * buyer to pick — OR a flat amount for decals-only carts / rating failures.
+ * buyer to pick — OR a flat amount for decals-only carts / rating failures where
+ * the destination has a flat no-live-rate fee — OR `{ kind: 'blocked' }` when it
+ * has none (the form then tells the buyer to contact us).
  *
  * Quotes only; no label is purchased here.
  */
@@ -42,14 +45,16 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const { shippingAddress } = parsed.data
-  if (!isShippable(shippingAddress.country)) {
-    return NextResponse.json(
-      { error: 'country_not_shippable', message: 'We do not ship to that country yet.' },
-      { status: 422 }
-    )
-  }
 
   try {
+    const settings = await getShippingSettings()
+    if (!isShippable(settings.countries, shippingAddress.country)) {
+      return NextResponse.json(
+        { error: 'country_not_shippable', message: 'We do not ship to that country yet.' },
+        { status: 422 }
+      )
+    }
+
     const validation = await validateCart(parsed.data.items)
     if (!validation.ok) {
       return NextResponse.json(
@@ -58,7 +63,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       )
     }
 
-    const quote = await quoteRates(toShippoAddress(shippingAddress), validation.lines)
+    const quote = await quoteRates(
+      toShippoAddress(shippingAddress),
+      validation.lines,
+      shippingAddress.country
+    )
     return NextResponse.json(quote)
   } catch (err) {
     console.error('[shipping/rates] failure:', err)
