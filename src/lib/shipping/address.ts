@@ -32,16 +32,32 @@ export function fullName(a: CheckoutAddress): string {
   return `${a.firstName} ${a.lastName}`.trim()
 }
 
+/**
+ * Carrier/payment-facing country + state. Puerto Rico is its own checkout
+ * choice (`PR`) but is a US domestic destination: Shippo's USPS rating wants
+ * country `US` with state `PR` (Shippo support: "Shipping to United States
+ * Territories"); sending country `PR` gets international or no USPS rates.
+ * Square gets the same shape so the order address matches the label.
+ */
+export function carrierCountryState(a: Pick<CheckoutAddress, 'country' | 'state'>): {
+  country: string
+  state: string
+} {
+  if (a.country === 'PR') return { country: 'US', state: 'PR' }
+  return { country: a.country, state: a.state }
+}
+
 /** Convert to the Shippo rating "address_to" shape. */
 export function toShippoAddress(a: CheckoutAddress): ShippoAddress {
+  const { country, state } = carrierCountryState(a)
   return {
     name: fullName(a),
     street1: a.line1,
     street2: a.line2 || undefined,
     city: a.city,
-    state: a.state,
+    state,
     zip: a.zip,
-    country: a.country,
+    country,
     phone: a.phone || undefined,
     email: a.email || undefined
   }
@@ -56,12 +72,13 @@ export function toSquareAddress(a: CheckoutAddress): {
   postalCode: string
   country: string
 } {
+  const { country, state } = carrierCountryState(a)
   return {
     addressLine1: a.line1,
     ...(a.line2 ? { addressLine2: a.line2 } : {}),
     locality: a.city,
-    ...(a.state ? { administrativeDistrictLevel1: a.state } : {}),
+    ...(state ? { administrativeDistrictLevel1: state } : {}),
     postalCode: a.zip,
-    country: a.country
+    country
   }
 }

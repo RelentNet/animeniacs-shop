@@ -33,4 +33,38 @@ describe('ShippingPage', () => {
     expect(getByDisplayValue('2.50')).toBeTruthy() // single-acrylic packaging fee
     expect(getByDisplayValue('4.00')).toBeTruthy() // 3-frame packaging fee
   })
+
+  it('lists every candidate country with default open/closed + no-live-rate behaviour', async () => {
+    mockGetShippingSettings.mockResolvedValueOnce(DEFAULT_SHIPPING_SETTINGS)
+    const { getByLabelText, getByTestId } = render(await ShippingPage())
+    expect(getByTestId('shipping-countries').querySelectorAll('tbody tr')).toHaveLength(31)
+    const box = (name: string) => getByLabelText(`Ship to ${name}`) as HTMLInputElement
+    expect(box('United States').checked).toBe(true)
+    expect(box('Puerto Rico').checked).toBe(true)
+    expect(box('Canada').checked).toBe(true)
+    expect(box('United Kingdom').checked).toBe(false)
+    expect(box('Germany').checked).toBe(false)
+    const mode = (name: string) =>
+      (getByLabelText(`${name} no-live-rate behaviour`) as HTMLSelectElement).value
+    expect(mode('United States')).toBe('flat')
+    expect(mode('Puerto Rico')).toBe('flat')
+    expect(mode('Canada')).toBe('block')
+    expect(mode('United Kingdom')).toBe('block')
+  })
+
+  it('shows stored per-country overrides', async () => {
+    mockGetShippingSettings.mockResolvedValueOnce({
+      ...DEFAULT_SHIPPING_SETTINGS,
+      countries: {
+        ...DEFAULT_SHIPPING_SETTINGS.countries,
+        GB: { enabled: true, decalFlatCents: 750, noLiveRate: 'flat', noLiveRateFlatCents: 2500 }
+      }
+    })
+    const { getByLabelText } = render(await ShippingPage())
+    expect((getByLabelText('Ship to United Kingdom') as HTMLInputElement).checked).toBe(true)
+    expect((getByLabelText('United Kingdom decal flat fee') as HTMLInputElement).value).toBe('7.50')
+    expect((getByLabelText('United Kingdom no-live-rate flat fee') as HTMLInputElement).value).toBe(
+      '25.00'
+    )
+  })
 })

@@ -1,44 +1,28 @@
 /**
- * Shippable-country allowlist. Enforced BEFORE a Square payment link is created
- * (the hosted checkout itself has no country restriction). Opens US, Canada, UK,
- * and the EU-27 per the operator; everything else is rejected at the rate step.
+ * Shipping destinations.
  *
- * Pure module (no I/O) so it's importable from both server routes and tests.
+ * The CANDIDATE list (US, Puerto Rico, Canada, UK, EU-27) is fixed in code; the
+ * operator decides in /admin/shipping which candidates are open and what each is
+ * charged when there is no live carrier rate. That per-country config lives in
+ * the `shipping` site_settings JSON (see ShippingSettingsSchema) and is resolved
+ * here with pure helpers so client and server code share one source of truth.
+ *
+ * Defaults (nothing stored): US, PR, CA open; every other candidate closed.
+ * US + PR fall back to the global flat fee when live rating fails; CA and every
+ * other candidate BLOCK checkout instead of charging a flat fee they were never
+ * given (DAN-490).
+ *
+ * Pure module (no I/O) so it's importable from server routes, client components
+ * and tests.
  */
 
-/** EU-27 member-state ISO 3166-1 alpha-2 codes. */
-const EU_27 = [
-  'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR',
-  'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK',
-  'SI', 'ES', 'SE'
-] as const
-
-/** Full shippable set: US + Canada + United Kingdom + EU-27. */
-export const SHIPPABLE_COUNTRIES: ReadonlySet<string> = new Set<string>([
-  'US',
-  'CA',
-  'GB',
-  ...EU_27
-])
-
-/** Normalizes a country input ("us", "Us ", "USA"→no) to a 2-letter upper code. */
-export function normalizeCountry(input: string | null | undefined): string {
-  return (input ?? '').trim().toUpperCase()
+export interface CountryOption {
+  code: string
+  name: string
 }
 
-/** True when we ship to the given country (ISO alpha-2, case-insensitive). */
-export function isShippable(country: string | null | undefined): boolean {
-  return SHIPPABLE_COUNTRIES.has(normalizeCountry(country))
-}
-
-/**
- * Labeled options for the checkout country selector. US/CA/UK first, then the
- * EU-27 alphabetically. Kept in sync with SHIPPABLE_COUNTRIES.
- */
-export const SHIPPABLE_COUNTRY_OPTIONS: ReadonlyArray<{ code: string; name: string }> = [
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'GB', name: 'United Kingdom' },
+/** EU-27 member states, alphabetical by English name. */
+const EU_27: ReadonlyArray<CountryOption> = [
   { code: 'AT', name: 'Austria' },
   { code: 'BE', name: 'Belgium' },
   { code: 'BG', name: 'Bulgaria' },
@@ -67,3 +51,115 @@ export const SHIPPABLE_COUNTRY_OPTIONS: ReadonlyArray<{ code: string; name: stri
   { code: 'ES', name: 'Spain' },
   { code: 'SE', name: 'Sweden' }
 ]
+
+/**
+ * Every country the admin can open, in dropdown order. The admin cannot add
+ * countries outside this list.
+ */
+export const CANDIDATE_COUNTRIES: ReadonlyArray<CountryOption> = [
+  { code: 'US', name: 'United States' },
+  { code: 'PR', name: 'Puerto Rico' },
+  { code: 'CA', name: 'Canada' },
+  { code: 'GB', name: 'United Kingdom' },
+  ...EU_27
+]
+
+const CANDIDATE_CODES: ReadonlySet<string> = new Set(CANDIDATE_COUNTRIES.map((c) => c.code))
+
+/** What happens when no live carrier rate is available for an address. */
+export type NoLiveRateMode = 'flat' | 'block'
+
+/** Per-country shipping config, as stored in the `shipping` settings JSON. */
+export interface CountryShippingConfig {
+  enabled: boolean
+  /** Decal flat fee in cents; null = use the global `decalFlatCents`. */
+  decalFlatCents: number | null
+  /** No live rate (Shippo error / no rates / expired rate): charge a flat fee, or block checkout. */
+  noLiveRate: NoLiveRateMode
+  /** Flat fee for `noLiveRate: 'flat'`, in cents; null = use the global `fallbackFlatCents`. */
+  noLiveRateFlatCents: number | null
+}
+
+/** Countries open out of the box, and the ones allowed a flat no-live-rate fee by default. */
+const DEFAULT_ENABLED: ReadonlySet<string> = new Set(['US', 'PR', 'CA'])
+const DEFAULT_FLAT_NO_LIVE_RATE: ReadonlySet<string> = new Set(['US', 'PR'])
+
+export function defaultCountryConfig(code: string): CountryShippingConfig {
+  return {
+    enabled: DEFAULT_ENABLED.has(code),
+    decalFlatCents: null,
+    noLiveRate: DEFAULT_FLAT_NO_LIVE_RATE.has(code) ? 'flat' : 'block',
+    noLiveRateFlatCents: null
+  }
+}
+
+export type CountryConfigMap = Record<string, CountryShippingConfig>
+
+/** Normalizes a country input ("us", "Us ") to a 2-letter upper code. */
+export function normalizeCountry(input: string | null | undefined): string {
+  return (input ?? '').trim().toUpperCase()
+}
+
+export function isCandidateCountry(country: string | null | undefined): boolean {
+  return CANDIDATE_CODES.has(normalizeCountry(country))
+}
+
+/**
+ * The effective config for one country. Non-candidates are always closed; a
+ * candidate missing from `countries` (e.g. settings saved before DAN-490) gets
+ * its default.
+ */
+export function countryConfig(
+  countries: CountryConfigMap | null | undefined,
+  country: string | null | undefined
+): CountryShippingConfig {
+  const code = normalizeCountry(country)
+  if (!CANDIDATE_CODES.has(code)) {
+    return { enabled: false, decalFlatCents: null, noLiveRate: 'block', noLiveRateFlatCents: null }
+  }
+  return countries?.[code] ?? defaultCountryConfig(code)
+}
+
+/** True when the admin has opened this country for shipping. */
+export function isShippable(
+  countries: CountryConfigMap | null | undefined,
+  country: string | null | undefined
+): boolean {
+  return countryConfig(countries, country).enabled
+}
+
+/** Dropdown options for checkout: the enabled candidates, in candidate order. */
+export function enabledCountryOptions(
+  countries: CountryConfigMap | null | undefined
+): CountryOption[] {
+  return CANDIDATE_COUNTRIES.filter((c) => countryConfig(countries, c.code).enabled)
+}
+
+export interface CountryFees {
+  /** Decal flat fee (cents) for this destination. */
+  decalFlatCents: number
+  /** Flat fee (cents) when no live rate exists, or null when checkout must be blocked. */
+  noLiveRateFlatCents: number | null
+}
+
+/**
+ * Resolve the money side of a country's config against the global fees. Only
+ * an enabled country ever gets a flat amount.
+ */
+export function resolveCountryFees(
+  settings: {
+    decalFlatCents: number
+    fallbackFlatCents: number
+    countries?: CountryConfigMap | null
+  },
+  country: string | null | undefined
+): CountryFees {
+  const cfg = countryConfig(settings.countries, country)
+  return {
+    decalFlatCents: cfg.decalFlatCents ?? settings.decalFlatCents,
+    noLiveRateFlatCents:
+      cfg.enabled && cfg.noLiveRate === 'flat'
+        ? (cfg.noLiveRateFlatCents ?? settings.fallbackFlatCents)
+        : null
+  }
+}

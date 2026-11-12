@@ -2,7 +2,7 @@
 
 import { useCart } from '@/components/cart/useCart'
 import { useCartHydration } from '@/components/cart/useCartHydration'
-import { SHIPPABLE_COUNTRY_OPTIONS } from '@/lib/shipping/countries'
+import type { CountryOption } from '@/lib/shipping/countries'
 import { useMemo, useState } from 'react'
 
 const INPUT_CLASS =
@@ -46,6 +46,7 @@ interface RateOption {
 type QuoteResponse =
   | { kind: 'rates'; options: RateOption[] }
   | { kind: 'flat'; amountCents: number; reason: 'decals_only' | 'fallback' }
+  | { kind: 'blocked'; reason: 'no_live_rate' }
 
 interface RequestItem {
   catalogItemId: string
@@ -58,10 +59,25 @@ function money(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`
 }
 
-export function CheckoutFlow(): JSX.Element {
+const NOT_SHIPPABLE_MESSAGE = 'Sorry, we don’t ship to that country.'
+
+async function errorCode(res: Response): Promise<string | null> {
+  try {
+    const json = (await res.json()) as { error?: unknown }
+    return typeof json.error === 'string' ? json.error : null
+  } catch {
+    return null
+  }
+}
+
+export function CheckoutFlow({ countries }: { countries: CountryOption[] }): JSX.Element {
   const { items } = useCart()
   const { products } = useCartHydration()
-  const [address, setAddress] = useState<AddressForm>(EMPTY_ADDRESS)
+  const [address, setAddress] = useState<AddressForm>(() => ({
+    ...EMPTY_ADDRESS,
+    // Default to US when it's open, else the first open country.
+    country: countries.some((c) => c.code === 'US') ? 'US' : (countries[0]?.code ?? '')
+  }))
   const [quote, setQuote] = useState<QuoteResponse | null>(null)
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null)
   const [loadingRates, setLoadingRates] = useState(false)
@@ -116,7 +132,7 @@ export function CheckoutFlow(): JSX.Element {
         body: JSON.stringify({ items: requestItems, shippingAddress: address })
       })
       if (res.status === 422) {
-        setError('We don’t ship to that country yet. Try US, Canada, UK, or the EU.')
+        setError(NOT_SHIPPABLE_MESSAGE)
         return
       }
       if (res.status === 409) {
@@ -166,7 +182,13 @@ export function CheckoutFlow(): JSX.Element {
         })
       })
       if (res.status === 422) {
-        setError('We don’t ship to that country yet.')
+        if ((await errorCode(res)) === 'no_live_rate') {
+          // The chosen rate expired and this destination has no flat fee.
+          setQuote({ kind: 'blocked', reason: 'no_live_rate' })
+          setSelectedRateId(null)
+        } else {
+          setError(NOT_SHIPPABLE_MESSAGE)
+        }
         return
       }
       if (res.status === 409) {
@@ -207,8 +229,16 @@ export function CheckoutFlow(): JSX.Element {
       <section className="panel p-6">
         <p className="eyebrow">Ship to</p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="First name" value={address.firstName} onChange={(v) => update('firstName', v)} />
-          <Field label="Last name" value={address.lastName} onChange={(v) => update('lastName', v)} />
+          <Field
+            label="First name"
+            value={address.firstName}
+            onChange={(v) => update('firstName', v)}
+          />
+          <Field
+            label="Last name"
+            value={address.lastName}
+            onChange={(v) => update('lastName', v)}
+          />
           <div className="sm:col-span-2">
             <Field label="Address" value={address.line1} onChange={(v) => update('line1', v)} />
           </div>
@@ -220,7 +250,11 @@ export function CheckoutFlow(): JSX.Element {
             />
           </div>
           <Field label="City" value={address.city} onChange={(v) => update('city', v)} />
-          <Field label="State / Province" value={address.state} onChange={(v) => update('state', v)} />
+          <Field
+            label="State / Province"
+            value={address.state}
+            onChange={(v) => update('state', v)}
+          />
           <Field label="ZIP / Postal code" value={address.zip} onChange={(v) => update('zip', v)} />
           <label className="block">
             <span className="field-label">Country</span>
@@ -229,14 +263,18 @@ export function CheckoutFlow(): JSX.Element {
               value={address.country}
               onChange={(e) => update('country', e.target.value)}
             >
-              {SHIPPABLE_COUNTRY_OPTIONS.map((c) => (
+              {countries.map((c) => (
                 <option key={c.code} value={c.code}>
                   {c.name}
                 </option>
               ))}
             </select>
           </label>
-          <Field label="Phone (optional)" value={address.phone} onChange={(v) => update('phone', v)} />
+          <Field
+            label="Phone (optional)"
+            value={address.phone}
+            onChange={(v) => update('phone', v)}
+          />
           <Field
             label="Email (for order updates)"
             value={address.email}
@@ -273,7 +311,10 @@ export function CheckoutFlow(): JSX.Element {
                     <span className="text-sm text-bone">
                       {o.carrier} · {o.service}
                       {o.estimatedDays ? (
-                        <span className="text-muted"> · ~{o.estimatedDays} day{o.estimatedDays === 1 ? '' : 's'}</span>
+                        <span className="text-muted">
+                          {' '}
+                          · ~{o.estimatedDays} day{o.estimatedDays === 1 ? '' : 's'}
+                        </span>
                       ) : null}
                     </span>
                   </span>
@@ -299,6 +340,20 @@ export function CheckoutFlow(): JSX.Element {
         </section>
       )}
 
+      {quote?.kind === 'blocked' && (
+        <section className="panel p-6" data-testid="shipping-blocked">
+          <p className="eyebrow">Shipping</p>
+          <p role="alert" className="alert-error mt-2">
+            We couldn’t get a shipping rate for this address, so we can’t take this order online
+            right now. Please{' '}
+            <a href="/contact-us" className="link-neon">
+              contact us
+            </a>{' '}
+            and we’ll sort out shipping with you.
+          </p>
+        </section>
+      )}
+
       {/* Summary + pay */}
       <section className="panel p-6">
         <dl className="grid gap-1 text-sm">
@@ -313,7 +368,9 @@ export function CheckoutFlow(): JSX.Element {
           {shippingCents !== null && (
             <div className="mt-1 flex justify-between border-t border-line pt-2">
               <dt className="text-bone">Total</dt>
-              <dd className="font-display text-lg text-bone">{money(subtotalCents + shippingCents)}</dd>
+              <dd className="font-display text-lg text-bone">
+                {money(subtotalCents + shippingCents)}
+              </dd>
             </div>
           )}
         </dl>

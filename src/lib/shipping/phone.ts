@@ -15,6 +15,7 @@
 /** International dialing codes for the shippable countries (see countries.ts). */
 const DIAL_CODES: Readonly<Record<string, string>> = {
   US: '1',
+  PR: '1',
   CA: '1',
   GB: '44',
   AT: '43',
@@ -54,7 +55,7 @@ const E164 = /^\+[1-9]\d{7,14}$/
  *
  * - Already international (`+1…`, `001…`, `00 44 …`) → cleaned and kept.
  * - Bare national number → prefixed with the country's dialing code. For
- *   US/CA a leading national `1` (`1 404 …`) is not doubled; for other
+ *   NANP (US/PR/CA) a leading national `1` (`1 404 …`) is not doubled; for other
  *   countries a leading trunk `0` (`07700 900123`) is dropped.
  * - Anything that doesn't end up as a valid E.164 string → `undefined`.
  */

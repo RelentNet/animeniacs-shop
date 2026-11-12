@@ -16,6 +16,10 @@ const mockPriceShipping = vi
 vi.mock('@/lib/auth/get-current-user', () => ({ getCurrentUser: mockGetCurrentUser }))
 vi.mock('@/lib/db/queries/abandoned-carts', () => ({ createPendingCart: mockCreatePendingCart }))
 vi.mock('@/lib/checkout/create-payment-link', () => ({ createPaymentLink: mockCreatePaymentLink }))
+vi.mock('@/lib/db/queries/shipping-settings', async (orig) => {
+  const actual = await orig<typeof import('@/lib/db/queries/shipping-settings')>()
+  return { ...actual, getShippingSettings: vi.fn().mockResolvedValue(actual.DEFAULT_SHIPPING_SETTINGS) }
+})
 vi.mock('@/lib/checkout/validate-cart', () => ({ validateCart: mockValidateCart }))
 vi.mock('@/lib/square/customers', () => ({ findOrCreateSquareCustomer: mockFindOrCreate }))
 vi.mock('@/lib/shipping/quote', () => ({ priceShipping: mockPriceShipping }))

@@ -1,3 +1,5 @@
+import { CANDIDATE_COUNTRIES } from '@/lib/shipping/countries'
+
 function getStr(form: FormData, key: string): string {
   const v = form.get(key)
   return typeof v === 'string' ? v.trim() : ''
@@ -12,6 +14,32 @@ function dollarsToCents(s: string): number {
 /** Packaging fees default to $0 when left blank (they're optional add-ons). */
 function packagingDollarsToCents(s: string): number {
   return dollarsToCents(s || '0')
+}
+
+/** Optional per-country fee: blank → null (use the global fee). */
+function optionalDollarsToCents(s: string): number | null {
+  return s === '' ? null : dollarsToCents(s)
+}
+
+/**
+ * Per-country rows (DAN-490). Field names per candidate code:
+ * `c_<CODE>_enabled` (checkbox), `c_<CODE>_decal` (dollars, blank = global decal
+ * fee), `c_<CODE>_mode` (`flat` | `block`), `c_<CODE>_flat` (dollars, blank =
+ * global fallback fee). An unchecked box is absent from FormData → closed.
+ */
+function parseCountries(form: FormData): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const { code } of CANDIDATE_COUNTRIES) {
+    const mode = getStr(form, `c_${code}_mode`)
+    out[code] = {
+      enabled: form.get(`c_${code}_enabled`) === 'on',
+      decalFlatCents: optionalDollarsToCents(getStr(form, `c_${code}_decal`)),
+      // Anything but an explicit "flat" blocks: the safe side for money.
+      noLiveRate: mode === 'flat' ? 'flat' : 'block',
+      noLiveRateFlatCents: optionalDollarsToCents(getStr(form, `c_${code}_flat`))
+    }
+  }
+  return out
 }
 
 /**
@@ -39,6 +67,7 @@ export function parseShippingForm(form: FormData): unknown {
       single_acrylic: packagingDollarsToCents(getStr(form, 'pkg_single_acrylic')),
       frame: packagingDollarsToCents(getStr(form, 'pkg_frame')),
       '3_frames': packagingDollarsToCents(getStr(form, 'pkg_3_frames'))
-    }
+    },
+    countries: parseCountries(form)
   }
 }

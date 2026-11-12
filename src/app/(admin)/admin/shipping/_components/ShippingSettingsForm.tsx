@@ -1,6 +1,7 @@
 'use client'
 
 import type { ShippingSettings } from '@/lib/db/queries/shipping-settings'
+import { CANDIDATE_COUNTRIES, countryConfig } from '@/lib/shipping/countries'
 import { useFormState } from 'react-dom'
 
 export interface ShippingFormError {
@@ -29,7 +30,7 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
   const fieldErr = (name: string) => err?.fields?.[name]
 
   return (
-    <form action={formAction} method="post" className="grid max-w-2xl gap-3">
+    <form action={formAction} method="post" className="grid max-w-3xl gap-3">
       {err?.message && (
         <div role="alert" className="alert alert-error">
           {err.message}
@@ -84,7 +85,7 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
       <Field
         label="Decal flat fee ($)"
         error={fieldErr('decalFlatCents')}
-        hint="Flat shipping for decals / stickers / posters (not box-rated)."
+        hint="Flat shipping for decals / stickers / posters (not box-rated). Countries can override it below."
       >
         <input
           type="text"
@@ -97,7 +98,7 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
       <Field
         label="Fallback flat fee ($)"
         error={fieldErr('fallbackFlatCents')}
-        hint="Charged when live rating fails or returns no rates."
+        hint="Charged when live rating fails or returns no rates, for countries set to Flat fee below."
       >
         <input
           type="text"
@@ -157,6 +158,87 @@ export function ShippingSettingsForm({ action, initial }: ShippingSettingsFormPr
           className={fieldClass}
         />
       </Field>
+
+      <h3 className="eyebrow mt-3 text-purple-soft">Countries</h3>
+      <small className="-mt-2 text-muted">
+        Which countries checkout offers, and what each pays when there is no live carrier rate
+        (Shippo error, no rates, or an expired rate). <strong>Block</strong> stops checkout and asks
+        the buyer to contact us. Leave a fee blank to use the global decal / fallback fee above.
+      </small>
+      {fieldErr('countries') && (
+        <span role="alert" className="text-sm text-red-400">
+          {fieldErr('countries')}
+        </span>
+      )}
+      <div className="overflow-x-auto rounded-md border border-line">
+        <table className="w-full text-left text-sm" data-testid="shipping-countries">
+          <thead className="bg-ink-2 text-muted">
+            <tr>
+              <th className="px-3 py-2 font-medium">Country</th>
+              <th className="px-3 py-2 font-medium">Open</th>
+              <th className="px-3 py-2 font-medium">Decal flat fee ($)</th>
+              <th className="px-3 py-2 font-medium">No live rate</th>
+              <th className="px-3 py-2 font-medium">Flat fee ($)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {CANDIDATE_COUNTRIES.map(({ code, name }) => {
+              const c = countryConfig(v.countries, code)
+              return (
+                <tr key={code} className="border-t border-line">
+                  <td className="px-3 py-2 text-bone">
+                    {name} <span className="text-muted">({code})</span>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      name={`c_${code}_enabled`}
+                      defaultChecked={c.enabled}
+                      aria-label={`Ship to ${name}`}
+                      className="h-4 w-4 accent-[var(--color-neon)]"
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      name={`c_${code}_decal`}
+                      defaultValue={c.decalFlatCents === null ? '' : dollars(c.decalFlatCents)}
+                      placeholder={dollars(v.decalFlatCents)}
+                      aria-label={`${name} decal flat fee`}
+                      className={`${fieldClass} w-24`}
+                    />
+                  </td>
+                  <td className="px-3 py-2">
+                    <select
+                      name={`c_${code}_mode`}
+                      defaultValue={c.noLiveRate}
+                      aria-label={`${name} no-live-rate behaviour`}
+                      className={fieldClass}
+                    >
+                      <option value="block">Block</option>
+                      <option value="flat">Flat fee</option>
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      name={`c_${code}_flat`}
+                      defaultValue={
+                        c.noLiveRateFlatCents === null ? '' : dollars(c.noLiveRateFlatCents)
+                      }
+                      placeholder={dollars(v.fallbackFlatCents)}
+                      aria-label={`${name} no-live-rate flat fee`}
+                      className={`${fieldClass} w-24`}
+                    />
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <button type="submit" className="btn-neon justify-self-start">
         Save

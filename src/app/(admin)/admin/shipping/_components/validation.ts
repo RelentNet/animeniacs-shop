@@ -10,7 +10,12 @@ function fieldErrors(
     // their top-level group key so the form highlights the right section.
     const key = String(issue.path[0] ?? '')
     if (!key) continue
-    fieldErrs[key] = fieldErrs[key] ? `${fieldErrs[key]}; ${issue.message}` : issue.message
+    // Country rows share one section; name the country so the admin can find it.
+    const message =
+      key === 'countries' && issue.path[1] !== undefined
+        ? `${String(issue.path[1])}: ${issue.message}`
+        : issue.message
+    fieldErrs[key] = fieldErrs[key] ? `${fieldErrs[key]}; ${message}` : message
   }
   return fieldErrs
 }
